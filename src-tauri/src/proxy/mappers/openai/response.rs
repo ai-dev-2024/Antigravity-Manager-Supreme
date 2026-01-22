@@ -1,28 +1,28 @@
-// OpenAI 协议响应转换模块
+// OpenAI ProtocolResponseConvertModule
 use super::models::*;
 use serde_json::Value;
 
 pub fn transform_openai_response(gemini_response: &Value) -> OpenAIResponse {
-    // 解包 response 字段
+    // 解Packet response Field
     let raw = gemini_response.get("response").unwrap_or(gemini_response);
 
     let mut choices = Vec::new();
 
-    // 支持多候选结果 (n > 1)
+    // Supportmultiple candidatesResult (n > 1)
     if let Some(candidates) = raw.get("candidates").and_then(|c| c.as_array()) {
         for (idx, candidate) in candidates.iter().enumerate() {
             let mut content_out = String::new();
             let mut thought_out = String::new();
             let mut tool_calls = Vec::new();
 
-            // 提取 content 和 tool_calls
+            // extract content 和 tool_calls
             if let Some(parts) = candidate
                 .get("content")
                 .and_then(|c| c.get("parts"))
                 .and_then(|p| p.as_array())
             {
                 for part in parts {
-                    // 捕获 thoughtSignature (Gemini 3 工具调用必需)
+                    // capture thoughtSignature (Gemini 3 ToolcallRequired)
                     if let Some(sig) = part
                         .get("thoughtSignature")
                         .or(part.get("thought_signature"))
@@ -31,24 +31,24 @@ pub fn transform_openai_response(gemini_response: &Value) -> OpenAIResponse {
                         super::streaming::store_thought_signature(sig);
                     }
 
-                    // 检查该 part 是否是思考内容 (thought: true)
+                    // Check该 part YesNoYesThinkingContent (thought: true)
                     let is_thought_part = part
                         .get("thought")
                         .and_then(|v| v.as_bool())
                         .unwrap_or(false);
 
-                    // 文本部分
+                    // text part
                     if let Some(text) = part.get("text").and_then(|t| t.as_str()) {
                         if is_thought_part {
-                            // thought: true 时，text 是思考内容
+                            // thought: true 时，text YesThinkingContent
                             thought_out.push_str(text);
                         } else {
-                            // 正常内容
+                            // normalContent
                             content_out.push_str(text);
                         }
                     }
 
-                    // 工具调用部分
+                    // Toolcall part
                     if let Some(fc) = part.get("functionCall") {
                         let name = fc.get("name").and_then(|v| v.as_str()).unwrap_or("unknown");
                         let args = fc
@@ -71,7 +71,7 @@ pub fn transform_openai_response(gemini_response: &Value) -> OpenAIResponse {
                         });
                     }
 
-                    // 图片处理 (响应中直接返回图片的情况)
+                    // ImageHandle (Responsemedium directReturnImagesituation)
                     if let Some(img) = part.get("inlineData") {
                         let mime_type = img
                             .get("mimeType")
@@ -86,21 +86,21 @@ pub fn transform_openai_response(gemini_response: &Value) -> OpenAIResponse {
                 }
             }
 
-            // 提取并处理该候选结果的联网搜索引文 (Grounding Metadata)
+            // Extract andHandleThe candidateResultof networkingSearchcitation (Grounding Metadata)
             if let Some(grounding) = candidate.get("groundingMetadata") {
                 let mut grounding_text = String::new();
 
-                // 1. 处理搜索词
+                // 1. HandleSearch词
                 if let Some(queries) = grounding.get("webSearchQueries").and_then(|q| q.as_array())
                 {
                     let query_list: Vec<&str> = queries.iter().filter_map(|v| v.as_str()).collect();
                     if !query_list.is_empty() {
-                        grounding_text.push_str("\n\n---\n**🔍 已为您搜索：** ");
+                        grounding_text.push_str("\n\n---\n**🔍 Already for youSearch：** ");
                         grounding_text.push_str(&query_list.join(", "));
                     }
                 }
 
-                // 2. 处理来源链接 (Chunks)
+                // 2. Handle来SourceLink (Chunks)
                 if let Some(chunks) = grounding.get("groundingChunks").and_then(|c| c.as_array()) {
                     let mut links = Vec::new();
                     for (i, chunk) in chunks.iter().enumerate() {
@@ -108,14 +108,14 @@ pub fn transform_openai_response(gemini_response: &Value) -> OpenAIResponse {
                             let title = web
                                 .get("title")
                                 .and_then(|v| v.as_str())
-                                .unwrap_or("网页来源");
+                                .unwrap_or("The web page comesSource");
                             let uri = web.get("uri").and_then(|v| v.as_str()).unwrap_or("#");
                             links.push(format!("[{}] [{}]({})", i + 1, title, uri));
                         }
                     }
 
                     if !links.is_empty() {
-                        grounding_text.push_str("\n\n**🌐 来源引文：**\n");
+                        grounding_text.push_str("\n\n**🌐 来Sourcecitation：**\n");
                         grounding_text.push_str(&links.join("\n"));
                     }
                 }
@@ -125,7 +125,7 @@ pub fn transform_openai_response(gemini_response: &Value) -> OpenAIResponse {
                 }
             }
 
-            // 提取该候选结果的 finish_reason
+            // Extract the candidateResult的 finish_reason
             let finish_reason = candidate
                 .get("finishReason")
                 .and_then(|f| f.as_str())

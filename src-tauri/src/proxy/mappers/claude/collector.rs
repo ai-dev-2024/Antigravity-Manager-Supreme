@@ -1,5 +1,5 @@
-// Stream 收集器 - 将 SSE 流转换为完整的 JSON 响应
-// 用于非 Stream 请求的自动转换
+// Stream Collector - 将 SSE StreamConvertfor complete JSON Response
+// Used for non Stream Requestof automaticConvert
 
 use super::models::*;
 use bytes::Bytes;
@@ -7,14 +7,14 @@ use futures::StreamExt;
 use serde_json::{json, Value};
 use std::io;
 
-/// SSE 事件类型
+/// SSE EventType
 #[derive(Debug, Clone)]
 struct SseEvent {
     event_type: String,
     data: Value,
 }
 
-/// 解析 SSE 行
+/// Parse SSE Line
 fn parse_sse_line(line: &str) -> Option<(String, String)> {
     if let Some(colon_pos) = line.find(':') {
         let key = &line[..colon_pos];
@@ -25,10 +25,10 @@ fn parse_sse_line(line: &str) -> Option<(String, String)> {
     }
 }
 
-/// 将 SSE Stream 收集为完整的 Claude Response
+/// 将 SSE Stream collected as complete Claude Response
 ///
-/// 此函数接收一个 SSE 字节流，解析所有事件，并重建完整的 ClaudeResponse 对象。
-/// 这使得非 Stream 客户端可以透明地享受 Stream 模式的配额优势。
+/// 此FunctionReceiveone SSE 字Throttle，ParseAllEvent，and rebuild the complete ClaudeResponse Object。
+/// This makes non Stream ClientCanenjoy transparently Stream Mode的QuotaAdvantages。
 pub async fn collect_stream_to_json<S>(
     mut stream: S,
 ) -> Result<ClaudeResponse, String>
@@ -39,14 +39,14 @@ where
     let mut current_event_type = String::new();
     let mut current_data = String::new();
 
-    // 1. 收集所有 SSE 事件
+    // 1. collectAll SSE Event
     while let Some(chunk_result) = stream.next().await {
         let chunk = chunk_result.map_err(|e| format!("Stream error: {}", e))?;
         let text = String::from_utf8_lossy(&chunk);
 
         for line in text.lines() {
             if line.is_empty() {
-                // 空行表示事件结束
+                // EmptyLineexpressEventEnd
                 if !current_data.is_empty() {
                     if let Ok(data) = serde_json::from_str::<Value>(&current_data) {
                         events.push(SseEvent {
@@ -67,7 +67,7 @@ where
         }
     }
 
-    // 2. 重建 ClaudeResponse
+    // 2. reconstruction ClaudeResponse
     let mut response = ClaudeResponse {
         id: "msg_unknown".to_string(),
         type_: "message".to_string(),
@@ -85,7 +85,7 @@ where
         },
     };
 
-    // 用于累积内容块
+    // for accumulationContentBlock
     let mut current_text = String::new();
     let mut current_thinking = String::new();
     let mut current_signature: Option<String> = None;
@@ -95,7 +95,7 @@ where
     for event in events {
         match event.event_type.as_str() {
             "message_start" => {
-                // 提取基本信息
+                // extractBasicInfo
                 if let Some(message) = event.data.get("message") {
                     if let Some(id) = message.get("id").and_then(|v| v.as_str()) {
                         response.id = id.to_string();
@@ -163,7 +163,7 @@ where
             }
 
             "content_block_stop" => {
-                // 完成当前块
+                // CompleteCurrentBlock
                 if !current_text.is_empty() {
                     response.content.push(ContentBlock::Text {
                         text: current_text.clone(),
@@ -177,7 +177,7 @@ where
                     });
                     current_thinking.clear();
                 } else if let Some(tool_use) = current_tool_use.take() {
-                    // 构建 tool_use 块
+                    // build tool_use Block
                     let id = tool_use.get("id").and_then(|v| v.as_str()).unwrap_or("unknown").to_string();
                     let name = tool_use.get("name").and_then(|v| v.as_str()).unwrap_or("unknown").to_string();
                     let input = if !current_tool_input.is_empty() {
@@ -211,17 +211,17 @@ where
             }
 
             "message_stop" => {
-                // Stream 结束
+                // Stream End
                 break;
             }
 
             "error" => {
-                // 错误事件
+                // ErrorEvent
                 return Err(format!("Stream error: {:?}", event.data));
             }
 
             _ => {
-                // 忽略未知事件类型
+                // ignore unknownEventType
             }
         }
     }
@@ -236,7 +236,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_collect_simple_text_response() {
-        // 模拟一个简单的文本响应 SSE 流
+        // Simulate aSimplethe text ofResponse SSE Stream
         let sse_data = vec![
             "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_123\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-3-5-sonnet\",\"content\":[],\"stop_reason\":null,\"usage\":{\"input_tokens\":10,\"output_tokens\":0}}}\n\n",
             "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n",
@@ -268,10 +268,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_collect_thinking_response_with_signature() {
-        // 模拟一个包含 Thinking Block 和签名的 SSE 流
+        // Simulate aPacket含 Thinking Block 和Sign的 SSE Stream
         let sse_data = vec![
             "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_think\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-3-7-sonnet\",\"content\":[],\"stop_reason\":null,\"usage\":{\"input_tokens\":10,\"output_tokens\":0}}}\n\n",
-            // content_block_start 中包含 signature
+            // content_block_start 中Packet含 signature
             "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"thinking\",\"thinking\":\"\", \"signature\": \"sig_123456\"}}\n\n",
             "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\"I am \"}}\n\n",
             "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\"thinking\"}}\n\n",
@@ -291,7 +291,7 @@ mod tests {
         
         if let ContentBlock::Thinking { thinking, signature, .. } = &response.content[0] {
             assert_eq!(thinking, "I am thinking");
-            // 验证签名是否被正确提取
+            // ValidateSignYesNowas extracted correctly
             assert_eq!(signature.as_deref(), Some("sig_123456"));
         } else {
             panic!("Expected Thinking block");

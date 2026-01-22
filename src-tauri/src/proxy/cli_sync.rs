@@ -91,16 +91,16 @@ pub struct CliStatus {
     pub is_synced: bool,
     pub has_backup: bool,
     pub current_base_url: Option<String>,
-    pub files: Vec<String>, // 返回关联的文件名列表供前端展示
+    pub files: Vec<String>, // ReturnassociatedFile nameListFor front-end display
 }
 
-/// 检测 CLI 是否安装并获取版本
+/// Detection CLI YesNoInstall andGetVersion
 pub fn check_cli_installed(app: &CliApp) -> (bool, Option<String>) {
     let cmd = app.as_str();
-    // 默认使用命令名，如果 fallback 找到路径则更新为绝对路径
+    // DefaultUsingcommand name，If fallback turn upPath则Updatefor absolutePath
     let mut executable_path = PathBuf::from(cmd);
     
-    // 1. 优先使用 which/where 检测 (遵循 PATH)
+    // 1. priorityUsing which/where Detection (follow PATH)
     let which_output = if cfg!(target_os = "windows") {
         let mut c = Command::new("where");
         c.arg(cmd);
@@ -116,8 +116,8 @@ pub fn check_cli_installed(app: &CliApp) -> (bool, Option<String>) {
         Err(_) => false,
     };
 
-    // [FIX #765] macOS 增强检测: 如果 which 失败,显式搜索常用二进制路径
-    // 解决 Tauri 进程 PATH 可能不完整导致检测不到已安装 CLI 的问题
+    // [FIX #765] macOS Enhanced detection: If which Failed,explicitSearchCommonly used binaryPath
+    // solve Tauri Process PATH MayIncomplete, resulting in undetectable installation CLI question
     if !installed && !cfg!(target_os = "windows") {
         let home = dirs::home_dir().unwrap_or_default();
         let mut common_paths = vec![
@@ -129,7 +129,7 @@ pub fn check_cli_installed(app: &CliApp) -> (bool, Option<String>) {
             PathBuf::from("/usr/bin"),
         ];
 
-        // 增强：扫描 nvm 目录下的所有 node 版本
+        // Enhance：scanning nvm DirectorydownAll node Version
         let nvm_base = home.join(".nvm/versions/node");
         if nvm_base.exists() {
             if let Ok(entries) = std::fs::read_dir(&nvm_base) {
@@ -157,7 +157,7 @@ pub fn check_cli_installed(app: &CliApp) -> (bool, Option<String>) {
         return (false, None);
     }
 
-    // 2. 获取版本
+    // 2. GetVersion
     let mut ver_cmd = Command::new(&executable_path);
     ver_cmd.arg("--version");
     #[cfg(target_os = "windows")]
@@ -167,9 +167,9 @@ pub fn check_cli_installed(app: &CliApp) -> (bool, Option<String>) {
     let version = match version_output {
         Ok(out) if out.status.success() => {
             let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            // 优化：提取最末尾的数字版本号
-            // 例如 "claude/2.1.2 (Claude Code)" -> "2.1.2"
-            // 例如 "codex-cli 0.86.0" -> "0.86.0"
+            // Optimization：Extract the last numberVersion号
+            // For example "claude/2.1.2 (Claude Code)" -> "2.1.2"
+            // For example "codex-cli 0.86.0" -> "0.86.0"
             let cleaned = s.split(|c: char| !c.is_numeric() && c != '.')
                 .filter(|part| !part.is_empty())
                 .last()
@@ -184,7 +184,7 @@ pub fn check_cli_installed(app: &CliApp) -> (bool, Option<String>) {
     (true, version)
 }
 
-/// 读取当前配置并检测同步状态
+/// ReadCurrentConfigand detectSyncStatus
 pub fn get_sync_status(app: &CliApp, proxy_url: &str) -> (bool, bool, Option<String>) {
     let files = app.config_files();
     if files.is_empty() {
@@ -196,17 +196,17 @@ pub fn get_sync_status(app: &CliApp, proxy_url: &str) -> (bool, bool, Option<Str
     let mut current_base_url = None;
 
     for file in &files {
-        // 使用更简单的命名规则: original_name + .antigravity.bak
+        // Using更SimpleNaming rules: original_name + .antigravity.bak
         let backup_path = file.path.with_file_name(format!("{}.antigravity.bak", file.name));
         
         if backup_path.exists() {
             has_backup = true;
         }
 
-        // 如果物理文件不存在
-        // 如果物理文件不存在
+        // IfphysicsFileDoes not exist
+        // IfphysicsFileDoes not exist
         if !file.path.exists() {
-            // Gemini 的 settings.json/config.json 只要有一个存在即可，或者都不存在（视为未同步）
+            // Gemini 的 settings.json/config.json As long as one exists，Or都Does not exist（regarded as not yetSync）
             if app == &CliApp::Gemini && (file.name == "settings.json" || file.name == "config.json") {
                 continue; 
             }
@@ -244,7 +244,7 @@ pub fn get_sync_status(app: &CliApp, proxy_url: &str) -> (bool, bool, Option<Str
             }
             CliApp::Codex => {
                 if file.name == "config.toml" {
-                    // 正则匹配 base_url
+                    // Regular match base_url
                     let re = regex::Regex::new(r#"(?m)^\s*base_url\s*=\s*['"]([^'"]+)['"]"#).unwrap();
                     if let Some(caps) = re.captures(&content) {
                         let url = &caps[1];
@@ -277,12 +277,12 @@ pub fn get_sync_status(app: &CliApp, proxy_url: &str) -> (bool, bool, Option<Str
     (all_synced, has_backup, current_base_url)
 }
 
-/// 执行同步逻辑
+/// ExecuteSynclogic
 pub fn sync_config(app: &CliApp, proxy_url: &str, api_key: &str) -> Result<(), String> {
     let files = app.config_files();
     
     for file in &files {
-        // Gemini 兼容性逻辑：优先使用 settings.json
+        // Gemini Compatiblesexual logic：priorityUsing settings.json
         if app == &CliApp::Gemini && file.name == "config.json" && !file.path.exists() {
             let settings_path = file.path.with_file_name("settings.json");
             if settings_path.exists() {
@@ -291,11 +291,11 @@ pub fn sync_config(app: &CliApp, proxy_url: &str, api_key: &str) -> Result<(), S
         }
 
         if let Some(parent) = file.path.parent() {
-            fs::create_dir_all(parent).map_err(|e| format!("无法创建目录: {}", e))?;
+            fs::create_dir_all(parent).map_err(|e| format!("Unable to createDirectory: {}", e))?;
         }
 
-        // [New Feature] 自动备份：如果文件存在且没有备份，创建 .antigravity.bak 备份
-        // 这样可以保留用户最初的配置，后续多次同步不会覆盖这个备份
+        // [New Feature] Automatic backup：IfFileexist andNonebackup，Create .antigravity.bak backup
+        // soCanreserveUserinitialConfig，Follow up multiple timesSyncThis backup will not be overwritten
         if file.path.exists() {
             let backup_path = file.path.with_file_name(format!("{}.antigravity.bak", file.name));
             if !backup_path.exists() {
@@ -337,7 +337,7 @@ pub fn sync_config(app: &CliApp, proxy_url: &str, api_key: &str) -> Result<(), S
                     let mut json: Value = serde_json::from_str(&content).unwrap_or_else(|_| serde_json::json!({}));
                     if let Some(obj) = json.as_object_mut() {
                         obj.insert("OPENAI_API_KEY".to_string(), Value::String(api_key.to_string()));
-                        // Codex 的 auth.json 似乎也支持 OPENAI_BASE_URL，但 ccs 没写，我们也同步写一下
+                        // Codex 的 auth.json It seemsSupport OPENAI_BASE_URL，但 ccs Didn't write，We alsoSyncwrite about it
                         obj.insert("OPENAI_BASE_URL".to_string(), Value::String(proxy_url.to_string()));
                     }
                     content = serde_json::to_string_pretty(&json).unwrap();
@@ -345,7 +345,7 @@ pub fn sync_config(app: &CliApp, proxy_url: &str, api_key: &str) -> Result<(), S
                     use toml_edit::{DocumentMut, value};
                     let mut doc = content.parse::<DocumentMut>().unwrap_or_else(|_| DocumentMut::new());
                     
-                    // 设置层级 [model_providers.custom]
+                    // SetHierarchy [model_providers.custom]
                     let providers = doc.entry("model_providers").or_insert(toml_edit::Item::Table(toml_edit::Table::new()));
                     if let Some(p_table) = providers.as_table_mut() {
                         let custom = p_table.entry("custom").or_insert(toml_edit::Item::Table(toml_edit::Table::new()));
@@ -390,10 +390,10 @@ pub fn sync_config(app: &CliApp, proxy_url: &str, api_key: &str) -> Result<(), S
             }
         }
 
-        // 使用临时文件原子写入
+        // UsingTemporaryFileAtomicWrite
         let tmp_path = file.path.with_extension("tmp");
-        fs::write(&tmp_path, &content).map_err(|e| format!("写入临时文件失败: {}", e))?;
-        fs::rename(&tmp_path, &file.path).map_err(|e| format!("重命名配置文件失败: {}", e))?;
+        fs::write(&tmp_path, &content).map_err(|e| format!("WriteTemporaryFileFailed: {}", e))?;
+        fs::rename(&tmp_path, &file.path).map_err(|e| format!("RenameConfigFileFailed: {}", e))?;
     }
 
     Ok(())
@@ -430,26 +430,26 @@ pub async fn execute_cli_restore(app_type: CliApp) -> Result<(), String> {
     let files = app_type.config_files();
     let mut restored_count = 0;
 
-    // 尝试从备份恢复
+    // TryingRestore from backup
     for file in &files {
         let backup_path = file.path.with_file_name(format!("{}.antigravity.bak", file.name));
         if backup_path.exists() {
-            // 还原：覆盖原文件
+            // reduction：overwrite originalFile
             if let Err(e) = fs::rename(&backup_path, &file.path) {
-                return Err(format!("恢复备份失败 {}: {}", file.name, e));
+                return Err(format!("Restore backupFailed {}: {}", file.name, e));
             }
             restored_count += 1;
         }
     }
 
     if restored_count > 0 {
-        // 如果成功恢复了至少一个备份，就认为是恢复成功
+        // IfSuccessRestored at least one backup，Just thinkYesrecoverSuccess
         return Ok(());
     }
 
-    // 如果没有备份，则执行原来的逻辑：恢复为默认配置
+    // IfNonebackup，则Executeoriginal logic：Revert toDefaultConfig
     let default_url = app_type.default_url();
-    // 恢复默认时清空 API Key，让用户重新授权或使用官方 Key
+    // recoverDefault时Empty API Key，让UseragainAuthorize或Usingofficial Key
     sync_config(&app_type, default_url, "")
 }
 
@@ -457,13 +457,13 @@ pub async fn execute_cli_restore(app_type: CliApp) -> Result<(), String> {
 pub async fn get_cli_config_content(app_type: CliApp, file_name: Option<String>) -> Result<String, String> {
     let files = app_type.config_files();
     let file = if let Some(name) = file_name {
-        files.into_iter().find(|f| f.name == name).ok_or("找不到指定的文件".to_string())?
+        files.into_iter().find(|f| f.name == name).ok_or("Not founddesignatedFile".to_string())?
     } else {
-        files.into_iter().next().ok_or("找不到配置文件".to_string())?
+        files.into_iter().next().ok_or("Not foundConfigFile".to_string())?
     };
 
     if !file.path.exists() {
-        return Err("配置文件不存在".to_string());
+        return Err("ConfigFileDoes not exist".to_string());
     }
-    fs::read_to_string(&file.path).map_err(|e| format!("读取配置文件失败: {}", e))
+    fs::read_to_string(&file.path).map_err(|e| format!("ReadConfigFileFailed: {}", e))
 }

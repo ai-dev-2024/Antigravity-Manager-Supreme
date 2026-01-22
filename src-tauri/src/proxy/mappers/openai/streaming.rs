@@ -1,4 +1,4 @@
-// OpenAI 流式转换
+// OpenAI Stream式Convert
 use bytes::{Bytes, BytesMut};
 use chrono::Utc;
 use futures::{Stream, StreamExt};
@@ -9,33 +9,33 @@ use std::sync::{Mutex, OnceLock};
 use tracing::debug;
 use uuid::Uuid;
 
-// === 全局 ThoughtSignature 存储 ===
-// 用于在流式响应和后续请求之间传递签名，避免嵌入到用户可见的文本中
+// === Global ThoughtSignature storage ===
+// used inStreaming responseand follow-upRequestpassed betweenSign，avoid embedding inUserVisiblein the text of
 static GLOBAL_THOUGHT_SIG: OnceLock<Mutex<Option<String>>> = OnceLock::new();
 
 fn get_thought_sig_storage() -> &'static Mutex<Option<String>> {
     GLOBAL_THOUGHT_SIG.get_or_init(|| Mutex::new(None))
 }
 
-/// 保存 thoughtSignature 到全局存储
-/// 注意：只在新签名比现有签名更长时才存储，避免短签名覆盖有效签名
+/// Save thoughtSignature 到Globalstorage
+/// Notice：Only in newSignthan existingSignStore only when longer，avoid shortSigncoverValidSign
 pub fn store_thought_signature(sig: &str) {
     if let Ok(mut guard) = get_thought_sig_storage().lock() {
         let should_store = match &*guard {
-            None => true,                                 // 没有签名，直接存储
-            Some(existing) => sig.len() > existing.len(), // 只有新签名更长才存储
+            None => true,                                 // NoneSign，direct storage
+            Some(existing) => sig.len() > existing.len(), // Only新SignStore longer
         };
 
         if should_store {
             tracing::debug!(
-                "[ThoughtSig] 存储新签名 (长度: {}，替换旧长度: {:?})",
+                "[ThoughtSig] store newSign (Length: {}，replace oldLength: {:?})",
                 sig.len(),
                 guard.as_ref().map(|s| s.len())
             );
             *guard = Some(sig.to_string());
         } else {
             tracing::debug!(
-                "[ThoughtSig] 跳过短签名 (新长度: {}，现有长度: {})",
+                "[ThoughtSig] skip shortSign (新Length: {}，existingLength: {})",
                 sig.len(),
                 guard.as_ref().map(|s| s.len()).unwrap_or(0)
             );
@@ -43,7 +43,7 @@ pub fn store_thought_signature(sig: &str) {
     }
 }
 
-/// 获取全局存储的 thoughtSignature（不清除）
+/// GetGlobalstored thoughtSignature（不Clear）
 #[allow(dead_code)]
 pub fn get_thought_signature() -> Option<String> {
     if let Ok(guard) = get_thought_sig_storage().lock() {
@@ -91,22 +91,22 @@ pub fn create_openai_sse_stream(
 ) -> Pin<Box<dyn Stream<Item = Result<Bytes, String>> + Send>> {
     let mut buffer = BytesMut::new();
 
-    // 在流开始时生成固定的 ID 和 timestamp，所有 chunk 共用
+    // 在StreamBegingenerated when a fixed ID 和 timestamp，All chunk share
     let stream_id = format!("chatcmpl-{}", Uuid::new_v4());
     let created_ts = Utc::now().timestamp();
 
     let stream = async_stream::stream! {
         let mut emitted_tool_calls = std::collections::HashSet::new();
         let mut final_usage: Option<super::models::OpenAIUsage> = None;
-        let mut error_occurred = false;  // [FIX] 标志位,避免双重 [DONE]
+        let mut error_occurred = false;  // [FIX] Flag bit,avoid double [DONE]
 
-        // [P2 FIX] 添加心跳定时器
+        // [P2 FIX] AddHeartbeattimer
         let mut heartbeat_interval = tokio::time::interval(std::time::Duration::from_secs(15));
         heartbeat_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
         loop {
             tokio::select! {
-                // 处理上游数据
+                // HandleupstreamData
                 item = gemini_stream.next() => {
                     match item {
                         Some(Ok(bytes)) => {
@@ -164,7 +164,7 @@ pub fn create_openai_sse_stream(
                                                             content_out.push_str(text);
                                                         }
                                                     }
-                                                    // 捕获 thoughtSignature (Gemini 3 工具调用必需)
+                                                    // capture thoughtSignature (Gemini 3 ToolcallRequired)
                                                     if let Some(sig) = part.get("thoughtSignature").or(part.get("thought_signature")).and_then(|s| s.as_str()) {
                                                         store_thought_signature(sig);
                                                     }
@@ -224,31 +224,31 @@ pub fn create_openai_sse_stream(
                                             }
 
 
-                                            // 处理联网搜索引文 (Grounding Metadata) - 流式
+                                            // HandlenetworkingSearchcitation (Grounding Metadata) - Stream式
                                             if let Some(grounding) = candidate.get("groundingMetadata") {
                                                 let mut grounding_text = String::new();
 
-                                                // 1. 处理搜索词
+                                                // 1. HandleSearch词
                                                 if let Some(queries) = grounding.get("webSearchQueries").and_then(|q| q.as_array()) {
                                                     let query_list: Vec<&str> = queries.iter().filter_map(|v| v.as_str()).collect();
                                                     if !query_list.is_empty() {
-                                                        grounding_text.push_str("\n\n---\n**🔍 已为您搜索：** ");
+                                                        grounding_text.push_str("\n\n---\n**🔍 Already for youSearch：** ");
                                                         grounding_text.push_str(&query_list.join(", "));
                                                     }
                                                 }
 
-                                                // 2. 处理来源链接 (Chunks)
+                                                // 2. Handle来SourceLink (Chunks)
                                                 if let Some(chunks) = grounding.get("groundingChunks").and_then(|c| c.as_array()) {
                                                     let mut links = Vec::new();
                                                     for (i, chunk) in chunks.iter().enumerate() {
                                                         if let Some(web) = chunk.get("web") {
-                                                            let title = web.get("title").and_then(|v| v.as_str()).unwrap_or("网页来源");
+                                                            let title = web.get("title").and_then(|v| v.as_str()).unwrap_or("The web page comesSource");
                                                             let uri = web.get("uri").and_then(|v| v.as_str()).unwrap_or("#");
                                                             links.push(format!("[{}] [{}]({})", i + 1, title, uri));
                                                         }
                                                     }
                                                     if !links.is_empty() {
-                                                        grounding_text.push_str("\n\n**🌐 来源引文：**\n");
+                                                        grounding_text.push_str("\n\n**🌐 来Sourcecitation：**\n");
                                                         grounding_text.push_str(&links.join("\n"));
                                                     }
                                                 }
@@ -258,7 +258,7 @@ pub fn create_openai_sse_stream(
                                                 }
                                             }
 
-                                            // 只有当 content 和 thought 都为空时才跳过
+                                            // OnlyWhen content 和 thought all forEmptyskip when
                                             if content_out.is_empty() && thought_out.is_empty() {
                                                 // Skip empty chunks if no text/grounding/thought was found
                                                 if candidate.get("finishReason").is_none() {
@@ -278,7 +278,7 @@ pub fn create_openai_sse_stream(
                                                 });
 
                                             // Construct OpenAI SSE chunk
-                                            // 如果有思考内容，先发送 reasoning_content chunk
+                                            // If有ThinkingContent，先Send reasoning_content chunk
                                             if !thought_out.is_empty() {
                                                 let reasoning_chunk = json!({
                                                     "id": &stream_id,
@@ -301,7 +301,7 @@ pub fn create_openai_sse_stream(
                                                 yield Ok::<Bytes, String>(Bytes::from(sse_out));
                                             }
 
-                                            // 发送正常 content chunk
+                                            // Sendnormal content chunk
                                             if !content_out.is_empty() || finish_reason.is_some() {
                                                 let mut openai_chunk = json!({
                                                     "id": &stream_id,
@@ -319,12 +319,12 @@ pub fn create_openai_sse_stream(
                                                     ]
                                                 });
 
-                                                // [FIX] 将 usage 嵌入到 chunk 中
+                                                // [FIX] 将 usage embedded in chunk 中
                                                 if let Some(ref usage) = final_usage {
                                                     openai_chunk["usage"] = serde_json::to_value(usage).unwrap();
                                                 }
 
-                                                // [FIX] 如果是最后一个 chunk,标记 usage 已发送
+                                                // [FIX] IfYesFinallyone chunk,mark usage 已Send
                                                 if finish_reason.is_some() {
                                                     final_usage = None;
                                                 }
@@ -351,7 +351,7 @@ pub fn create_openai_sse_stream(
                                 "OpenAI stream error occurred"
                             );
 
-                            // 发送友好的 SSE 错误事件(包含 i18n_key 供前端翻译)
+                            // Sendfriendly SSE ErrorEvent(Packet含 i18n_key For front-end translation)
                             let error_chunk = json!({
                                 "id": &stream_id,
                                 "object": "chat.completion.chunk",
@@ -369,26 +369,26 @@ pub fn create_openai_sse_stream(
                             let sse_out = format!("data: {}\n\n", serde_json::to_string(&error_chunk).unwrap_or_default());
                             yield Ok(Bytes::from(sse_out));
                             yield Ok(Bytes::from("data: [DONE]\n\n"));
-                            error_occurred = true;  // [FIX] 标记错误已发生
+                            error_occurred = true;  // [FIX] markErrorhas happened
                             break;
                         }
                         None => {
-                            // 流结束
+                            // StreamEnd
                             break;
                         }
                     }
                 }
 
-                // [P2 FIX] 发送心跳
+                // [P2 FIX] SendHeartbeat
                 _ = heartbeat_interval.tick() => {
-                    // 发送 SSE 注释作为心跳
+                    // Send SSE CommentasHeartbeat
                     yield Ok::<Bytes, String>(Bytes::from(": ping\n\n"));
                 }
             }
         }
 
-        // [FIX] 只有在没有错误时才发送 [DONE]
-        // usage 已经嵌入到 finish_reason chunk,不需要单独发送
+        // [FIX] Only在NoneErrorOnly thenSend [DONE]
+        // usage Alreadyembedded in finish_reason chunk,不NeedaloneSend
         if !error_occurred {
             yield Ok::<Bytes, String>(Bytes::from("data: [DONE]\n\n"));
         }
@@ -417,15 +417,15 @@ pub fn create_legacy_sse_stream(
 
     let stream = async_stream::stream! {
         let mut final_usage: Option<super::models::OpenAIUsage> = None;
-        let mut error_occurred = false;  // [FIX] 标志位,避免双重 [DONE]
+        let mut error_occurred = false;  // [FIX] Flag bit,avoid double [DONE]
 
-        // [P2 FIX] 添加心跳定时器
+        // [P2 FIX] AddHeartbeattimer
         let mut heartbeat_interval = tokio::time::interval(std::time::Duration::from_secs(15));
         heartbeat_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
         loop {
             tokio::select! {
-                // 处理上游数据
+                // HandleupstreamData
                 item = gemini_stream.next() => {
                     match item {
                         Some(Ok(bytes)) => {
@@ -455,13 +455,13 @@ pub fn create_legacy_sse_stream(
                                                 if let Some(text) = part.get("text").and_then(|t| t.as_str()) {
                                                     content_out.push_str(text);
                                                 }
-                                                /* 禁用思维链输出到正文
+                                                /* DisableThought chainOutput到Body
                                                 if let Some(thought_text) = part.get("thought").and_then(|t| t.as_str()) {
                                                     // // content_out.push_str(thought_text);
                                                 }
                                                 */
-                                                // 捕获 thoughtSignature
-                                                // 捕获 thoughtSignature 到全局存储
+                                                // capture thoughtSignature
+                                                // capture thoughtSignature 到Globalstorage
                                                 if let Some(sig) = part.get("thoughtSignature").or(part.get("thought_signature")).and_then(|s| s.as_str()) {
                                                     store_thought_signature(sig);
                                                 }
@@ -497,12 +497,12 @@ pub fn create_legacy_sse_stream(
                                         ]
                                     });
 
-                                    // [FIX] 将 usage 嵌入到 chunk 中
+                                    // [FIX] 将 usage embedded in chunk 中
                                     if let Some(ref usage) = final_usage {
                                         legacy_chunk["usage"] = serde_json::to_value(usage).unwrap();
                                     }
 
-                                    // [FIX] 如果是最后一个 chunk,标记 usage 已发送
+                                    // [FIX] IfYesFinallyone chunk,mark usage 已Send
                                     if finish_reason.is_some() {
                                         final_usage = None;
                                     }
@@ -528,7 +528,7 @@ pub fn create_legacy_sse_stream(
                                 "Legacy stream error occurred"
                             );
 
-                            // 发送友好的 SSE 错误事件(包含 i18n_key 供前端翻译)
+                            // Sendfriendly SSE ErrorEvent(Packet含 i18n_key For front-end translation)
                             let error_chunk = json!({
                                 "id": &stream_id,
                                 "object": "text_completion",
@@ -546,26 +546,26 @@ pub fn create_legacy_sse_stream(
                             let sse_out = format!("data: {}\n\n", serde_json::to_string(&error_chunk).unwrap_or_default());
                             yield Ok(Bytes::from(sse_out));
                             yield Ok(Bytes::from("data: [DONE]\n\n"));
-                            error_occurred = true;  // [FIX] 标记错误已发生
+                            error_occurred = true;  // [FIX] markErrorhas happened
                             break;
                         }
                         None => {
-                            // 流结束
+                            // StreamEnd
                             break;
                         }
                     }
                 }
 
-                // [P2 FIX] 发送心跳
+                // [P2 FIX] SendHeartbeat
                 _ = heartbeat_interval.tick() => {
-                    // 发送 SSE 注释作为心跳
+                    // Send SSE CommentasHeartbeat
                     yield Ok::<Bytes, String>(Bytes::from(": ping\n\n"));
                 }
             }
         }
 
-        // [FIX] 只有在没有错误时才发送 [DONE]
-        // usage 已经嵌入到 finish_reason chunk,不需要单独发送
+        // [FIX] Only在NoneErrorOnly thenSend [DONE]
+        // usage Alreadyembedded in finish_reason chunk,不NeedaloneSend
         if !error_occurred {
             tracing::debug!("Stream finished. Yielding [DONE]");
             yield Ok::<Bytes, String>(Bytes::from("data: [DONE]\n\n"));
@@ -667,9 +667,9 @@ pub fn create_codex_sse_stream(
                                                             delta_text.push_str(&clean_text);
                                                         }
 
-                                                        // 捕获 thoughtSignature
+                                                        // capture thoughtSignature
                                                         if let Some(sig) = part.get("thoughtSignature").or(part.get("thought_signature")).and_then(|s| s.as_str()) {
-                                                            tracing::debug!("[Codex-SSE] 捕获 thoughtSignature (长度: {})", sig.len());
+                                                            tracing::debug!("[Codex-SSE] capture thoughtSignature (Length: {})", sig.len());
                                                             store_thought_signature(sig);
                                                         }
 

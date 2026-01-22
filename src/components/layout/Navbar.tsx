@@ -16,7 +16,6 @@ function Navbar() {
         { path: '/accounts', label: t('nav.accounts') },
         { path: '/api-proxy', label: t('nav.proxy') },
         { path: '/monitor', label: t('nav.call_records') },
-        { path: '/token-stats', label: t('nav.token_stats', 'Token 统计') },
         { path: '/settings', label: t('nav.settings') },
     ];
 
@@ -109,7 +108,7 @@ function Navbar() {
                     {/* Logo - 左侧 */}
                     <div className="flex items-center">
                         <Link to="/" className="text-xl font-semibold text-gray-900 dark:text-base-content flex items-center gap-2">
-                            Antigravity Tools
+                            Antigravity Manager Supreme
                         </Link>
                     </div>
 

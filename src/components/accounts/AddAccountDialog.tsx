@@ -346,28 +346,19 @@ function AddAccountDialog({ onAdd }: AddAccountDialogProps) {
     return (
         <>
             <button
-                className="px-4 py-2 bg-white dark:bg-base-100 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-base-200 transition-colors flex items-center gap-2 shadow-sm border border-gray-200/50 dark:border-base-300 relative z-[100]"
-                onClick={() => {
-                    console.log('AddAccountDialog button clicked');
-                    setIsOpen(true);
-                }}
+                className="px-4 py-2 bg-white dark:bg-base-100 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-base-200 transition-colors flex items-center gap-2 shadow-sm border border-gray-200/50 dark:border-base-300"
+                onClick={() => setIsOpen(true)}
             >
                 <Plus className="w-4 h-4" />
                 {t('accounts.add_account')}
             </button>
 
             {isOpen && createPortal(
-                <div 
-                    className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm"
-                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
-                >
+                <div className="modal modal-open z-[100]">
                     {/* Draggable Top Region */}
-                    <div data-tauri-drag-region className="fixed top-0 left-0 right-0 h-8 z-[1]" />
+                    <div data-tauri-drag-region className="fixed top-0 left-0 right-0 h-8 z-[110]" />
 
-                    {/* Click outside to close */}
-                    <div className="absolute inset-0 z-[0]" onClick={() => setIsOpen(false)} />
-
-                    <div className="bg-white dark:bg-base-100 text-gray-900 dark:text-base-content rounded-2xl shadow-2xl w-full max-w-lg p-6 relative z-[10] m-4 max-h-[90vh] overflow-y-auto">
+                    <div className="modal-box bg-white dark:bg-base-100 text-gray-900 dark:text-base-content">
                         <h3 className="font-bold text-lg mb-4">{t('accounts.add.title')}</h3>
 
                         {/* Tab 导航 - 胶囊风格 */}
@@ -565,6 +556,7 @@ function AddAccountDialog({ onAdd }: AddAccountDialogProps) {
                             )}
                         </div>
                     </div>
+                    <div className="modal-backdrop bg-black/40 backdrop-blur-sm fixed inset-0 z-[-1]" onClick={() => setIsOpen(false)}></div>
                 </div>,
                 document.body
             )}

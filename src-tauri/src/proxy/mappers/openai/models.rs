@@ -1,4 +1,4 @@
-// OpenAI 数据模型
+// OpenAI DataModel
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -13,7 +13,7 @@ pub struct OpenAIRequest {
     #[serde(default)]
     pub stream: bool,
     #[serde(default)]
-    pub n: Option<u32>, // [NEW] 支持多候选结果数量
+    pub n: Option<u32>, // [NEW] Supportmultiple candidatesResultAmount
     #[serde(rename = "max_tokens")]
     pub max_tokens: Option<u32>,
     pub temperature: Option<f32>,

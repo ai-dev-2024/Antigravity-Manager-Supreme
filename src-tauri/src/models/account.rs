@@ -2,17 +2,17 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use super::{token::TokenData, quota::QuotaData};
 
-/// 账号数据结构
+/// AccountDataStruct
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Account {
     pub id: String,
     pub email: String,
     pub name: Option<String>,
     pub token: TokenData,
-    /// 可选的设备指纹，用于切换账号时固定机器信息
+    /// Optionaldevice fingerprint，for switchingAccountFixed machineInfo
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub device_profile: Option<DeviceProfile>,
-    /// 设备指纹历史（生成/采集时记录），不含基线
+    /// Device fingerprint history（generate/When collectingRecord），Without baseline
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub device_history: Vec<DeviceProfileVersion>,
     pub quota: Option<QuotaData>,
@@ -34,7 +34,7 @@ pub struct Account {
     /// Unix timestamp when the proxy was disabled.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub proxy_disabled_at: Option<i64>,
-    /// 受配额保护禁用的模型列表 [NEW #621]
+    /// 受QuotaProtectDisable的ModelList [NEW #621]
     #[serde(default, skip_serializing_if = "HashSet::is_empty")]
     pub protected_models: HashSet<String>,
     pub created_at: i64,
@@ -73,7 +73,7 @@ impl Account {
     }
 }
 
-/// 账号索引数据（accounts.json）
+/// AccountIndexData（accounts.json）
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccountIndex {
     pub version: String,
@@ -81,7 +81,7 @@ pub struct AccountIndex {
     pub current_account_id: Option<String>,
 }
 
-/// 账号摘要信息
+/// AccountDigestInfo
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccountSummary {
     pub id: String,
@@ -107,7 +107,7 @@ impl Default for AccountIndex {
     }
 }
 
-/// 设备指纹（storage.json 中 telemetry 相关字段）
+/// Device fingerprint（storage.json 中 telemetry RelatedField）
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceProfile {
     pub machine_id: String,
@@ -116,7 +116,7 @@ pub struct DeviceProfile {
     pub sqm_id: String,
 }
 
-/// 指纹历史版本
+/// Fingerprint historyVersion
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceProfileVersion {
     pub id: String,

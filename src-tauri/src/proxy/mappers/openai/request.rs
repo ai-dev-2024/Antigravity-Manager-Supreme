@@ -1,4 +1,4 @@
-// OpenAI → Gemini 请求转换
+// OpenAI → Gemini RequestConvert
 use super::models::*;
 use super::streaming::get_thought_signature;
 use serde_json::{json, Value};
@@ -8,7 +8,7 @@ pub fn transform_openai_request(
     project_id: &str,
     mapped_model: &str,
 ) -> Value {
-    // 将 OpenAI 工具转为 Value 数组以便探测
+    // 将 OpenAI Toolconvert to Value Arrayin order to detect
     let tools_val = request
         .tools
         .as_ref()
@@ -25,7 +25,7 @@ pub fn transform_openai_request(
         request.quality.as_deref(), // [NEW] Pass quality parameter
     );
 
-    // 检测 Gemini 3 Pro thinking 模型
+    // Detection Gemini 3 Pro thinking Model
     let is_gemini_3_thinking = mapped_model_lower.contains("gemini-3")
         && (mapped_model_lower.ends_with("-high")
             || mapped_model_lower.ends_with("-low")
@@ -33,7 +33,7 @@ pub fn transform_openai_request(
     let is_claude_thinking = mapped_model_lower.ends_with("-thinking");
     let is_thinking_model = is_gemini_3_thinking || is_claude_thinking;
 
-    // [NEW] 检查历史消息是否兼容思维模型 (是否有 Assistant 消息缺失 reasoning_content)
+    // [NEW] CheckhistoryMessageYesNoCompatiblethinkingModel (YesNo有 Assistant MessageMissing reasoning_content)
     let has_incompatible_assistant_history = request.messages.iter().any(|msg| {
         msg.role == "assistant"
             && msg
@@ -43,11 +43,11 @@ pub fn transform_openai_request(
                 .unwrap_or(true)
     });
 
-    // 获取全局存储的思维签名
+    // GetGlobalstored thoughtsSign
     let global_thought_sig = get_thought_signature();
 
-    // [NEW] 决定是否开启 Thinking 功能:
-    // 如果是 Claude 思考模型且历史不兼容且没有可用签名来占位, 则禁用 Thinking 以防 400
+    // [NEW] DecideYesNoturn on Thinking Function:
+    // IfYes Claude ThinkingModelAnd history is notCompatible且NoneAvailableSignCome and take a seat, 则Disable Thinking Just in case 400
     let mut actual_include_thinking = is_thinking_model;
     if is_claude_thinking && has_incompatible_assistant_history && global_thought_sig.is_none() {
         tracing::warn!("[OpenAI-Thinking] Incompatible assistant history detected for Claude thinking model without global signature. Disabling thinking for this request to avoid 400 error.");
@@ -62,7 +62,7 @@ pub fn transform_openai_request(
         config.image_config.is_some()
     );
 
-    // 1. 提取所有 System Message 并注入补丁
+    // 1. extractAll System Message and inject the patch
     let mut system_instructions: Vec<String> = request
         .messages
         .iter()
@@ -85,7 +85,7 @@ pub fn transform_openai_request(
         })
         .collect();
 
-    // [NEW] 如果请求中包含 instructions 字段，优先使用它
+    // [NEW] IfRequest中Packet含 instructions Field，priorityUsing它
     if let Some(inst) = &request.instructions {
         if !inst.is_empty() {
             system_instructions.insert(0, inst.clone());
@@ -108,16 +108,16 @@ pub fn transform_openai_request(
         }
     }
 
-    // 从全局存储获取 thoughtSignature 支持
+    // 从GlobalstorageGet thoughtSignature Support
     let global_thought_sig = get_thought_signature();
     if global_thought_sig.is_some() {
         tracing::debug!(
-            "从全局存储获取到 thoughtSignature (长度: {})",
+            "从GlobalstorageGet到 thoughtSignature (Length: {})",
             global_thought_sig.as_ref().unwrap().len()
         );
     }
 
-    // [New] 预先构建工具名称到原始 Schema 的映射，用于后续参数类型修正
+    // [New] pre-builtToolName到Raw Schema 的Mapping，for follow-upParameterTypeCorrection
     let mut tool_name_to_schema = std::collections::HashMap::new();
     if let Some(tools) = &request.tools {
         for tool in tools {
@@ -132,13 +132,13 @@ pub fn transform_openai_request(
                 tool.get("name").and_then(|v| v.as_str()),
                 tool.get("parameters"),
             ) {
-                // 处理某些客户端可能透传的精简格式
+                // HandlesomeClientMayPassthroughsimplificationFormat
                 tool_name_to_schema.insert(name.to_string(), params.clone());
             }
         }
     }
 
-    // 2. 构建 Gemini contents (过滤掉 system/developer 指令)
+    // 2. build Gemini contents (Filter掉 system/developer instruction)
     let contents: Vec<Value> = request
         .messages
         .iter()
@@ -165,20 +165,20 @@ pub fn transform_openai_request(
                     parts.push(thought_part);
                 }
             } else if actual_include_thinking && role == "model" {
-                // [FIX] 解决 Claude 3.7 Thinking 模型的强制性校验:
+                // [FIX] solve Claude 3.7 Thinking ModelmandatoryChecksum:
                 // "Expected thinking... but found tool_use/text"
-                // 如果是思维模型且缺失 reasoning_content, 则注入占位符
+                // IfYesthinkingModeland missing reasoning_content, then inject the placeholder
                 tracing::debug!("[OpenAI-Thinking] Injecting placeholder thinking block for assistant message");
                 let mut thought_part = json!({
                     "text": "Applying tool decisions and generating response...",
                     "thought": true,
                 });
                 
-                // [NEW] 优先使用全局存储的思维签名 (如果可用)
+                // [NEW] priorityUsingGlobalstored thoughtsSign (IfAvailable)
                 if let Some(ref sig) = global_thought_sig {
                     thought_part["thoughtSignature"] = json!(sig);
                 } else if !mapped_model.starts_with("projects/") && mapped_model.contains("gemini") {
-                    // [FIX] 仅针对 Gemini 思维模型注入跳过标签, Claude 不识别此标签
+                    // [FIX] only for Gemini thinkingModelInjection skipTab, Claude Don't recognize thisTab
                     thought_part["thoughtSignature"] = json!("skip_thought_signature_validator");
                 }
                 
@@ -218,9 +218,9 @@ pub fn transform_openai_request(
                                             "fileData": { "fileUri": &image_url.url, "mimeType": "image/jpeg" }
                                         }));
                                     } else {
-                                        // [NEW] 处理本地文件路径 (file:// 或 Windows/Unix 路径)
+                                        // [NEW] HandlelocalFilePath (file:// 或 Windows/Unix Path)
                                         let file_path = if image_url.url.starts_with("file://") {
-                                            // 移除 file:// 前缀
+                                            // Remove file:// Prefix
                                             #[cfg(target_os = "windows")]
                                             { image_url.url.trim_start_matches("file:///").replace('/', "\\") }
                                             #[cfg(not(target_os = "windows"))]
@@ -231,12 +231,12 @@ pub fn transform_openai_request(
                                         
                                         tracing::debug!("[OpenAI-Request] Reading local image: {}", file_path);
                                         
-                                        // 读取文件并转换为 base64
+                                        // ReadFile并Convert为 base64
                                         if let Ok(file_bytes) = std::fs::read(&file_path) {
                                             use base64::Engine as _;
                                             let b64 = base64::engine::general_purpose::STANDARD.encode(&file_bytes);
                                             
-                                            // 根据文件扩展名推断 MIME 类型
+                                            // according toFile extensioninfer MIME Type
                                             let mime_type = if file_path.to_lowercase().ends_with(".png") {
                                                 "image/png"
                                             } else if file_path.to_lowercase().ends_with(".gif") {
@@ -257,9 +257,9 @@ pub fn transform_openai_request(
                                     }
                                 }
                                 OpenAIContentBlock::AudioUrl { audio_url: _ } => {
-                                    // 暂时跳过 audio_url 处理
-                                    // 完整实现需要下载音频文件并转换为 Gemini inlineData 格式
-                                    // 这会与 v3.3.16 的 thinkingConfig 逻辑冲突，留待后续版本实现
+                                    // Skip for now audio_url Handle
+                                    // Complete implementationNeedDownloadAudioFile并Convert为 Gemini inlineData Format
+                                    // This will work with v3.3.16 的 thinkingConfig logical conflict，Stay for follow-upVersionaccomplish
                                     tracing::debug!("[OpenAI-Request] Skipping audio_url (not yet implemented in v3.3.16)");
                                 }
                             }
@@ -271,7 +271,7 @@ pub fn transform_openai_request(
             // Handle tool calls (assistant message)
             if let Some(tool_calls) = &msg.tool_calls {
                 for (_index, tc) in tool_calls.iter().enumerate() {
-                    /* 暂时移除：防止 Codex CLI 界面碎片化
+                    /* temporaryRemove：prevent Codex CLI Interface fragmentation
                     if index == 0 && parts.is_empty() {
                          if mapped_model.contains("gemini-3") {
                               parts.push(json!({"text": "Thinking Process: Determining necessary tool actions."}));
@@ -282,7 +282,7 @@ pub fn transform_openai_request(
 
                     let mut args = serde_json::from_str::<Value>(&tc.function.arguments).unwrap_or(json!({}));
                     
-                    // [New] 利用通用引擎修正参数类型 (替代以前硬编码的 shell 工具修复逻辑)
+                    // [New] useGeneralengine modificationsParameterType (replace the previous hardEncode的 shell Toolfix logic)
                     if let Some(original_schema) = tool_name_to_schema.get(&tc.function.name) {
                         crate::proxy::common::json_schema::fix_tool_call_args(&mut args, original_schema);
                     }
@@ -295,10 +295,10 @@ pub fn transform_openai_request(
                         }
                     });
 
-                    // [New] 递归清理参数中可能存在的非法校验字段
+                    // [New] recursive cleanupParameter中Mayillegality of existenceValidation field
                     crate::proxy::common::json_schema::clean_json_schema(&mut func_call_part);
 
-                    // [修复] 为该消息内的所有工具调用注入 thoughtSignature
+                    // [repair] for thisMessagewithinAllToolcall injection thoughtSignature
                     if let Some(ref sig) = global_thought_sig {
                         func_call_part["thoughtSignature"] = json!(sig);
                     } else if is_thinking_model && !mapped_model.starts_with("projects/") {
@@ -338,12 +338,12 @@ pub fn transform_openai_request(
         .filter(|msg| !msg["parts"].as_array().map(|a| a.is_empty()).unwrap_or(true))
         .collect();
 
-    // 合并连续相同角色的消息 (Gemini 强制要求 user/model 交替)
+    // MergecontinuousSameRole的Message (Gemini Mandatory requirements user/model alternately)
     let mut merged_contents: Vec<Value> = Vec::new();
     for msg in contents {
         if let Some(last) = merged_contents.last_mut() {
             if last["role"] == msg["role"] {
-                // 合并 parts
+                // Merge parts
                 if let (Some(last_parts), Some(msg_parts)) =
                     (last["parts"].as_array_mut(), msg["parts"].as_array())
                 {
@@ -356,7 +356,7 @@ pub fn transform_openai_request(
     }
     let contents = merged_contents;
 
-    // 3. 构建请求体
+    // 3. buildRequest体
 
     let mut gen_config = json!({
         "maxOutputTokens": request.max_tokens.unwrap_or(16384),
@@ -364,12 +364,12 @@ pub fn transform_openai_request(
         "topP": request.top_p.unwrap_or(1.0),
     });
 
-    // [NEW] 支持多候选结果数量 (n -> candidateCount)
+    // [NEW] Supportmultiple candidatesResultAmount (n -> candidateCount)
     if let Some(n) = request.n {
         gen_config["candidateCount"] = json!(n);
     }
 
-    // 为 thinking 模型注入 thinkingConfig (使用 thinkingBudget 而非 thinkingLevel)
+    // 为 thinking Modelinjection thinkingConfig (Using thinkingBudget rather than thinkingLevel)
     if actual_include_thinking {
         gen_config["thinkingConfig"] = json!({
             "includeThoughts": true,
@@ -407,7 +407,7 @@ pub fn transform_openai_request(
         ]
     });
 
-    // 深度清理 [undefined] 字符串 (Cherry Studio 等客户端常见注入)
+    // Depthclean up [undefined] string (Cherry Studio 等ClientCommon injections)
     crate::proxy::mappers::common_utils::deep_clean_undefined(&mut inner_request);
 
     // 4. Handle Tools (Merged Cleaning)
@@ -427,7 +427,7 @@ pub fn transform_openai_request(
             };
 
             if let Some(name) = gemini_func.get("name").and_then(|v| v.as_str()) {
-                // 跳过内置联网工具名称，避免重复定义
+                // Skip built-in networkingToolName，avoidDuplicatedefinition
                 if name == "web_search" || name == "google_search" || name == "web_search_20250305"
                 {
                     continue;
@@ -440,32 +440,32 @@ pub fn transform_openai_request(
                 }
             }
 
-            // [NEW CRITICAL FIX] 清除函数定义根层级的非法字段 (解决报错持久化)
+            // [NEW CRITICAL FIX] ClearFunctiondefine rootHierarchyillegalField (Solve the errorPersistent化)
             if let Some(obj) = gemini_func.as_object_mut() {
                 obj.remove("format");
                 obj.remove("strict");
                 obj.remove("additionalProperties");
-                obj.remove("type"); // [NEW] Gemini 不支持在 FunctionDeclaration 根层级出现 type: "function"
+                obj.remove("type"); // [NEW] Gemini Not supported在 FunctionDeclaration 根HierarchyAppear type: "function"
             }
 
             if let Some(params) = gemini_func.get_mut("parameters") {
-                // [DEEP FIX] 统一调用公共库清洗：展开 $ref 并剔除所有层级的 format/definitions
+                // [DEEP FIX] Call the public uniformlyLibraryClean：Expand $ref and eliminateAllHierarchy的 format/definitions
                 crate::proxy::common::json_schema::clean_json_schema(params);
 
-                // Gemini v1internal 要求：
-                // 1. type 必须是大写 (OBJECT, STRING 等)
-                // 2. 根对象必须有 "type": "OBJECT"
+                // Gemini v1internal Require：
+                // 1. type MustYescapital (OBJECT, STRING 等)
+                // 2. 根ObjectMust有 "type": "OBJECT"
                 if let Some(params_obj) = params.as_object_mut() {
                     if !params_obj.contains_key("type") {
                         params_obj.insert("type".to_string(), json!("OBJECT"));
                     }
                 }
 
-                // 递归转换 type 为大写 (符合 Protobuf 定义)
+                // recursionConvert type for uppercase (conform to Protobuf definition)
                 enforce_uppercase_types(params);
             } else {
-                // [FIX] 针对自定义工具 (如 apply_patch) 补全缺失的参数模式
-                // 解决 Vertex AI (Claude) 报错: tools.5.custom.input_schema: Field required
+                // [FIX] againstCustomTool (如 apply_patch) Complete the missingParameterMode
+                // solve Vertex AI (Claude) Report an error: tools.5.custom.input_schema: Field required
                 tracing::debug!(
                     "[OpenAI-Request] Injecting default schema for custom tool: {}",
                     gemini_func
@@ -496,25 +496,25 @@ pub fn transform_openai_request(
         }
     }
 
-    // [NEW] Antigravity 身份指令 (原始简化版)
+    // [NEW] Antigravity Identity command (RawSimplified version)
     let antigravity_identity = "You are Antigravity, a powerful agentic AI coding assistant designed by the Google Deepmind team working on Advanced Agentic Coding.\n\
     You are pair programming with a USER to solve their coding task. The task may require creating a new codebase, modifying or debugging an existing codebase, or simply answering a question.\n\
     **Absolute paths only**\n\
     **Proactiveness**";
 
-    // [HYBRID] 检查用户是否已提供 Antigravity 身份
+    // [HYBRID] CheckUserYesNoprovided Antigravity identity
     let user_has_antigravity = system_instructions
         .iter()
         .any(|s| s.contains("You are Antigravity"));
 
     let mut parts = Vec::new();
 
-    // 1. Antigravity 身份 (如果需要, 作为独立 Part 插入)
+    // 1. Antigravity identity (IfNeed, as independent Part insert)
     if !user_has_antigravity {
         parts.push(json!({"text": antigravity_identity}));
     }
 
-    // 2. 追加用户指令 (作为独立 Parts)
+    // 2. AppendUserinstruction (as independent Parts)
     for inst in system_instructions {
         parts.push(json!({"text": inst}));
     }

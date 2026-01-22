@@ -12,15 +12,15 @@ pub struct ProxyRequestLog {
     pub url: String,
     pub status: u16,
     pub duration: u64, // ms
-    pub model: Option<String>,        // 客户端请求的模型名
-    pub mapped_model: Option<String>, // 实际路由后使用的模型名
+    pub model: Option<String>,        // ClientRequest的Model名
+    pub mapped_model: Option<String>, // actualRoute后Using的Model名
     pub account_email: Option<String>,
     pub error: Option<String>,
     pub request_body: Option<String>,
     pub response_body: Option<String>,
     pub input_tokens: Option<u32>,
     pub output_tokens: Option<u32>,
-    pub protocol: Option<String>,     // 协议类型: "openai", "anthropic", "gemini"
+    pub protocol: Option<String>,     // ProtocolType: "openai", "anthropic", "gemini"
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

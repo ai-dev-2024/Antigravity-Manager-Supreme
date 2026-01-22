@@ -116,35 +116,35 @@ impl Default for ZaiConfig {
     }
 }
 
-/// 实验性功能配置 (Feature Flags)
+/// ExperimentalFunctionConfig (Feature Flags)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExperimentalConfig {
-    /// 启用双层签名缓存 (Signature Cache)
+    /// EnableDouble layerSignCache (Signature Cache)
     #[serde(default = "default_true")]
     pub enable_signature_cache: bool,
 
-    /// 启用工具循环自动恢复 (Tool Loop Recovery)
+    /// EnableToolAutomatic cycle recovery (Tool Loop Recovery)
     #[serde(default = "default_true")]
     pub enable_tool_loop_recovery: bool,
 
-    /// 启用跨模型兼容性检查 (Cross-Model Checks)
+    /// Enable跨ModelCompatible性Check (Cross-Model Checks)
     #[serde(default = "default_true")]
     pub enable_cross_model_checks: bool,
 
-    /// 启用上下文用量缩放 (Context Usage Scaling)
-    /// 用于解决客户端因 Gemini 上下文过大而错误触发压缩的问题
+    /// EnableContextUsage scaling (Context Usage Scaling)
+    /// used to solveClient因 Gemini Contexttoo bigErrortriggerCompressquestion
     #[serde(default = "default_true")]
     pub enable_usage_scaling: bool,
 
-    /// 上下文压缩阈值 L1 (Tool Trimming)
+    /// ContextCompressThreshold L1 (Tool Trimming)
     #[serde(default = "default_threshold_l1")]
     pub context_compression_threshold_l1: f32,
 
-    /// 上下文压缩阈值 L2 (Thinking Compression)
+    /// ContextCompressThreshold L2 (Thinking Compression)
     #[serde(default = "default_threshold_l2")]
     pub context_compression_threshold_l2: f32,
 
-    /// 上下文压缩阈值 L3 (Fork + Summary)
+    /// ContextCompressThreshold L3 (Fork + Summary)
     #[serde(default = "default_threshold_l3")]
     pub context_compression_threshold_l3: f32,
 }
@@ -171,15 +171,15 @@ fn default_true() -> bool {
     true
 }
 
-/// 反代服务配置
+/// Anti-generationalServiceConfig
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProxyConfig {
-    /// 是否启用反代服务
+    /// YesNoEnableAnti-generationalService
     pub enabled: bool,
 
-    /// 是否允许局域网访问
-    /// - false: 仅本机访问 127.0.0.1（默认，隐私优先）
-    /// - true: 允许局域网访问 0.0.0.0
+    /// YesNoAllow LAN access
+    /// - false: Local access only 127.0.0.1（Default，Privacy first）
+    /// - true: Allow LAN access 0.0.0.0
     #[serde(default)]
     pub allow_lan_access: bool,
 
@@ -191,28 +191,28 @@ pub struct ProxyConfig {
     #[serde(default)]
     pub auth_mode: ProxyAuthMode,
 
-    /// 监听端口
+    /// ListenPort
     pub port: u16,
 
-    /// API 密钥
+    /// API Key
     pub api_key: String,
 
-    /// 是否自动启动
+    /// YesNoautomaticStart
     pub auto_start: bool,
 
-    /// 自定义精确模型映射表 (key: 原始模型名, value: 目标模型名)
+    /// CustomaccurateModel Mapping表 (key: RawModel名, value: TargetModel名)
     #[serde(default)]
     pub custom_mapping: std::collections::HashMap<String, String>,
 
-    /// API 请求超时时间(秒)
+    /// API RequestTimeoutTime(秒)
     #[serde(default = "default_request_timeout")]
     pub request_timeout: u64,
 
-    /// 是否开启请求日志记录 (监控)
+    /// YesNoturn onRequestLogRecord (monitor)
     #[serde(default)]
     pub enable_logging: bool,
 
-    /// 上游代理配置
+    /// upstreamProxyConfig
     #[serde(default)]
     pub upstream_proxy: UpstreamProxyConfig,
 
@@ -220,21 +220,21 @@ pub struct ProxyConfig {
     #[serde(default)]
     pub zai: ZaiConfig,
 
-    /// 账号调度配置 (粘性会话/限流重试)
+    /// AccountSchedulingConfig (viscositySession/Rate LimitRetry)
     #[serde(default)]
     pub scheduling: crate::proxy::sticky_config::StickySessionConfig,
 
-    /// 实验性功能配置
+    /// ExperimentalFunctionConfig
     #[serde(default)]
     pub experimental: ExperimentalConfig,
 }
 
-/// 上游代理配置
+/// upstreamProxyConfig
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct UpstreamProxyConfig {
-    /// 是否启用
+    /// YesNoEnable
     pub enabled: bool,
-    /// 代理地址 (http://, https://, socks5://)
+    /// ProxyAddress (http://, https://, socks5://)
     pub url: String,
 }
 
@@ -242,14 +242,14 @@ impl Default for ProxyConfig {
     fn default() -> Self {
         Self {
             enabled: false,
-            allow_lan_access: false, // 默认仅本机访问，隐私优先
+            allow_lan_access: false, // DefaultLocal access only，Privacy first
             auth_mode: ProxyAuthMode::default(),
             port: 8045,
             api_key: format!("sk-{}", uuid::Uuid::new_v4().simple()),
             auto_start: false,
             custom_mapping: std::collections::HashMap::new(),
             request_timeout: default_request_timeout(),
-            enable_logging: true, // 默认开启，支持 token 统计功能
+            enable_logging: true, // Defaultturn on，Support token statisticsFunction
             upstream_proxy: UpstreamProxyConfig::default(),
             zai: ZaiConfig::default(),
             scheduling: crate::proxy::sticky_config::StickySessionConfig::default(),
@@ -259,7 +259,7 @@ impl Default for ProxyConfig {
 }
 
 fn default_request_timeout() -> u64 {
-    120 // 默认 120 秒,原来 60 秒太短
+    120 // Default 120 秒,turn out to be 60 seconds too short
 }
 
 fn default_zai_base_url() -> String {
@@ -279,9 +279,9 @@ fn default_zai_haiku_model() -> String {
 }
 
 impl ProxyConfig {
-    /// 获取实际的监听地址
-    /// - allow_lan_access = false: 返回 "127.0.0.1"（默认，隐私优先）
-    /// - allow_lan_access = true: 返回 "0.0.0.0"（允许局域网访问）
+    /// GetactualListenAddress
+    /// - allow_lan_access = false: Return "127.0.0.1"（Default，Privacy first）
+    /// - allow_lan_access = true: Return "0.0.0.0"（Allow LAN access）
     pub fn get_bind_address(&self) -> &str {
         if self.allow_lan_access {
             "0.0.0.0"

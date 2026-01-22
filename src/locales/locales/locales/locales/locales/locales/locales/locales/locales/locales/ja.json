@@ -1,6 +1,5 @@
 {
     "common": {
-        "empty": "空",
         "loading": "読み込み中...",
         "add": "追加",
         "copy": "コピー",
@@ -26,20 +25,18 @@
         "prev_page": "前へ",
         "next_page": "次へ",
         "pagination_info": "{{total}} 件中 {{start}} から {{end}} を表示",
-        "per_page": "1ページあたり",
+        "per_page": "ページあたり",
         "items": "項目",
         "accounts": "アカウント",
         "enabled": "有効",
         "disabled": "無効",
         "tauri_api_not_loaded": "Tauri APIが読み込まれていません。アプリを再起動してください",
-        "environment_error": "環境エラー: {{error}}",
-        "load_more": "もっと読み込む"
+        "environment_error": "環境エラー: {{error}}"
     },
     "nav": {
         "dashboard": "ダッシュボード",
         "accounts": "アカウント",
         "proxy": "APIプロキシ",
-        "token_stats": "統計",
         "call_records": "トラフィックログ",
         "settings": "設定",
         "theme_to_dark": "ダークモードに切り替え",
@@ -57,21 +54,19 @@
         "switch_to_russian": "ロシア語に切り替え",
         "switch_to_russian_short": "RU",
         "switch_to_portuguese": "ポルトガル語に切り替え",
-        "switch_to_portuguese_short": "PT",
-        "switch_to_traditional_chinese": "繁体字中国語に切り替え",
-        "switch_to_traditional_chinese_short": "繁中"
+        "switch_to_portuguese_short": "PT"
     },
     "dashboard": {
         "hello": "こんにちは 👋",
         "refresh_quota": "クォータ更新",
         "refreshing": "更新中...",
-        "total_accounts": "合計アカウント数",
+        "total_accounts": "合計アカウント",
         "avg_gemini": "平均Geminiクォータ",
         "avg_gemini_image": "平均Gemini画像クォータ",
         "avg_claude": "平均Claudeクォータ",
-        "low_quota_accounts": "クォータ不足のアカウント",
-        "quota_sufficient": "クォータ残量あり",
-        "quota_low": "クォータ不足",
+        "low_quota_accounts": "低クォータアカウント",
+        "quota_sufficient": "クォータ十分",
+        "quota_low": "低クォータ",
         "quota_desc": "クォータ < 20%",
         "current_account": "現在のアカウント",
         "switch_account": "アカウント切り替え",
@@ -92,10 +87,6 @@
             "export_no_accounts": "エクスポートするアカウントがありません",
             "export_success": "エクスポートに成功しました！保存先: {{path}}",
             "export_error": "エクスポートに失敗しました"
-        },
-        "branding": {
-            "title": "Antigravity Tools",
-            "subtitle": "プロフェッショナルなアカウント管理"
         }
     },
     "accounts": {
@@ -132,45 +123,6 @@
         "reset_time": "リセット時間",
         "switch_to": "このアカウントに切り替え",
         "actions": "操作",
-        "device_fingerprint": "デバイス指紋",
-        "device_fingerprint_dialog": {
-            "title": "デバイス指紋",
-            "operations": "デバイス指紋操作",
-            "generate_and_bind": "生成してバインド",
-            "restore_original": "オリジナルを復元",
-            "open_storage_directory": "ストレージディレクトリを開く",
-            "current_storage": "現在のストレージ",
-            "effective": "有効",
-            "current_storage_desc": "storage.jsonから読み込み、アカウント切り替え時にバインド適用後に更新されます",
-            "account_binding": "アカウントバインド",
-            "pending_application": "適用待ち",
-            "account_binding_desc": "生成/復元後にバインドとして保存、アカウント切り替え時にstorage.jsonに書き込み",
-            "historical_fingerprints": "履歴指紋（復元/削除可能）",
-            "no_history": "履歴なし",
-            "current": "現在",
-            "restore": "復元",
-            "delete_version": "このバージョンを削除",
-            "confirm_generate_title": "生成してバインドしますか？",
-            "confirm_generate_desc": "新しいデバイス指紋セットを生成し、現在指紋として設定します。続行しますか？",
-            "confirm_restore_title": "オリジナル指紋を復元しますか？",
-            "confirm_restore_desc": "オリジナル指紋を復元し、現在指紋を上書きします。続行しますか？",
-            "cancel": "キャンセル",
-            "confirm": "確認",
-            "processing": "処理中...",
-            "loading": "読み込み中...",
-            "failed_to_load_device_info": "デバイス情報の読み込みに失敗しました",
-            "generation_failed": "生成に失敗しました",
-            "binding_failed": "バインドに失敗しました",
-            "restoration_failed": "復元に失敗しました",
-            "deletion_failed": "削除に失敗しました",
-            "directory_open_failed": "ディレクトリを開けません",
-            "generated_and_bound": "生成してバインドしました",
-            "restored": "復元しました",
-            "deleted": "削除しました",
-            "directory_opened": "ストレージディレクトリを開きました",
-            "original_fingerprint_not_found": "オリジナル指紋が見つかりません",
-            "storage_json_not_found": "storage.jsonが見つかりません。Antigravityが実行され、設定ファイルが生成されていることを確認してください"
-        },
         "quota_protected": "保護中",
         "details": {
             "title": "クォータ詳細"
@@ -252,22 +204,8 @@
             "disable_proxy_title": "プロキシ無効化",
             "disable_proxy_msg": "このアカウントのプロキシを無効にしてもよろしいですか？アカウントはアプリ内で引き続き使用可能です。",
             "enable_proxy_title": "プロキシ有効化",
-            "enable_proxy_msg": "このアカウントのプロキシを再度有効にしてもよろしいですか？",
-            "batch_warmup_msg": "選択した{{count}}個のアカウントに対して、直ちにウォームアップを開始してもよろしいですか？",
-            "batch_warmup_title": "一括手動ウォームアップ",
-            "warmup_all_msg": "対象となるすべてのアカウントに対して、直ちにウォームアップタスクを開始してもよろしいですか？これにより、Googleサービスへの最小限のトラフィックが送信され、クォータサイクルがリセットされます。",
-            "warmup_all_title": "完全手動ウォームアップ"
-        },
-        "import_fail": "インポートに失敗しました: {{error}}",
-        "import_invalid_format": "無効なJSON形式です。ファイルにemailとrefresh_tokenフィールドが含まれていることを確認してください",
-        "import_json": "インポート",
-        "import_partial": "インポート完了: {{success}}件成功、{{fail}}件失敗",
-        "import_success": "{{count}}件のアカウントを正常にインポートしました",
-        "warmup_all": "ワンクリックウォームアップ",
-        "warmup_batch_triggered": "{{count}}個のアカウントのウォームアップタスクを開始しました",
-        "warmup_now": "今すぐウォームアップ",
-        "warmup_selected": "ウォームアップ ({{count}})",
-        "warmup_this": "このアカウントをウォームアップ"
+            "enable_proxy_msg": "このアカウントのプロキシを再度有効にしてもよろしいですか？"
+        }
     },
     "settings": {
         "save": "設定を保存",
@@ -288,14 +226,7 @@
             "auto_launch": "起動時に実行",
             "auto_launch_enabled": "有効",
             "auto_launch_disabled": "無効",
-            "auto_launch_desc": "システム起動時にAntigravity Toolsを自動的に起動する",
-            "auto_check_update": "更新を自動確認",
-            "auto_check_update_desc": "起動時に新しいバージョンを自動的に確認します",
-            "auto_check_update_disabled": "自動確認は無効です",
-            "auto_check_update_enabled": "自動確認は有効です",
-            "update_check_interval": "確認間隔（時間）",
-            "update_check_interval_desc": "自動確認の間隔を設定します（1-168時間）",
-            "update_check_interval_saved": "確認間隔の設定を保存しました"
+            "auto_launch_desc": "システム起動時にAntigravity Toolsを自動的に起動する"
         },
         "account": {
             "title": "アカウント設定",
@@ -304,11 +235,10 @@
             "refresh_interval": "更新間隔 (分)",
             "auto_sync": "現在のアカウントの自動同期",
             "auto_sync_desc": "現在アクティブなアカウントの情報を定期的に自動同期する",
-            "sync_interval": "同期間隔 (秒)",
-            "always_on": "常にオン"
+            "sync_interval": "同期間隔 (秒)"
         },
         "pinned_quota_models": {
-            "title": "ピン留めするクォータモデル",
+            "title": "表示するモデル配額",
             "desc": "アカウントリストに表示するモデル配額を選択します。選択していないモデルは詳細ポップアップでのみ表示されます"
         },
         "proxy": {
@@ -343,17 +273,7 @@
             "clear_logs": "ログキャッシュをクリア",
             "clear_logs_title": "ログクリアの確認",
             "clear_logs_msg": "すべてのログキャッシュファイルをクリアしてもよろしいですか？",
-            "logs_cleared": "ログキャッシュをクリアしました",
-            "http_api_desc": "外部プログラム（VS Codeプラグインなど）用のローカルHTTPインターフェースを提供します。",
-            "http_api_enabled": "HTTP APIを有効にする",
-            "http_api_enabled_desc": "有効にすると、外部プログラムがHTTPインターフェースを介してアカウントを管理できるようになります",
-            "http_api_port": "リッスンポート",
-            "http_api_port_desc": "ポートを変更した後は再起動が必要です。ポートが競合する場合は、別の利用可能なポートを使用してください。",
-            "http_api_port_invalid": "無効なポート番号です（範囲: 1024-65535）",
-            "http_api_port_placeholder": "デフォルトポート 19527",
-            "http_api_restart_required": "⚠️ 適用するには再起動が必要です",
-            "http_api_settings_saved": "HTTP API設定を保存しました。適用するには再起動が必要です",
-            "http_api_title": "HTTP APIサービス"
+            "logs_cleared": "ログキャッシュをクリアしました"
         },
         "about": {
             "title": "情報",
@@ -376,25 +296,6 @@
             "support_alipay": "Alipay",
             "support_wechat": "WeChat Pay",
             "support_buymeacoffee": "Buy Me a Coffee"
-        },
-        "quota_protection": {
-            "auto_restore_info": "クォータがリセットされると、アカウントは自動的に再度有効になります",
-            "enable": "クォータ保護を有効にする",
-            "enable_desc": "アカウントのクォータがしきい値を下回った場合に自動的にプロキシを無効にし、クォータがリセットされたときに自動的に復元します",
-            "example": "例: {{percentage}}%の場合、クォータ合計が{{total}}のアカウントは、残りが{{threshold}}以下になると無効になります",
-            "monitored_models_desc": "少なくとも1つ選択してください。選択したモデルのいずれかがしきい値を下回ると保護がトリガーされます",
-            "monitored_models_label": "監視対象モデル（トリガー条件）",
-            "range": "範囲",
-            "threshold_label": "予約クォータの割合",
-            "title": "クォータ保護"
-        },
-        "warmup": {
-            "desc": "すべてのモデルを自動的に監視し、クォータが100%に達すると直ちにウォームアップをトリガーして、モデルをウォーム状態に保ちます",
-            "title": "スマートウォームアップ"
-        },
-        "branding": {
-            "title": "Antigravity Tools",
-            "subtitle": "プロフェッショナルなアカウント管理"
         }
     },
     "tray": {
@@ -550,70 +451,14 @@
                 "max_wait": "最大待機時間 (秒)",
                 "max_wait_tooltip": "「キャッシュ優先」モードでのみ使用: レートリミットのリセット時間がこの値以下の場合、切り替えずに待機します。",
                 "clear_bindings": "セッションバインディングをクリア",
-                "clear_bindings_tooltip": "すべてのセッションとアカウントの紐付けを強制リセットし、次のリクエストでアカウントを再割り当てします。",
-                "fixed_account": "固定アカウントモード",
-                "fixed_account_tooltip": "有効にすると、すべてのAPIリクエストは、アカウントを切り替える代わりに、選択されたアカウントのみを使用します。",
-                "round_robin_set": "ラウンドロビンモードが有効",
-                "fixed_account_set": "固定アカウントモードが有効",
-                "account_changed": "アカウントが次へ変更されました：{{email}}"
+                "clear_bindings_tooltip": "すべてのセッションとアカウントの紐付けを強制リセットし、次のリクエストでアカウントを再割り当てします。"
             },
             "experimental": {
                 "title": "実験設定 (Experimental)",
                 "title_tooltip": "探索的な機能であり、将来のバージョンで調整または削除される可能性があります。",
                 "enable_usage_scaling": "使用量スケーリングを有効にする",
-                "enable_usage_scaling_tooltip": "Claudeプロトコル向け。入力が30kトークンを超えた際に積極的なスケーリングを行い、頻繁なクライアント側圧縮を防止します。注意：有効化後はクライアントに表示される使用量が実際の課金とは異なります。",
-                "context_compression_threshold_l1": "L1 圧縮しきい値 (ツール履歴のクリーンアップ)",
-                "context_compression_threshold_l1_tooltip": "古いツール実行記録を削除してスペースを節約します。推奨値: 0.4 (40%)",
-                "context_compression_threshold_l2": "L2 圧縮しきい値 (思考プロセスの圧縮)",
-                "context_compression_threshold_l2_tooltip": "署名を保持したまま、初期の思考ブロックを圧縮します。推奨値: 0.55 (55%)",
-                "context_compression_threshold_l3": "L3 圧縮しきい値 (要約によるリセット)",
-                "context_compression_threshold_l3_tooltip": "XML状態要約を生成してセッションをリセットします。最もトークン効率が良い手段です。推奨値: 0.7 (70%)"
+                "enable_usage_scaling_tooltip": "Claude互換プロトコル向け。総入力が30kトークンを超えると、アグレッシブなスケーリングを有効にし、大きなコンテキストでの頻繁なクライアント側圧縮を防ぎます。注意：有効にすると、クライアントに表示される使用量は実際の課金ポイントを反映しなくなります。"
             }
-        },
-        "cloudflared": {
-            "title": "公開アクセス (Cloudflared)",
-            "subtitle": "Cloudflare Tunnel経由でローカルサービスをインターネットに公開",
-            "not_installed": "Cloudflaredがインストールされていません",
-            "install_hint": "CloudflaredはCloudflareが提供する無料のトンネルツールです。パブリックIPやポート転送なしでローカルプロキシをインターネットに公開できます。下のボタンをクリックしてインストールしてください。",
-            "install": "今すぐインストール",
-            "installing": "インストール中...",
-            "install_success": "Cloudflaredのインストールに成功しました",
-            "install_failed": "インストールに失敗しました: {{error}}",
-            "installed": "インストール済み",
-            "version": "バージョン",
-            "mode_label": "トンネルモード",
-            "mode_quick": "クイックトンネル",
-            "mode_quick_desc": "自動生成された一時URL (*.trycloudflare.com)、アカウント不要、再起動時にURL変更",
-            "mode_auth": "名前付きトンネル",
-            "mode_auth_desc": "Cloudflareアカウントトークンを使用、カスタムドメイン対応、永続的なURL",
-            "token": "トンネルトークン",
-            "token_placeholder": "Cloudflare Tunnel Tokenをここに貼り付けてください",
-            "token_hint": "Cloudflare Zero Trustダッシュボードから取得",
-            "token_required": "名前付きトンネルモードにはトークンが必要です",
-            "use_http2": "HTTP/2を使用",
-            "use_http2_desc": "互換性が高く、中国本土での使用を推奨",
-            "status_label": "トンネルステータス",
-            "status_stopped": "停止中",
-            "status_starting": "起動中...",
-            "status_running": "実行中",
-            "status_error": "エラー",
-            "public_url": "公開URL",
-            "public_url_copied": "URLをコピーしました",
-            "start_tunnel": "トンネルを開始",
-            "stop_tunnel": "トンネルを停止",
-            "restart_tunnel": "トンネルを再起動",
-            "starting": "起動中...",
-            "stopping": "停止中...",
-            "start_success": "トンネルが正常に開始されました",
-            "stop_success": "トンネルが停止されました",
-            "start_failed": "トンネルの起動に失敗しました: {{error}}",
-            "stop_failed": "トンネルの停止に失敗しました: {{error}}",
-            "logs": "ログ",
-            "clear_logs": "ログをクリア",
-            "auto_start": "プロキシと一緒に自動起動",
-            "auto_start_desc": "APIプロキシサービスが起動すると自動的にトンネルを開始",
-            "warning_quick_mode": "⚠️ クイックモード: URLは再起動ごとに変更されます",
-            "warning_token_storage": "💡 トークンはローカルに安全に保存されます"
         },
         "example": {
             "title": "使用例",
@@ -671,7 +516,7 @@
             "flash": "超高速",
             "flash_thinking": "思考能力",
             "pro_high": "最高推論",
-            "pro_low": "低消費",
+            "pro_low": "低クォータ",
             "sonnet": "コーディング推論",
             "sonnet_thinking": "思考の連鎖",
             "opus_thinking": "最強の思考"
@@ -743,7 +588,7 @@
             "gemini_tools": "Google AI SDK, LangChain",
             "quick_integration": "クイック統合",
             "click_tip": "👆 モデルをクリックしてコード例を更新",
-            "copy_base": "ベースURLをコピー"
+            "copy_base": "コピー Base"
         },
         "supported_models": {
             "title": "サポートモデルと統合",
@@ -804,15 +649,12 @@
             "gemini": "Gemini",
             "claude": "Claude",
             "images": "画像",
-            "reset": "リセット",
-            "by_account": "アカウントでフィルタ",
-            "all_accounts": "すべてのアカウント"
+            "reset": "リセット"
         },
         "table": {
             "status": "ステータス",
             "method": "メソッド",
             "model": "モデル",
-            "protocol": "プロトコル",
             "account": "アカウント",
             "path": "パス",
             "usage": "トークン",
@@ -828,18 +670,11 @@
             "tokens": "トークン (I/O)",
             "time": "時間",
             "model": "モデル",
-            "id": "リクエストID",
-            "protocol": "プロトコル",
-            "mapped_model": "マッピング後のモデル",
-            "account_used": "使用アカウント",
-            "payload_empty": "ペイロードなし"
+            "id": "リクエストID"
         },
         "dialog": {
             "clear_title": "プロキシログをクリア",
             "clear_msg": "すべてのプロキシログをクリアしてもよろしいですか？この操作は取り消せません。"
-        },
-        "network": {
-            "title": "ネットワークモニター"
         }
     },
     "update_notification": {
@@ -847,31 +682,13 @@
         "message": "最適化と改善が含まれた新しいバージョンの準備ができました。現在のバージョン: v{{current}}",
         "action": "今すぐ更新"
     },
-    "token_stats": {
-        "title": "トークン統計",
-        "hourly": "時間単位",
-        "daily": "日単位",
-        "weekly": "週単位",
-        "total_tokens": "総トークン",
-        "input_tokens": "入力トークン",
-        "output_tokens": "出力トークン",
-        "accounts_used": "アクティブアカウント",
-        "models_used": "使用モデル",
-        "model_trend": "モデル別使用傾向",
-        "account_trend": "アカウント別使用傾向",
-        "usage_trend": "トークン使用傾向",
-        "by_account": "アカウント別",
-        "by_model": "モデル別",
-        "by_account_view": "アカウント別",
-        "model_details": "モデル別詳細統計",
-        "account_details": "アカウント別詳細統計",
-        "model": "モデル",
-        "account": "アカウント",
-        "requests": "リクエスト数",
-        "input": "入力",
-        "output": "出力",
-        "total": "合計",
-        "percentage": "割合",
-        "no_data": "データなし"
+    "errors": {
+        "stream": {
+            "timeout_error": "リクエストがタイムアウトしました。ネットワーク接続を確認してください",
+            "connection_error": "接続に失敗しました。ネットワークまたはプロキシ設定を確認してください",
+            "decode_error": "ネットワークが不安定で、データ転送が中断されました。試してください：1）ネットワークを確認する 2）プロキシを切り替える 3）再試行する",
+            "stream_error": "ストリーム転送エラーが発生しました。後でもう一度お試しください",
+            "unknown_error": "不明なエラーが発生しました。後でもう一度お試しください"
+        }
     }
 }

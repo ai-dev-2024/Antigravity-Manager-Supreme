@@ -1,5 +1,5 @@
-// OpenAI mapper 模块
-// 负责 OpenAI ↔ Gemini 协议转换
+// OpenAI mapper Module
+// Responsible OpenAI ↔ Gemini ProtocolConvert
 
 pub mod models;
 pub mod request;

@@ -1,17 +1,17 @@
-// 上游客户端实现
-// 基于高性能通讯接口封装
+// upstreamClientaccomplish
+// Based on highPerformancecommunicationInterfaceEncapsulation
 
 use reqwest::{header, Client, Response, StatusCode};
 use serde_json::Value;
 use tokio::time::Duration;
 
 // Cloud Code v1internal endpoints (fallback order: prod → daily)
-// 优先使用稳定的 prod 端点，避免影响缓存命中率
+// priorityUsingStable的 prod endpoint，avoid impactCachehit rate
 const V1_INTERNAL_BASE_URL_PROD: &str = "https://cloudcode-pa.googleapis.com/v1internal";
 const V1_INTERNAL_BASE_URL_DAILY: &str = "https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal";
 const V1_INTERNAL_BASE_URL_FALLBACKS: [&str; 2] = [
-    V1_INTERNAL_BASE_URL_PROD,   // 优先使用生产环境（稳定）
-    V1_INTERNAL_BASE_URL_DAILY,  // 备用测试环境（新功能）
+    V1_INTERNAL_BASE_URL_PROD,   // priorityUsingProductionEnvironment（Stable）
+    V1_INTERNAL_BASE_URL_DAILY,  // spareTestEnvironment（新Function）
 ];
 
 pub struct UpstreamClient {
@@ -21,11 +21,11 @@ pub struct UpstreamClient {
 impl UpstreamClient {
     pub fn new(proxy_config: Option<crate::proxy::config::UpstreamProxyConfig>) -> Self {
         let mut builder = Client::builder()
-            // Connection settings (优化连接复用，减少建立开销)
+            // Connection settings (OptimizationConnectReuse，Reduce setup overhead)
             .connect_timeout(Duration::from_secs(20))
-            .pool_max_idle_per_host(16)                  // 每主机最多 16 个空闲连接
-            .pool_idle_timeout(Duration::from_secs(90))  // 空闲连接保持 90 秒
-            .tcp_keepalive(Duration::from_secs(60))      // TCP 保活探测 60 秒
+            .pool_max_idle_per_host(16)                  // 每Hostmost 16 个Empty闲Connect
+            .pool_idle_timeout(Duration::from_secs(90))  // Empty闲ConnectKeep 90 秒
+            .tcp_keepalive(Duration::from_secs(60))      // TCP Keep-alive detection 60 秒
             .timeout(Duration::from_secs(600))
             .user_agent("antigravity/1.11.9 windows/amd64");
 
@@ -43,9 +43,9 @@ impl UpstreamClient {
         Self { http_client }
     }
 
-    /// 构建 v1internal URL
+    /// build v1internal URL
     /// 
-    /// 构建 API 请求地址
+    /// build API RequestAddress
     fn build_url(base_url: &str, method: &str, query_string: Option<&str>) -> String {
         if let Some(qs) = query_string {
             format!("{}:{}?{}", base_url, method, qs)
@@ -54,13 +54,13 @@ impl UpstreamClient {
         }
     }
 
-    /// 判断是否应尝试下一个端点
+    /// judgeYesNo应Tryingnext endpoint
     /// 
-    /// 当遇到以下错误时，尝试切换到备用端点：
-    /// - 429 Too Many Requests（限流）
-    /// - 408 Request Timeout（超时）
-    /// - 404 Not Found（端点不存在）
-    /// - 5xx Server Error（服务器错误）
+    /// Whenencountered the followingError时，TryingSwitch to alternate endpoint：
+    /// - 429 Too Many Requests（Rate Limit）
+    /// - 408 Request Timeout（Timeout）
+    /// - 404 Not Found（endpointDoes not exist）
+    /// - 5xx Server Error（ServerError）
     fn should_try_next_endpoint(status: StatusCode) -> bool {
         status == StatusCode::TOO_MANY_REQUESTS
             || status == StatusCode::REQUEST_TIMEOUT
@@ -68,9 +68,9 @@ impl UpstreamClient {
             || status.is_server_error()
     }
 
-    /// 调用 v1internal API（基础方法）
+    /// call v1internal API（BaseMethod）
     /// 
-    /// 发起基础网络请求，支持多端点自动 Fallback
+    /// Launch basic networkRequest，SupportMultiple endpoints automatically Fallback
     pub async fn call_v1_internal(
         &self,
         method: &str,
@@ -81,7 +81,7 @@ impl UpstreamClient {
         self.call_v1_internal_with_headers(method, access_token, body, query_string, std::collections::HashMap::new()).await
     }
 
-    /// [FIX #765] 调用 v1internal API，支持透传额外的 Headers
+    /// [FIX #765] call v1internal API，SupportPassthroughextra Headers
     pub async fn call_v1_internal_with_headers(
         &self,
         method: &str,
@@ -90,7 +90,7 @@ impl UpstreamClient {
         query_string: Option<&str>,
         extra_headers: std::collections::HashMap<String, String>,
     ) -> Result<Response, String> {
-        // 构建 Headers (所有端点复用)
+        // build Headers (AllEndpoint reuse)
         let mut headers = header::HeaderMap::new();
         headers.insert(
             header::CONTENT_TYPE,
@@ -106,7 +106,7 @@ impl UpstreamClient {
             header::HeaderValue::from_static("antigravity/1.11.9 windows/amd64"),
         );
 
-        // 注入额外的 Headers (如 anthropic-beta)
+        // inject additional Headers (如 anthropic-beta)
         for (k, v) in extra_headers {
             if let Ok(hk) = header::HeaderName::from_bytes(k.as_bytes()) {
                 if let Ok(hv) = header::HeaderValue::from_str(&v) {
@@ -117,7 +117,7 @@ impl UpstreamClient {
 
         let mut last_err: Option<String> = None;
 
-        // 遍历所有端点，失败时自动切换
+        // TraverseAllendpoint，FailedAutomatically switch when
         for (idx, base_url) in V1_INTERNAL_BASE_URL_FALLBACKS.iter().enumerate() {
             let url = Self::build_url(base_url, method, query_string);
             let has_next = idx + 1 < V1_INTERNAL_BASE_URL_FALLBACKS.len();
@@ -148,7 +148,7 @@ impl UpstreamClient {
                         return Ok(resp);
                     }
 
-                    // 如果有下一个端点且当前错误可重试，则切换
+                    // IfThere is a next endpoint andCurrentError可Retry，then switch
                     if has_next && Self::should_try_next_endpoint(status) {
                         tracing::warn!(
                             "Upstream endpoint returned {} at {} (method={}), trying next endpoint",
@@ -160,7 +160,7 @@ impl UpstreamClient {
                         continue;
                     }
 
-                    // 不可重试的错误或已是最后一个端点，直接返回
+                    // NoRetry的Erroror haveYesFinallyan endpoint，directReturn
                     return Ok(resp);
                 }
                 Err(e) => {
@@ -168,7 +168,7 @@ impl UpstreamClient {
                     tracing::debug!("{}", msg);
                     last_err = Some(msg);
 
-                    // 如果是最后一个端点，退出循环
+                    // IfYesFinallyan endpoint，exit loop
                     if !has_next {
                         break;
                     }
@@ -180,28 +180,28 @@ impl UpstreamClient {
         Err(last_err.unwrap_or_else(|| "All endpoints failed".to_string()))
     }
 
-    /// 调用 v1internal API（带 429 重试,支持闭包）
+    /// call v1internal API（带 429 Retry,Support闭Packet）
     /// 
-    /// 带容错和重试的核心请求逻辑
+    /// with fault tolerance andRetry的CoreRequestlogic
     /// 
     /// # Arguments
     /// * `method` - API method (e.g., "generateContent")
     /// * `query_string` - Optional query string (e.g., "?alt=sse")
-    /// * `get_credentials` - 闭包，获取凭证（支持账号轮换）
-    /// * `build_body` - 闭包，接收 project_id 构建请求体
-    /// * `max_attempts` - 最大重试次数
+    /// * `get_credentials` - 闭Packet，GetCredential（SupportAccountrotation）
+    /// * `build_body` - 闭Packet，Receive project_id buildRequest体
+    /// * `max_attempts` - Max RetryCount
     /// 
     /// # Returns
     /// HTTP Response
-    // 已移除弃用的重试方法 (call_v1_internal_with_retry)
+    // 已RemoveDeprecatedRetryMethod (call_v1_internal_with_retry)
 
-    // 已移除弃用的辅助方法 (parse_retry_delay)
+    // 已RemoveDeprecatedAuxiliaryMethod (parse_retry_delay)
 
-    // 已移除弃用的辅助方法 (parse_duration_ms)
+    // 已RemoveDeprecatedAuxiliaryMethod (parse_duration_ms)
 
-    /// 获取可用模型列表
+    /// GetAvailableModelList
     /// 
-    /// 获取远端模型列表，支持多端点自动 Fallback
+    /// GetremoteModelList，SupportMultiple endpoints automatically Fallback
     #[allow(dead_code)] // API ready for future model discovery feature
     pub async fn fetch_available_models(&self, access_token: &str) -> Result<Value, String> {
         let mut headers = header::HeaderMap::new();
@@ -221,7 +221,7 @@ impl UpstreamClient {
 
         let mut last_err: Option<String> = None;
 
-        // 遍历所有端点，失败时自动切换
+        // TraverseAllendpoint，FailedAutomatically switch when
         for (idx, base_url) in V1_INTERNAL_BASE_URL_FALLBACKS.iter().enumerate() {
             let url = Self::build_url(base_url, "fetchAvailableModels", None);
 
@@ -253,7 +253,7 @@ impl UpstreamClient {
                         return Ok(json);
                     }
 
-                    // 如果有下一个端点且当前错误可重试，则切换
+                    // IfThere is a next endpoint andCurrentError可Retry，then switch
                     let has_next = idx + 1 < V1_INTERNAL_BASE_URL_FALLBACKS.len();
                     if has_next && Self::should_try_next_endpoint(status) {
                         tracing::warn!(
@@ -265,7 +265,7 @@ impl UpstreamClient {
                         continue;
                     }
 
-                    // 不可重试的错误或已是最后一个端点
+                    // NoRetry的Erroror haveYesFinallyan endpoint
                     return Err(format!("Upstream error: {}", status));
                 }
                 Err(e) => {
@@ -273,7 +273,7 @@ impl UpstreamClient {
                     tracing::debug!("{}", msg);
                     last_err = Some(msg);
 
-                    // 如果是最后一个端点，退出循环
+                    // IfYesFinallyan endpoint，exit loop
                     if idx + 1 >= V1_INTERNAL_BASE_URL_FALLBACKS.len() {
                         break;
                     }

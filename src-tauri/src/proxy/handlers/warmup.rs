@@ -1,9 +1,9 @@
-// 预热处理器 - 内部预热 API
+// preheatHandler - Insidepreheat API
 //
-// 提供 /internal/warmup 端点，支持：
-// - 指定账号（通过 email）
-// - 指定模型（不做映射，直接使用原始模型名称）
-// - 复用代理的所有基础设施（UpstreamClient、TokenManager）
+// supply /internal/warmup endpoint，Support：
+// - SpecifyAccount（pass email）
+// - SpecifyModel（Don't do itMapping，directUsingRawModelName）
+// - ReuseProxy的Allinfrastructure（UpstreamClient、TokenManager）
 
 use axum::{
     extract::State,
@@ -17,20 +17,20 @@ use tracing::{info, warn};
 use crate::proxy::mappers::gemini::wrapper::wrap_request;
 use crate::proxy::server::AppState;
 
-/// 预热请求体
+/// preheatRequest体
 #[derive(Debug, Deserialize)]
 pub struct WarmupRequest {
-    /// 账号邮箱
+    /// AccountMail
     pub email: String,
-    /// 模型名称（原始名称，不做映射）
+    /// ModelName（RawName，Don't do itMapping）
     pub model: String,
-    /// 可选：直接提供 Access Token（用于不在 TokenManager 中的账号）
+    /// Optional：Provide directly Access Token（used for absence TokenManager inAccount）
     pub access_token: Option<String>,
-    /// 可选：直接提供 Project ID
+    /// Optional：Provide directly Project ID
     pub project_id: Option<String>,
 }
 
-/// 预热响应
+/// preheatResponse
 #[derive(Debug, Serialize)]
 pub struct WarmupResponse {
     pub success: bool,
@@ -39,7 +39,7 @@ pub struct WarmupResponse {
     pub error: Option<String>,
 }
 
-/// 处理预热请求
+/// HandlepreheatRequest
 pub async fn handle_warmup(
     State(state): State<AppState>,
     Json(req): Json<WarmupRequest>,
@@ -49,7 +49,7 @@ pub async fn handle_warmup(
         req.email, req.model
     );
 
-    // ===== 步骤 1: 获取 Token =====
+    // ===== step 1: Get Token =====
     let (access_token, project_id) = if let (Some(at), Some(pid)) = (&req.access_token, &req.project_id) {
         (at.clone(), pid.clone())
     } else {
@@ -73,12 +73,12 @@ pub async fn handle_warmup(
         }
     };
 
-    // ===== 步骤 2: 根据模型类型构建请求体 =====
+    // ===== step 2: according toModelTypebuildRequest体 =====
     let is_claude = req.model.to_lowercase().contains("claude");
     let is_image = req.model.to_lowercase().contains("image");
 
     let body: Value = if is_claude {
-        // Claude 模型：使用 transform_claude_request_in 转换
+        // Claude Model：Using transform_claude_request_in Convert
         let session_id = format!("warmup_{}_{}", 
             chrono::Utc::now().timestamp_millis(),
             &uuid::Uuid::new_v4().to_string()[..8]
@@ -127,7 +127,7 @@ pub async fn handle_warmup(
             }
         }
     } else {
-        // Gemini 模型：使用 wrap_request
+        // Gemini Model：Using wrap_request
         let session_id = format!("warmup_{}_{}", 
             chrono::Utc::now().timestamp_millis(),
             &uuid::Uuid::new_v4().to_string()[..8]
@@ -158,7 +158,7 @@ pub async fn handle_warmup(
         wrap_request(&base_request, &project_id, &req.model, Some(&session_id))
     };
 
-    // ===== 步骤 3: 调用 UpstreamClient =====
+    // ===== step 3: call UpstreamClient =====
     let model_lower = req.model.to_lowercase();
     let prefer_non_stream = model_lower.contains("flash-lite") || model_lower.contains("2.5-pro");
 
@@ -173,7 +173,7 @@ pub async fn handle_warmup(
         .call_v1_internal(method, &access_token, body.clone(), query)
         .await;
 
-    // 如果流式请求失败，尝试非流式请求
+    // IfStream式RequestFailed，Trying非Stream式Request
     if result.is_err() && !prefer_non_stream {
         result = state
             .upstream
@@ -181,7 +181,7 @@ pub async fn handle_warmup(
             .await;
     }
 
-    // ===== 步骤 4: 处理响应 =====
+    // ===== step 4: HandleResponse =====
     match result {
         Ok(response) => {
             let status = response.status();
@@ -213,7 +213,7 @@ pub async fn handle_warmup(
                     .into_response()
             };
 
-            // 添加响应头，让监控中间件捕获账号信息
+            // AddResponse头，let monitorMiddlewarecaptureAccountInfo
             if let Ok(email_val) = axum::http::HeaderValue::from_str(&req.email) {
                 response.headers_mut().insert("X-Account-Email", email_val);
             }
@@ -238,7 +238,7 @@ pub async fn handle_warmup(
                 }),
             ).into_response();
 
-            // 即使失败也添加响应头，以便监控
+            // even thoughFailed也AddResponse头，for monitoring
             if let Ok(email_val) = axum::http::HeaderValue::from_str(&req.email) {
                 response.headers_mut().insert("X-Account-Email", email_val);
             }

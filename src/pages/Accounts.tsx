@@ -1,13 +1,12 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { save, open } from '@tauri-apps/plugin-dialog';
+import { save } from '@tauri-apps/plugin-dialog';
 import { request as invoke } from '../utils/request';
 import { join } from '@tauri-apps/api/path';
-import { Search, RefreshCw, Download, Upload, Trash2, LayoutGrid, List, ToggleLeft, ToggleRight, Sparkles } from 'lucide-react';
+import { Search, RefreshCw, Download, Trash2, LayoutGrid, List, ToggleLeft, ToggleRight, Eye, EyeOff } from 'lucide-react';
 import { useAccountStore } from '../stores/useAccountStore';
 import { useConfigStore } from '../stores/useConfigStore';
 import AccountTable from '../components/accounts/AccountTable';
 import AccountGrid from '../components/accounts/AccountGrid';
-import DeviceFingerprintDialog from '../components/accounts/DeviceFingerprintDialog';
 import AccountDetailsDialog from '../components/accounts/AccountDetailsDialog';
 import AddAccountDialog from '../components/accounts/AddAccountDialog';
 import ModalDialog from '../components/common/ModalDialog';
@@ -15,9 +14,6 @@ import Pagination from '../components/common/Pagination';
 import { showToast } from '../components/common/ToastContainer';
 import { Account } from '../types/account';
 import { cn } from '../utils/cn';
-
-// ... (省略中间代码)
-
 
 type FilterType = 'all' | 'pro' | 'ultra' | 'free';
 type ViewMode = 'list' | 'grid';
@@ -38,76 +34,18 @@ function Accounts() {
         refreshQuota,
         toggleProxyStatus,
         reorderAccounts,
-        warmUpAccounts,
-        warmUpAccount,
     } = useAccountStore();
     const { config } = useConfigStore();
 
     const [searchQuery, setSearchQuery] = useState('');
     const [filter, setFilter] = useState<FilterType>('all');
-    const [viewMode, setViewMode] = useState<ViewMode>(() => {
-        const saved = localStorage.getItem('accounts_view_mode');
-        return (saved === 'list' || saved === 'grid') ? saved : 'list';
-    });
-
-    // Save view mode preference
-    useEffect(() => {
-        localStorage.setItem('accounts_view_mode', viewMode);
-    }, [viewMode]);
+    const [viewMode, setViewMode] = useState<ViewMode>('list');
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-    const [deviceAccount, setDeviceAccount] = useState<Account | null>(null);
     const [detailsAccount, setDetailsAccount] = useState<Account | null>(null);
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
     const [isBatchDelete, setIsBatchDelete] = useState(false);
     const [toggleProxyConfirm, setToggleProxyConfirm] = useState<{ accountId: string; enable: boolean } | null>(null);
-    const [isWarmupConfirmOpen, setIsWarmupConfirmOpen] = useState(false);
-    const [isWarmuping, setIsWarmuping] = useState(false);
-    const [refreshingIds, setRefreshingIds] = useState<Set<string>>(new Set());
-
-
-    const handleWarmup = async (accountId: string) => {
-        setRefreshingIds(prev => {
-            const next = new Set(prev);
-            next.add(accountId);
-            return next;
-        });
-        try {
-            const msg = await warmUpAccount(accountId);
-            showToast(msg, 'success');
-        } catch (error) {
-            showToast(`${t('common.error')}: ${error}`, 'error');
-        } finally {
-            setRefreshingIds(prev => {
-                const next = new Set(prev);
-                next.delete(accountId);
-                return next;
-            });
-        }
-    };
-
-    const handleWarmupAll = async () => {
-        setIsWarmupConfirmOpen(false);
-        setIsWarmuping(true);
-        try {
-            const isBatch = selectedIds.size > 0;
-            if (isBatch) {
-                const ids = Array.from(selectedIds);
-                setRefreshingIds(new Set(ids));
-                const results = await Promise.allSettled(ids.map(id => warmUpAccount(id)));
-                let successCount = 0;
-                results.forEach(r => { if (r.status === 'fulfilled') successCount++; });
-                showToast(t('accounts.warmup_batch_triggered', { count: successCount }), 'success');
-            } else {
-                const msg = await warmUpAccounts();
-                showToast(msg, 'success');
-            }
-        } catch (error) {
-            showToast(`${t('common.error')}: ${error}`, 'error');
-        } finally {
-            setIsWarmuping(false);
-            setRefreshingIds(new Set());
-        }
-    };
+    const [hideDetails, setHideDetails] = useState(false);
 
 
     const containerRef = useRef<HTMLDivElement>(null);
@@ -129,48 +67,37 @@ function Accounts() {
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
-    const [localPageSize, setLocalPageSize] = useState<number | null>(() => {
-        const saved = localStorage.getItem('accounts_page_size');
-        return saved ? parseInt(saved) : null;
-    }); // 本地分页大小状态
+    const [localPageSize, setLocalPageSize] = useState<number | null>(null); // Local page size state
 
-    // Save page size preference
-    useEffect(() => {
-        if (localPageSize !== null) {
-            localStorage.setItem('accounts_page_size', localPageSize.toString());
-        }
-    }, [localPageSize]);
-
-    // 动态计算分页条数
+    // Dynamically calculate items per page
     const ITEMS_PER_PAGE = useMemo(() => {
-        // 优先使用本地设置的分页大小
+        // Prefer local page size setting
         if (localPageSize && localPageSize > 0) {
             return localPageSize;
         }
 
-        // 其次使用用户配置的固定值
+        // Then use user configured fixed value
         if (config?.accounts_page_size && config.accounts_page_size > 0) {
             return config.accounts_page_size;
         }
 
-        // 回退到原有的动态计算逻辑
+        // Fallback to dynamic calculation logic
         if (!containerSize.height) return viewMode === 'grid' ? 6 : 8;
 
         if (viewMode === 'list') {
-            const headerHeight = 36; // 缩深后的表头高度
-            const rowHeight = 72;    // 包含多行模型信息后的实际行高
-            // 计算能容纳多少行, 默认最低 10 行
-            const autoFitCount = Math.floor((containerSize.height - headerHeight) / rowHeight);
-            return Math.max(10, autoFitCount);
+            const headerHeight = 36; // Header height after compaction
+            const rowHeight = 42;    // Compressed row height
+            // Calculate how many rows fit, at least 1
+            return Math.max(1, Math.floor((containerSize.height - headerHeight) / rowHeight));
         } else {
-            const cardHeight = 180; // AccountCard 实际高度 (含间距)
+            const cardHeight = 158; // AccountCard estimated height (with gap)
             const gap = 16;         // gap-4
 
-            // 匹配 Tailwind 断点逻辑
+            // Match Tailwind breakpoint logic
             let cols = 1;
-            if (containerSize.width >= 1200) cols = 4;      // xl (约为 1280 左右)
-            else if (containerSize.width >= 900) cols = 3;   // lg (约为 1024 左右)
-            else if (containerSize.width >= 600) cols = 2;   // md (约为 768 左右)
+            if (containerSize.width >= 1200) cols = 4;      // xl (~1280)
+            else if (containerSize.width >= 900) cols = 3;   // lg (~1024)
+            else if (containerSize.width >= 600) cols = 2;   // md (~768)
 
             const rows = Math.max(1, Math.floor((containerSize.height + gap) / (cardHeight + gap)));
             return cols * rows;
@@ -181,19 +108,39 @@ function Accounts() {
         fetchAccounts();
     }, []);
 
+    // Auto-refresh quotas every 5 minutes
+    useEffect(() => {
+        const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+        const refreshAllQuotas = async () => {
+            if (accounts.length === 0) return;
+            try {
+                // Silently refresh all account quotas in the background
+                await invoke('batch_refresh_quotas');
+                await fetchAccounts(); // Reload updated data
+                console.log('[Accounts] Auto-refreshed quotas for all accounts');
+            } catch (error) {
+                console.error('[Accounts] Auto-refresh failed:', error);
+            }
+        };
+
+        const interval = setInterval(refreshAllQuotas, REFRESH_INTERVAL);
+        return () => clearInterval(interval);
+    }, [accounts.length]);
+
     // Reset pagination when view mode changes to avoid empty pages or confusion
     useEffect(() => {
         setCurrentPage(1);
     }, [viewMode]);
 
-    // 搜索过滤逻辑
+    // Search filter logic
     const searchedAccounts = useMemo(() => {
         if (!searchQuery) return accounts;
         const lowQuery = searchQuery.toLowerCase();
         return accounts.filter(a => a.email.toLowerCase().includes(lowQuery));
     }, [accounts, searchQuery]);
 
-    // 计算各筛选状态下的数量 (基于搜索结果)
+    // Calculate count for each filter status (based on search results)
     const filterCounts = useMemo(() => {
         return {
             all: searchedAccounts.length,
@@ -206,7 +153,7 @@ function Accounts() {
         };
     }, [searchedAccounts]);
 
-    // 过滤和搜索最终结果
+    // Final filtered and searched result
     const filteredAccounts = useMemo(() => {
         let result = searchedAccounts;
 
@@ -234,7 +181,7 @@ function Accounts() {
         setCurrentPage(page);
     };
 
-    // 清空选择当过滤改变 并重置分页
+    // Clear selection when filter changes and reset pagination
     useEffect(() => {
         setSelectedIds(new Set());
         setCurrentPage(1);
@@ -251,7 +198,7 @@ function Accounts() {
     };
 
     const handleToggleAll = () => {
-        // 全选当前页的所有项
+        // Select all items on current page
         const currentIds = paginatedAccounts.map(a => a.id);
         const allSelected = currentIds.every(id => selectedIds.has(id));
 
@@ -363,7 +310,7 @@ function Accounts() {
             await toggleProxyStatus(
                 toggleProxyConfirm.accountId,
                 toggleProxyConfirm.enable,
-                toggleProxyConfirm.enable ? undefined : t('accounts.proxy_disabled_reason_manual')
+                toggleProxyConfirm.enable ? undefined : 'User manually disabled'
             );
             showToast(t('common.success'), 'success');
         } catch (error) {
@@ -379,13 +326,13 @@ function Accounts() {
 
         try {
             const promises = Array.from(selectedIds).map(id =>
-                toggleProxyStatus(id, enable, enable ? undefined : t('accounts.proxy_disabled_reason_batch'))
+                toggleProxyStatus(id, enable, enable ? undefined : 'Batch disabled')
             );
             await Promise.all(promises);
             showToast(
                 enable
-                    ? t('accounts.toast.proxy_enabled', { count: selectedIds.size })
-                    : t('accounts.toast.proxy_disabled', { count: selectedIds.size }),
+                    ? `Successfully enabled proxy for ${selectedIds.size} accounts`
+                    : `Successfully disabled proxy for ${selectedIds.size} accounts`,
                 'success'
             );
             setSelectedIds(new Set());
@@ -396,6 +343,7 @@ function Accounts() {
     };
 
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [refreshingIds, setRefreshingIds] = useState<Set<string>>(new Set());
     const [isRefreshConfirmOpen, setIsRefreshConfirmOpen] = useState(false);
 
     const handleRefreshClick = () => {
@@ -412,7 +360,7 @@ function Accounts() {
             const details: string[] = [];
 
             if (isBatch) {
-                // 批量刷新选中
+                // Batch refresh selected
                 const ids = Array.from(selectedIds);
                 setRefreshingIds(new Set(ids));
 
@@ -429,7 +377,7 @@ function Accounts() {
                     }
                 });
             } else {
-                // 刷新所有
+                // Refresh all
                 setRefreshingIds(new Set(accounts.map(a => a.id)));
                 const stats = await useAccountStore.getState().refreshAllQuotas();
                 successCount = stats.success;
@@ -515,107 +463,38 @@ function Accounts() {
         }
     };
 
-    const handleImportJson = async () => {
-        try {
-            const selected = await open({
-                multiple: false,
-                filters: [{
-                    name: 'JSON',
-                    extensions: ['json']
-                }]
-            });
-            if (!selected || typeof selected !== 'string') return;
-
-            const content: string = await invoke('read_text_file', { path: selected });
-
-            let importData: Array<{ email?: string; refresh_token?: string }>;
-            try {
-                importData = JSON.parse(content);
-            } catch {
-                showToast(t('accounts.import_invalid_format'), 'error');
-                return;
-            }
-
-            if (!Array.isArray(importData) || importData.length === 0) {
-                showToast(t('accounts.import_invalid_format'), 'error');
-                return;
-            }
-
-            const validEntries = importData.filter(
-                item => item.refresh_token && typeof item.refresh_token === 'string' && item.refresh_token.startsWith('1//')
-            );
-
-            if (validEntries.length === 0) {
-                showToast(t('accounts.import_invalid_format'), 'error');
-                return;
-            }
-
-            let successCount = 0;
-            let failCount = 0;
-
-            for (const entry of validEntries) {
-                try {
-                    await addAccount(entry.email || '', entry.refresh_token!);
-                    successCount++;
-                } catch (error) {
-                    console.error('Import account failed:', error);
-                    failCount++;
-                }
-                await new Promise(r => setTimeout(r, 100));
-            }
-
-            if (failCount === 0) {
-                showToast(t('accounts.import_success', { count: successCount }), 'success');
-            } else if (successCount > 0) {
-                showToast(t('accounts.import_partial', { success: successCount, fail: failCount }), 'warning');
-            } else {
-                showToast(t('accounts.import_fail', { error: 'All accounts failed to import' }), 'error');
-            }
-        } catch (error) {
-            console.error('Import failed:', error);
-            showToast(t('accounts.import_fail', { error: String(error) }), 'error');
-        }
-    };
-
     const handleViewDetails = (accountId: string) => {
         const account = accounts.find(a => a.id === accountId);
         if (account) {
             setDetailsAccount(account);
         }
     };
-    const handleViewDevice = (accountId: string) => {
-        const account = accounts.find(a => a.id === accountId);
-        if (account) {
-            setDeviceAccount(account);
-        }
-    };
-
 
     return (
         <div className="h-full flex flex-col p-5 gap-4 max-w-7xl mx-auto w-full">
-            {/* 测试按钮 - 在最顶部 */}
+            {/* Test button - at very top */}
 
-            {/* 顶部工具栏：搜索、过滤和操作按钮 */}
+            {/* Top toolbar: search, filter and action buttons */}
             <div className="flex-none flex items-center gap-2">
-                {/* 搜索框 */}
+                {/* Search box */}
                 <div className="flex-none w-40 relative transition-all focus-within:w-48">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
                         type="text"
                         placeholder={t('accounts.search_placeholder')}
-                        className="w-full pl-9 pr-4 py-2 bg-white dark:bg-base-100 text-sm text-gray-900 dark:text-base-content border border-gray-200 dark:border-base-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                        className="w-full pl-9 pr-4 py-2 bg-card text-sm text-card-foreground border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray-400 dark:placeholder:text-gray-500"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
                 </div>
 
-                {/* 视图切换按钮组 */}
-                <div className="flex gap-1 bg-gray-100 dark:bg-base-200 p-1 rounded-lg shrink-0">
+                {/* View toggle button group */}
+                <div className="flex gap-1 bg-gray-100 dark:bg-base-300 p-1 rounded-lg shrink-0">
                     <button
                         className={cn(
                             "p-1.5 rounded-md transition-all",
                             viewMode === 'list'
-                                ? "bg-white dark:bg-base-100 text-blue-600 dark:text-blue-400 shadow-sm"
+                                ? "bg-card text-blue-600 dark:text-blue-400 shadow-sm"
                                 : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-base-content"
                         )}
                         onClick={() => setViewMode('list')}
@@ -627,7 +506,7 @@ function Accounts() {
                         className={cn(
                             "p-1.5 rounded-md transition-all",
                             viewMode === 'grid'
-                                ? "bg-white dark:bg-base-100 text-blue-600 dark:text-blue-400 shadow-sm"
+                                ? "bg-card text-blue-600 dark:text-blue-400 shadow-sm"
                                 : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-base-content"
                         )}
                         onClick={() => setViewMode('grid')}
@@ -637,14 +516,14 @@ function Accounts() {
                     </button>
                 </div>
 
-                {/* 过滤按钮组 */}
-                <div className="flex gap-0.5 bg-gray-100/80 dark:bg-base-200 p-1 rounded-xl border border-gray-200/50 dark:border-white/5 overflow-x-auto no-scrollbar">
+                {/* Filter button group */}
+                <div className="flex gap-0.5 bg-gray-100/80 dark:bg-gradient-to-b from-[#2a2a2a] to-[#1a1a1a] p-1 rounded-xl border border-gray-200/50 dark:border-white/5 overflow-x-auto no-scrollbar">
                     <button
                         className={cn(
                             "px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0",
                             filter === 'all'
-                                ? "bg-white dark:bg-base-100 text-blue-600 dark:text-blue-400 shadow-sm ring-1 ring-black/5"
-                                : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-base-content hover:bg-white/40"
+                                ? "bg-card text-blue-600 dark:text-blue-400 shadow-sm ring-1 ring-black/5"
+                                : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-base-content hover:bg-white/40 dark:hover:bg-white/5"
                         )}
                         onClick={() => setFilter('all')}
                     >
@@ -665,7 +544,7 @@ function Accounts() {
                         className={cn(
                             "px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0",
                             filter === 'pro'
-                                ? "bg-white dark:bg-base-100 text-blue-600 dark:text-blue-400 shadow-sm ring-1 ring-black/5"
+                                ? "bg-card text-blue-600 dark:text-blue-400 shadow-sm ring-1 ring-black/5"
                                 : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-base-content hover:bg-white/40"
                         )}
                         onClick={() => setFilter('pro')}
@@ -685,7 +564,7 @@ function Accounts() {
                         className={cn(
                             "px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0",
                             filter === 'ultra'
-                                ? "bg-white dark:bg-base-100 text-blue-600 dark:text-blue-400 shadow-sm ring-1 ring-black/5"
+                                ? "bg-card text-blue-600 dark:text-blue-400 shadow-sm ring-1 ring-black/5"
                                 : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-base-content hover:bg-white/40"
                         )}
                         onClick={() => setFilter('ultra')}
@@ -705,7 +584,7 @@ function Accounts() {
                         className={cn(
                             "px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0",
                             filter === 'free'
-                                ? "bg-white dark:bg-base-100 text-blue-600 dark:text-blue-400 shadow-sm ring-1 ring-black/5"
+                                ? "bg-card text-blue-600 dark:text-blue-400 shadow-sm ring-1 ring-black/5"
                                 : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-base-content hover:bg-white/40"
                         )}
                         onClick={() => setFilter('free')}
@@ -724,8 +603,23 @@ function Accounts() {
 
                 <div className="flex-1 min-w-[8px]"></div>
 
-                {/* 操作按钮组 */}
+                {/* Action buttons group */}
                 <div className="flex items-center gap-1.5 shrink-0">
+                    {/* Hide Details Toggle */}
+                    <button
+                        onClick={() => setHideDetails(!hideDetails)}
+                        className={cn(
+                            "px-2.5 py-2 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 shadow-sm",
+                            hideDetails
+                                ? "bg-muted text-muted-foreground hover:bg-muted/80"
+                                : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                        )}
+                        title={hideDetails ? 'Show account details' : 'Hide account details'}
+                    >
+                        {hideDetails ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        <span className="hidden xl:inline">{hideDetails ? 'Show' : 'Hide'}</span>
+                    </button>
+
                     <AddAccountDialog onAdd={handleAddAccount} />
 
                     {selectedIds.size > 0 && (
@@ -741,18 +635,18 @@ function Accounts() {
                             <button
                                 className="px-2.5 py-2 bg-orange-500 text-white text-xs font-medium rounded-lg hover:bg-orange-600 transition-colors flex items-center gap-1.5 shadow-sm"
                                 onClick={() => handleBatchToggleProxy(false)}
-                                title={t('accounts.disable_proxy_selected', { count: selectedIds.size })}
+                                title={`Disable (${selectedIds.size})`}
                             >
                                 <ToggleLeft className="w-3.5 h-3.5" />
-                                <span className="hidden xl:inline">{t('accounts.disable_proxy_selected', { count: selectedIds.size })}</span>
+                                <span className="hidden xl:inline">Disable ({selectedIds.size})</span>
                             </button>
                             <button
                                 className="px-2.5 py-2 bg-green-500 text-white text-xs font-medium rounded-lg hover:bg-green-600 transition-colors flex items-center gap-1.5 shadow-sm"
                                 onClick={() => handleBatchToggleProxy(true)}
-                                title={t('accounts.enable_proxy_selected', { count: selectedIds.size })}
+                                title={`Enable (${selectedIds.size})`}
                             >
                                 <ToggleRight className="w-3.5 h-3.5" />
-                                <span className="hidden xl:inline">{t('accounts.enable_proxy_selected', { count: selectedIds.size })}</span>
+                                <span className="hidden xl:inline">Enable ({selectedIds.size})</span>
                             </button>
                         </>
                     )}
@@ -770,30 +664,7 @@ function Accounts() {
                     </button>
 
                     <button
-                        className={`px-2.5 py-2 bg-orange-500 text-white text-xs font-medium rounded-lg hover:bg-orange-600 transition-colors flex items-center gap-1.5 shadow-sm ${isWarmuping ? 'opacity-70 cursor-not-allowed' : ''}`}
-                        onClick={() => setIsWarmupConfirmOpen(true)}
-                        disabled={isWarmuping}
-                        title={selectedIds.size > 0 ? t('accounts.warmup_selected', { count: selectedIds.size }) : t('accounts.warmup_all', '一键预热所有账号')}
-                    >
-                        <Sparkles className={`w-3.5 h-3.5 ${isWarmuping ? 'animate-pulse' : ''}`} />
-                        <span className="hidden xl:inline">
-                            {isWarmuping ? t('common.loading') : (selectedIds.size > 0 ? t('accounts.warmup_selected', { count: selectedIds.size }) : t('accounts.warmup_all', '一键预热'))}
-                        </span>
-                    </button>
-
-                    <button
-                        className="px-2.5 py-2 border border-gray-200 dark:border-base-300 text-gray-700 dark:text-gray-300 text-xs font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-base-200 transition-colors flex items-center gap-1.5"
-                        onClick={handleImportJson}
-                        title={t('accounts.import_json')}
-                    >
-                        <Upload className="w-3.5 h-3.5" />
-                        <span className="hidden lg:inline">
-                            {t('accounts.import_json')}
-                        </span>
-                    </button>
-
-                    <button
-                        className="px-2.5 py-2 border border-gray-200 dark:border-base-300 text-gray-700 dark:text-gray-300 text-xs font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-base-200 transition-colors flex items-center gap-1.5"
+                        className="px-2.5 py-2 border border-border text-gray-700 dark:text-gray-300 text-xs font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-base-200 transition-colors flex items-center gap-1.5"
                         onClick={handleExport}
                         title={selectedIds.size > 0 ? t('accounts.export_selected', { count: selectedIds.size }) : t('common.export')}
                     >
@@ -805,10 +676,10 @@ function Accounts() {
                 </div>
             </div>
 
-            {/* 账号列表内容区域 */}
+            {/* Account list content area */}
             <div className="flex-1 min-h-0 relative" ref={containerRef}>
                 {viewMode === 'list' ? (
-                    <div className="h-full bg-white dark:bg-base-100 rounded-2xl shadow-sm border border-gray-100 dark:border-base-200 flex flex-col overflow-hidden">
+                    <div className="h-full bg-card rounded-2xl shadow-sm border border-border flex flex-col overflow-hidden">
                         <div className="flex-1 overflow-y-auto">
                             <AccountTable
                                 accounts={paginatedAccounts}
@@ -820,13 +691,13 @@ function Accounts() {
                                 switchingAccountId={switchingAccountId}
                                 onSwitch={handleSwitch}
                                 onRefresh={handleRefresh}
-                                onViewDevice={handleViewDevice}
+                                onViewDevice={handleViewDetails}
                                 onViewDetails={handleViewDetails}
                                 onExport={handleExportOne}
                                 onDelete={handleDelete}
                                 onToggleProxy={(id) => handleToggleProxy(id, !!accounts.find(a => a.id === id)?.proxy_disabled)}
                                 onReorder={reorderAccounts}
-                                onWarmup={handleWarmup}
+                                hideDetails={hideDetails}
                             />
                         </div>
                     </div>
@@ -841,18 +712,18 @@ function Accounts() {
                             switchingAccountId={switchingAccountId}
                             onSwitch={handleSwitch}
                             onRefresh={handleRefresh}
-                            onViewDevice={handleViewDevice}
+                            onViewDevice={handleViewDetails}
                             onViewDetails={handleViewDetails}
                             onExport={handleExportOne}
                             onDelete={handleDelete}
                             onToggleProxy={(id) => handleToggleProxy(id, !!accounts.find(a => a.id === id)?.proxy_disabled)}
-                            onWarmup={handleWarmup}
+                            hideDetails={hideDetails}
                         />
                     </div>
                 )}
             </div>
 
-            {/* 极简分页 - 无边框浮动样式 */}
+            {/* Minimal pagination - borderless floating style */}
             {
                 filteredAccounts.length > 0 && (
                     <div className="flex-none">
@@ -864,7 +735,7 @@ function Accounts() {
                             itemsPerPage={ITEMS_PER_PAGE}
                             onPageSizeChange={(newSize) => {
                                 setLocalPageSize(newSize);
-                                setCurrentPage(1); // 重置到第一页
+                                setCurrentPage(1); // Reset to first page
                             }}
                             pageSizeOptions={[10, 20, 50, 100]}
                         />
@@ -875,10 +746,6 @@ function Accounts() {
             <AccountDetailsDialog
                 account={detailsAccount}
                 onClose={() => setDetailsAccount(null)}
-            />
-            <DeviceFingerprintDialog
-                account={deviceAccount}
-                onClose={() => setDeviceAccount(null)}
             />
 
             <ModalDialog
@@ -918,20 +785,6 @@ function Accounts() {
                     message={toggleProxyConfirm.enable ? t('accounts.dialog.enable_proxy_msg') : t('accounts.dialog.disable_proxy_msg')}
                 />
             )}
-
-            <ModalDialog
-                isOpen={isWarmupConfirmOpen}
-                title={selectedIds.size > 0 ? t('accounts.dialog.batch_warmup_title', '批量手动预热') : t('accounts.dialog.warmup_all_title', '全量手动预热')}
-                message={selectedIds.size > 0
-                    ? t('accounts.dialog.batch_warmup_msg', '确定要为选中的 {{count}} 个账号立即触发预热吗？', { count: selectedIds.size })
-                    : t('accounts.dialog.warmup_all_msg', '确定要立即为所有符合条件的账号触发预热任务吗？这将向 Google 服务发送极小流量。')
-                }
-                type="confirm"
-                confirmText={t('accounts.warmup_now', '立即预热')}
-                isDestructive={false}
-                onConfirm={handleWarmupAll}
-                onCancel={() => setIsWarmupConfirmOpen(false)}
-            />
         </div >
     );
 }

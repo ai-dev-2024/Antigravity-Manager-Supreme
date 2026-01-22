@@ -7,7 +7,7 @@ use tokio::time::Duration;
 use crate::proxy::monitor::{ProxyMonitor, ProxyRequestLog, ProxyStats};
 
 
-/// 反代服务状态
+/// Anti-generationalServiceStatus
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProxyStatus {
     pub running: bool,
@@ -16,13 +16,13 @@ pub struct ProxyStatus {
     pub active_accounts: usize,
 }
 
-/// 反代服务全局状态
+/// Anti-generationalServiceGlobalStatus
 pub struct ProxyServiceState {
     pub instance: Arc<RwLock<Option<ProxyServiceInstance>>>,
     pub monitor: Arc<RwLock<Option<Arc<ProxyMonitor>>>>,
 }
 
-/// 反代服务实例
+/// Anti-generationalServiceInstance
 pub struct ProxyServiceInstance {
     pub config: ProxyConfig,
     pub token_manager: Arc<TokenManager>,
@@ -39,7 +39,7 @@ impl ProxyServiceState {
     }
 }
 
-/// 启动反代服务
+/// StartAnti-generationalService
 #[tauri::command]
 pub async fn start_proxy_service(
     config: ProxyConfig,
@@ -48,9 +48,9 @@ pub async fn start_proxy_service(
 ) -> Result<ProxyStatus, String> {
     let mut instance_lock = state.instance.write().await;
     
-    // 防止重复启动
+    // preventDuplicateStart
     if instance_lock.is_some() {
-        return Err("服务已在运行中".to_string());
+        return Err("ServiceAlready inRun中".to_string());
     }
 
     // Ensure monitor exists
@@ -67,30 +67,30 @@ pub async fn start_proxy_service(
     
     let monitor = state.monitor.read().await.as_ref().unwrap().clone();
     
-    // 2. 初始化 Token 管理器
+    // 2. Initialize Token Manager
     let app_data_dir = crate::modules::account::get_data_dir()?;
     // Ensure accounts dir exists even if the user will only use non-Google providers (e.g. z.ai).
     let _ = crate::modules::account::get_accounts_dir()?;
     let accounts_dir = app_data_dir.clone();
     
     let token_manager = Arc::new(TokenManager::new(accounts_dir));
-    token_manager.start_auto_cleanup(); // 启动限流记录自动清理后台任务
-    // 同步 UI 传递的调度配置
+    token_manager.start_auto_cleanup(); // StartRate LimitRecordAutomatically clean the backgroundTask
+    // Sync UI Delivery scheduleConfig
     token_manager.update_sticky_config(config.scheduling.clone()).await;
     
-    // 3. 加载账号
+    // 3. LoadAccount
     let active_accounts = token_manager.load_accounts().await
-        .map_err(|e| format!("加载账号失败: {}", e))?;
+        .map_err(|e| format!("LoadAccountFailed: {}", e))?;
     
     if active_accounts == 0 {
         let zai_enabled = config.zai.enabled
             && !matches!(config.zai.dispatch_mode, crate::proxy::ZaiDispatchMode::Off);
         if !zai_enabled {
-            return Err("没有可用账号，请先添加账号".to_string());
+            return Err("NoneAvailableAccount，please firstAddAccount".to_string());
         }
     }
     
-    // 启动 Axum 服务器
+    // Start Axum Server
     let (axum_server, server_handle) =
         match crate::proxy::AxumServer::start(
             config.get_bind_address().to_string(),
@@ -106,10 +106,10 @@ pub async fn start_proxy_service(
 
         ).await {
             Ok((server, handle)) => (server, handle),
-            Err(e) => return Err(format!("启动 Axum 服务器失败: {}", e)),
+            Err(e) => return Err(format!("Start Axum ServerFailed: {}", e)),
         };
     
-    // 创建服务实例
+    // CreateServiceInstance
     let instance = ProxyServiceInstance {
         config: config.clone(),
         token_manager: token_manager.clone(), // Clone for ProxyServiceInstance
@@ -120,7 +120,7 @@ pub async fn start_proxy_service(
     *instance_lock = Some(instance);
     
 
-    // 保存配置到全局 AppConfig
+    // SaveConfig到Global AppConfig
     let mut app_config = crate::modules::config::load_app_config().map_err(|e| e)?;
     app_config.proxy = config.clone();
     crate::modules::config::save_app_config(&app_config).map_err(|e| e)?;
@@ -133,7 +133,7 @@ pub async fn start_proxy_service(
     })
 }
 
-/// 停止反代服务
+/// StopAnti-generationalService
 #[tauri::command]
 pub async fn stop_proxy_service(
     state: State<'_, ProxyServiceState>,
@@ -141,20 +141,20 @@ pub async fn stop_proxy_service(
     let mut instance_lock = state.instance.write().await;
     
     if instance_lock.is_none() {
-        return Err("服务未运行".to_string());
+        return Err("Service未Run".to_string());
     }
     
-    // 停止 Axum 服务器
+    // Stop Axum Server
     if let Some(instance) = instance_lock.take() {
         instance.axum_server.stop();
-        // 等待服务器任务完成
+        // WaitServerTaskComplete
         instance.server_handle.await.ok();
     }
     
     Ok(())
 }
 
-/// 获取反代服务状态
+/// GetAnti-generationalServiceStatus
 #[tauri::command]
 pub async fn get_proxy_status(
     state: State<'_, ProxyServiceState>,
@@ -177,7 +177,7 @@ pub async fn get_proxy_status(
     }
 }
 
-/// 获取反代服务统计
+/// GetAnti-generationalServicestatistics
 #[tauri::command]
 pub async fn get_proxy_stats(
     state: State<'_, ProxyServiceState>,
@@ -190,7 +190,7 @@ pub async fn get_proxy_stats(
     }
 }
 
-/// 获取反代请求日志
+/// GetAnti-generationalRequestLog
 #[tauri::command]
 pub async fn get_proxy_logs(
     state: State<'_, ProxyServiceState>,
@@ -204,7 +204,7 @@ pub async fn get_proxy_logs(
     }
 }
 
-/// 设置监控开启状态
+/// SetMonitoring is onStatus
 #[tauri::command]
 pub async fn set_proxy_monitor_enabled(
     state: State<'_, ProxyServiceState>,
@@ -217,7 +217,7 @@ pub async fn set_proxy_monitor_enabled(
     Ok(())
 }
 
-/// 清除反代请求日志
+/// ClearAnti-generationalRequestLog
 #[tauri::command]
 pub async fn clear_proxy_logs(
     state: State<'_, ProxyServiceState>,
@@ -229,7 +229,7 @@ pub async fn clear_proxy_logs(
     Ok(())
 }
 
-/// 获取反代请求日志 (分页)
+/// GetAnti-generationalRequestLog (Pagination)
 #[tauri::command]
 pub async fn get_proxy_logs_paginated(
     limit: Option<usize>,
@@ -241,7 +241,7 @@ pub async fn get_proxy_logs_paginated(
     )
 }
 
-/// 获取单条日志的完整详情
+/// GetSingleLogFull details of
 #[tauri::command]
 pub async fn get_proxy_log_detail(
     log_id: String,
@@ -249,13 +249,13 @@ pub async fn get_proxy_log_detail(
     crate::modules::proxy_db::get_log_detail(&log_id)
 }
 
-/// 获取日志总数
+/// GetLogtotal
 #[tauri::command]
 pub async fn get_proxy_logs_count() -> Result<u64, String> {
     crate::modules::proxy_db::get_logs_count()
 }
 
-/// 导出所有日志到指定文件
+/// ExportAllLogto designatedFile
 #[tauri::command]
 pub async fn export_proxy_logs(
     file_path: String,
@@ -272,7 +272,7 @@ pub async fn export_proxy_logs(
     Ok(count)
 }
 
-/// 导出指定的日志JSON到文件
+/// ExportdesignatedLogJSON到File
 #[tauri::command]
 pub async fn export_proxy_logs_json(
     file_path: String,
@@ -293,7 +293,7 @@ pub async fn export_proxy_logs_json(
     Ok(count)
 }
 
-/// 获取带搜索条件的日志数量
+/// Get带SearchCondition的LogAmount
 #[tauri::command]
 pub async fn get_proxy_logs_count_filtered(
     filter: String,
@@ -302,7 +302,7 @@ pub async fn get_proxy_logs_count_filtered(
     crate::modules::proxy_db::get_logs_count_filtered(&filter, errors_only)
 }
 
-/// 获取带搜索条件的分页日志
+/// Get带SearchConditionpagingLog
 #[tauri::command]
 pub async fn get_proxy_logs_filtered(
     filter: String,
@@ -313,35 +313,30 @@ pub async fn get_proxy_logs_filtered(
     crate::modules::proxy_db::get_logs_filtered(&filter, errors_only, limit, offset)
 }
 
-/// 生成 API Key
+/// generate API Key
 #[tauri::command]
 pub fn generate_api_key() -> String {
     format!("sk-{}", uuid::Uuid::new_v4().simple())
 }
 
-/// 重新加载账号（当主应用添加/删除账号时调用）
+/// againLoadAccount（Whenmain applicationAdd/DeleteAccountCalled when）
 #[tauri::command]
 pub async fn reload_proxy_accounts(
     state: State<'_, ProxyServiceState>,
 ) -> Result<usize, String> {
     let instance_lock = state.instance.read().await;
-
+    
     if let Some(instance) = instance_lock.as_ref() {
-        // [FIX #820] Clear stale session bindings before reloading accounts
-        // This ensures that after switching accounts in the UI, API requests
-        // won't be routed to the previously bound (wrong) account
-        instance.token_manager.clear_all_sessions();
-
-        // 重新加载账号
+        // againLoadAccount
         let count = instance.token_manager.load_accounts().await
-            .map_err(|e| format!("重新加载账号失败: {}", e))?;
+            .map_err(|e| format!("againLoadAccountFailed: {}", e))?;
         Ok(count)
     } else {
-        Err("服务未运行".to_string())
+        Err("Service未Run".to_string())
     }
 }
 
-/// 更新模型映射表 (热更新)
+/// UpdateModel Mapping表 (热Update)
 #[tauri::command]
 pub async fn update_model_mapping(
     config: ProxyConfig,
@@ -349,14 +344,14 @@ pub async fn update_model_mapping(
 ) -> Result<(), String> {
     let instance_lock = state.instance.read().await;
     
-    // 1. 如果服务正在运行，立即更新内存中的映射 (这里目前只更新了 anthropic_mapping 的 RwLock, 
-    // 后续可以根据需要让 resolve_model_route 直接读取全量 config)
+    // 1. IfServiceCurrentlyRun，immediatelyUpdateMemoryinMapping (HereCurrently onlyUpdate了 anthropic_mapping 的 RwLock, 
+    // Follow-upCanaccording toNeed让 resolve_model_route directReadfull amount config)
     if let Some(instance) = instance_lock.as_ref() {
         instance.axum_server.update_mapping(&config).await;
-        tracing::debug!("后端服务已接收全量模型映射配置");
+        tracing::debug!("rear endService已Receivefull amountModel MappingConfig");
     }
     
-    // 2. 无论是否运行，都保存到全局配置持久化
+    // 2. regardlessYesNoRun，都Save到GlobalConfigPersistent化
     let mut app_config = crate::modules::config::load_app_config().map_err(|e| e)?;
     app_config.proxy.custom_mapping = config.custom_mapping;
     crate::modules::config::save_app_config(&app_config).map_err(|e| e)?;
@@ -475,7 +470,7 @@ pub async fn fetch_zai_models(
     Ok(models)
 }
 
-/// 获取当前调度配置
+/// GetCurrentSchedulingConfig
 #[tauri::command]
 pub async fn get_proxy_scheduling_config(
     state: State<'_, ProxyServiceState>,
@@ -488,7 +483,7 @@ pub async fn get_proxy_scheduling_config(
     }
 }
 
-/// 更新调度配置
+/// UpdateSchedulingConfig
 #[tauri::command]
 pub async fn update_proxy_scheduling_config(
     state: State<'_, ProxyServiceState>,
@@ -499,11 +494,11 @@ pub async fn update_proxy_scheduling_config(
         instance.token_manager.update_sticky_config(config).await;
         Ok(())
     } else {
-        Err("服务未运行，无法更新实时配置".to_string())
+        Err("Service未Run，UnableUpdatereal timeConfig".to_string())
     }
 }
 
-/// 清除所有会话粘性绑定
+/// ClearAllSessionsticky binding
 #[tauri::command]
 pub async fn clear_proxy_session_bindings(
     state: State<'_, ProxyServiceState>,
@@ -513,40 +508,7 @@ pub async fn clear_proxy_session_bindings(
         instance.token_manager.clear_all_sessions();
         Ok(())
     } else {
-        Err("服务未运行".to_string())
-    }
-}
-
-// ===== [FIX #820] 固定账号模式命令 =====
-
-/// 设置优先使用的账号（固定账号模式）
-/// 传入 account_id 启用固定模式，传入 null/空字符串恢复轮询模式
-#[tauri::command]
-pub async fn set_preferred_account(
-    state: State<'_, ProxyServiceState>,
-    account_id: Option<String>,
-) -> Result<(), String> {
-    let instance_lock = state.instance.read().await;
-    if let Some(instance) = instance_lock.as_ref() {
-        // 过滤空字符串为 None
-        let cleaned_id = account_id.filter(|s| !s.trim().is_empty());
-        instance.token_manager.set_preferred_account(cleaned_id).await;
-        Ok(())
-    } else {
-        Err("服务未运行".to_string())
-    }
-}
-
-/// 获取当前优先使用的账号ID
-#[tauri::command]
-pub async fn get_preferred_account(
-    state: State<'_, ProxyServiceState>,
-) -> Result<Option<String>, String> {
-    let instance_lock = state.instance.read().await;
-    if let Some(instance) = instance_lock.as_ref() {
-        Ok(instance.token_manager.get_preferred_account().await)
-    } else {
-        Ok(None)
+        Err("Service未Run".to_string())
     }
 }
 

@@ -5,7 +5,11 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/png" href="/icon.png" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Antigravity Tools</title>
+  <title>Antigravity Manager Supreme</title>
+  <!-- Oxanium (Doom-64 theme) + Inter fonts for typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oxanium:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script>
     (function () {
       try {
@@ -37,6 +41,25 @@
       background-color: #1a1f2e !important;
     }
 
+    /* Hide Google Translate bar at top */
+    .goog-te-banner-frame,
+    .skiptranslate,
+    #goog-gt-tt,
+    .goog-te-balloon-frame,
+    div#goog-gt-,
+    .goog-text-highlight {
+      display: none !important;
+    }
+
+    body {
+      top: 0 !important;
+      position: static !important;
+    }
+
+    .goog-te-gadget {
+      display: none !important;
+    }
+
     /* These specific overrides will apply when React loads and removes the splash screen logic, 
        but for now we want everything to look like the splash screen */
 
@@ -51,6 +74,82 @@
 
 
 
+
+  <!-- Google Translate Widget (hidden UI, controlled by our globe icon) -->
+  <div id="google_translate_element" style="display: none !important;"></div>
+  <script type="text/javascript">
+    function googleTranslateElementInit() {
+      new google.translate.TranslateElement({
+        pageLanguage: 'en',
+        includedLanguages: 'ar,bn,de,es,fr,hi,it,ja,ko,nl,pl,pt,ru,th,tr,uk,vi,zh-CN,zh-TW',
+        autoDisplay: false
+      }, 'google_translate_element');
+    }
+
+    // Function to change language programmatically (called from React)
+    window.changeGoogleTranslateLanguage = function (langCode) {
+      // Map our language codes to Google Translate codes
+      const langMap = {
+        'en': 'en',
+        'es': 'es',
+        'fr': 'fr',
+        'de': 'de',
+        'it': 'it',
+        'pt': 'pt',
+        'ru': 'ru',
+        'ja': 'ja',
+        'ko': 'ko',
+        'zh': 'zh-CN',
+        'zh-TW': 'zh-TW',
+        'ar': 'ar',
+        'hi': 'hi',
+        'bn': 'bn',
+        'tr': 'tr',
+        'vi': 'vi',
+        'th': 'th',
+        'nl': 'nl',
+        'pl': 'pl',
+        'uk': 'uk'
+      };
+
+      const googleLang = langMap[langCode] || langCode;
+
+      // Special handling for English - reset to original
+      if (langCode === 'en') {
+        // Clear all Google Translate cookies
+        document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+        document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.' + window.location.hostname;
+        document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=' + window.location.hostname;
+
+        // Try to use Google Translate's restore function
+        const iframe = document.querySelector('.goog-te-banner-frame');
+        if (iframe && iframe.contentWindow) {
+          try {
+            const closeBtn = iframe.contentWindow.document.querySelector('.goog-close-link');
+            if (closeBtn) closeBtn.click();
+          } catch (e) { }
+        }
+
+        // Force reload to clear translation
+        location.reload();
+        return;
+      }
+
+      // Set the Google Translate cookie and reload the translation
+      const select = document.querySelector('.goog-te-combo');
+      if (select) {
+        select.value = googleLang;
+        select.dispatchEvent(new Event('change'));
+      } else {
+        // Fallback: set cookie directly
+        document.cookie = 'googtrans=/en/' + googleLang + '; path=/';
+        document.cookie = 'googtrans=/en/' + googleLang + '; path=/; domain=.' + window.location.hostname;
+        location.reload();
+      }
+    };
+  </script>
+  <script type="text/javascript"
+    src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>

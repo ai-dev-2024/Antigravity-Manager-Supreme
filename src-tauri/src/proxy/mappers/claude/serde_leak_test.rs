@@ -3,7 +3,7 @@ use crate::proxy::mappers::claude::models::ClaudeRequest;
 
 #[test]
 fn test_claude_request_deserialization_leak() {
-    // 模拟一个包含 cache_control: null 的请求
+    // Simulate aPacket含 cache_control: null 的Request
     let incoming_json = json!({
         "model": "claude-3-5-sonnet-20241022",
         "messages": [
@@ -23,7 +23,7 @@ fn test_claude_request_deserialization_leak() {
 
     let request: ClaudeRequest = serde_json::from_value(incoming_json).expect("Deserialization failed");
     
-    // 检查反序列化后的值
+    // Check反SequencetransformedValue
     if let crate::proxy::mappers::claude::models::MessageContent::Array(blocks) = &request.messages[0].content {
         if let crate::proxy::mappers::claude::models::ContentBlock::Thinking { cache_control, .. } = &blocks[0] {
             println!("Debug: cache_control after deserialization: {:?}", cache_control);

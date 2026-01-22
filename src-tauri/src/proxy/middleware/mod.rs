@@ -1,4 +1,4 @@
-// Middleware 模块 - Axum 中间件
+// Middleware Module - Axum Middleware
 
 pub mod auth;
 pub mod cors;

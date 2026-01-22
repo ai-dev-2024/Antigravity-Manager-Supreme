@@ -37,9 +37,9 @@ pub fn resolve_request_config(
         };
     }
 
-    // 检测是否有联网工具定义 (内置功能调用)
+    // DetectionYesNoHave internet connectionTooldefinition (built-inFunctioncall)
     let has_networking_tool = detects_networking_tool(tools);
-    // 检测是否包含非联网工具 (如 MCP 本地工具)
+    // DetectionYesNoPacketIncluding non-internetTool (如 MCP localTool)
     let _has_non_networking = contains_non_networking_tool(tools);
 
     // Strip -online suffix from original model if present (to detect networking intent)
@@ -59,8 +59,8 @@ pub fn resolve_request_config(
         || mapped_model.contains("claude-4");
 
     // Determine if we should enable networking
-    // [FIX] 禁用基于模型的自动联网逻辑，防止图像请求被联网搜索结果覆盖。
-    // 仅在用户显式请求联网时启用：1) -online 后缀 2) 携带联网工具定义
+    // [FIX] Disablebased onModelautomatic networking logic，preventPictureRequestBeing networkedSearchResultcover。
+    // only inUserexplicitRequestWhen connected to the InternetEnable：1) -online Suffix 2) Portable networkingTooldefinition
     let enable_networking = is_online_suffix || has_networking_tool;
 
     // The final model to send upstream should be the MAPPED model,
@@ -126,11 +126,11 @@ pub fn parse_image_config_with_params(
 ) -> (Value, String) {
     let mut aspect_ratio = "1:1";
 
-    // 1. 优先从 size 参数解析宽高比
+    // 1. Prioritize from size ParameterParseaspect ratio
     if let Some(s) = size {
         aspect_ratio = calculate_aspect_ratio_from_size(s);
     } else {
-        // 2. 回退到模型后缀解析（保持向后兼容）
+        // 2. Fallback toModelSuffixParse（keep backwardsCompatible）
         if model_name.contains("-21x9") || model_name.contains("-21-9") {
             aspect_ratio = "21:9";
         } else if model_name.contains("-16x9") || model_name.contains("-16-9") {
@@ -149,7 +149,7 @@ pub fn parse_image_config_with_params(
     let mut config = serde_json::Map::new();
     config.insert("aspectRatio".to_string(), json!(aspect_ratio));
 
-    // 3. 优先从 quality 参数解析分辨率
+    // 3. Prioritize from quality ParameterParseresolution
     if let Some(q) = quality {
         match q {
             "hd" => {
@@ -158,10 +158,10 @@ pub fn parse_image_config_with_params(
             "medium" => {
                 config.insert("imageSize".to_string(), json!("2K"));
             }
-            _ => {} // "standard" 或其他，不设置
+            _ => {} // "standard" or other，不Set
         }
     } else {
-        // 4. 回退到模型后缀解析（保持向后兼容）
+        // 4. Fallback toModelSuffixParse（keep backwardsCompatible）
         let is_hd = model_name.contains("-4k") || model_name.contains("-hd");
         let is_2k = model_name.contains("-2k");
 
@@ -179,23 +179,23 @@ pub fn parse_image_config_with_params(
     )
 }
 
-/// 动态计算宽高比（解决硬编码问题）
+/// DynamicCalculate aspect ratio（solve hardEncodequestion）
 ///
-/// 从 "WIDTHxHEIGHT" 格式的字符串解析并计算宽高比，
-/// 使用容差匹配常见的标准比例。
+/// 从 "WIDTHxHEIGHT" FormatstringParseand calculate the aspect ratio，
+/// UsingTolerances match common standard proportions。
 ///
 /// # Arguments
-/// * `size` - 尺寸字符串，格式为 "WIDTHxHEIGHT" (e.g., "1280x720", "1792x1024")
+/// * `size` - size string，Format为 "WIDTHxHEIGHT" (e.g., "1280x720", "1792x1024")
 ///
 /// # Returns
-/// 标准宽高比字符串 ("1:1", "16:9", "9:16", "4:3", "3:4", "21:9")
+/// Standard aspect ratio string ("1:1", "16:9", "9:16", "4:3", "3:4", "21:9")
 fn calculate_aspect_ratio_from_size(size: &str) -> &'static str {
     if let Some((w_str, h_str)) = size.split_once('x') {
         if let (Ok(width), Ok(height)) = (w_str.parse::<f64>(), h_str.parse::<f64>()) {
             if width > 0.0 && height > 0.0 {
                 let ratio = width / height;
 
-                // 容差匹配常见比例（容差 0.1）
+                // Tolerance Matches Common Ratios（Tolerance 0.1）
                 if (ratio - 21.0 / 9.0).abs() < 0.1 {
                     return "21:9";
                 }
@@ -218,7 +218,7 @@ fn calculate_aspect_ratio_from_size(size: &str) -> &'static str {
         }
     }
 
-    "1:1" // 默认回退
+    "1:1" // Defaultrollback
 }
 
 /// Inject current googleSearch tool and ensure no duplicate legacy search tools
@@ -226,8 +226,8 @@ pub fn inject_google_search_tool(body: &mut Value) {
     if let Some(obj) = body.as_object_mut() {
         let tools_entry = obj.entry("tools").or_insert_with(|| json!([]));
         if let Some(tools_arr) = tools_entry.as_array_mut() {
-            // [安全校验] 如果数组中已经包含 functionDeclarations，严禁注入 googleSearch
-            // 因为 Gemini v1internal 不支持在一次请求中混用 search 和 functions
+            // [SafetyChecksum] IfArray中AlreadyPacket含 functionDeclarations，Injection is strictly prohibited googleSearch
+            // Because Gemini v1internal Not supportedat onceRequestmedium mixed use search 和 functions
             let has_functions = tools_arr.iter().any(|t| {
                 t.as_object()
                     .map_or(false, |o| o.contains_key("functionDeclarations"))
@@ -240,7 +240,7 @@ pub fn inject_google_search_tool(body: &mut Value) {
                 return;
             }
 
-            // 首先清理掉已存在的 googleSearch 或 googleSearchRetrieval，以防重复产生冲突
+            // Firstclean upAlready exists的 googleSearch 或 googleSearchRetrieval，Just in caseDuplicateconflict
             tools_arr.retain(|t| {
                 if let Some(o) = t.as_object() {
                     !(o.contains_key("googleSearch") || o.contains_key("googleSearchRetrieval"))
@@ -249,7 +249,7 @@ pub fn inject_google_search_tool(body: &mut Value) {
                 }
             });
 
-            // 注入统一的 googleSearch (v1internal 规范)
+            // Inject a unified googleSearch (v1internal specification)
             tools_arr.push(json!({
                 "googleSearch": {}
             }));
@@ -257,11 +257,11 @@ pub fn inject_google_search_tool(body: &mut Value) {
     }
 }
 
-/// 深度迭代清理客户端发送的 [undefined] 脏字符串，防止 Gemini 接口校验失败
+/// Depthiterative cleanupClientSend的 [undefined] dirty string，prevent Gemini InterfaceChecksumFailed
 pub fn deep_clean_undefined(value: &mut Value) {
     match value {
         Value::Object(map) => {
-            // 移除值为 "[undefined]" 的键
+            // RemoveValue为 "[undefined]" 的Key
             map.retain(|_, v| {
                 if let Some(s) = v.as_str() {
                     s != "[undefined]"
@@ -269,7 +269,7 @@ pub fn deep_clean_undefined(value: &mut Value) {
                     true
                 }
             });
-            // 递归处理嵌套
+            // Recursive processingNested
             for v in map.values_mut() {
                 deep_clean_undefined(v);
             }
@@ -288,7 +288,7 @@ pub fn deep_clean_undefined(value: &mut Value) {
 pub fn detects_networking_tool(tools: &Option<Vec<Value>>) -> bool {
     if let Some(list) = tools {
         for tool in list {
-            // 1. 直发风格 (Claude/Simple OpenAI/Anthropic Builtin/Vertex): { "name": "..." } 或 { "type": "..." }
+            // 1. straight hair style (Claude/Simple OpenAI/Anthropic Builtin/Vertex): { "name": "..." } 或 { "type": "..." }
             if let Some(n) = tool.get("name").and_then(|v| v.as_str()) {
                 if n == "web_search"
                     || n == "google_search"
@@ -309,7 +309,7 @@ pub fn detects_networking_tool(tools: &Option<Vec<Value>>) -> bool {
                 }
             }
 
-            // 2. OpenAI 嵌套风格: { "type": "function", "function": { "name": "..." } }
+            // 2. OpenAI Nested style: { "type": "function", "function": { "name": "..." } }
             if let Some(func) = tool.get("function") {
                 if let Some(n) = func.get("name").and_then(|v| v.as_str()) {
                     let keywords = [
@@ -324,7 +324,7 @@ pub fn detects_networking_tool(tools: &Option<Vec<Value>>) -> bool {
                 }
             }
 
-            // 3. Gemini 原生风格: { "functionDeclarations": [ { "name": "..." } ] }
+            // 3. Gemini native style: { "functionDeclarations": [ { "name": "..." } ] }
             if let Some(decls) = tool.get("functionDeclarations").and_then(|v| v.as_array()) {
                 for decl in decls {
                     if let Some(n) = decl.get("name").and_then(|v| v.as_str()) {
@@ -338,7 +338,7 @@ pub fn detects_networking_tool(tools: &Option<Vec<Value>>) -> bool {
                 }
             }
 
-            // 4. Gemini googleSearch 声明 (含 googleSearchRetrieval 变体)
+            // 4. Gemini googleSearch statement (含 googleSearchRetrieval Variants)
             if tool.get("googleSearch").is_some() || tool.get("googleSearchRetrieval").is_some() {
                 return true;
             }
@@ -347,13 +347,13 @@ pub fn detects_networking_tool(tools: &Option<Vec<Value>>) -> bool {
     false
 }
 
-/// 探测是否包含非联网相关的本地函数工具
+/// detectionYesNoPacketContains non-network-related localFunctionTool
 pub fn contains_non_networking_tool(tools: &Option<Vec<Value>>) -> bool {
     if let Some(list) = tools {
         for tool in list {
             let mut is_networking = false;
 
-            // 简单逻辑：如果它是一个函数声明且名字不是联网关键词，则视为非联网工具
+            // Simplelogic：If它YesoneFunctionstatement and the name is notYes联GatewayKey词，is regarded as non-networkedTool
             if let Some(n) = tool.get("name").and_then(|v| v.as_str()) {
                 let keywords = [
                     "web_search",
@@ -381,19 +381,19 @@ pub fn contains_non_networking_tool(tools: &Option<Vec<Value>>) -> bool {
             {
                 is_networking = true;
             } else if tool.get("functionDeclarations").is_some() {
-                // 如果是 Gemini 风格的 functionDeclarations，进去看一眼
+                // IfYes Gemini Stylish functionDeclarations，Go in and take a look
                 if let Some(decls) = tool.get("functionDeclarations").and_then(|v| v.as_array()) {
                     for decl in decls {
                         if let Some(n) = decl.get("name").and_then(|v| v.as_str()) {
                             let keywords =
                                 ["web_search", "google_search", "google_search_retrieval"];
                             if !keywords.contains(&n) {
-                                return true; // 发现本地函数
+                                return true; // discover localFunction
                             }
                         }
                     }
                 }
-                is_networking = true; // 即使全是联网，外层也标记为联网
+                is_networking = true; // Even if allYesnetworking，外层也标记为networking
             }
 
             if !is_networking {

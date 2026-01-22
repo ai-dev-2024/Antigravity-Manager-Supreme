@@ -2,49 +2,49 @@ use dashmap::DashMap;
 use std::time::{SystemTime, Duration};
 use regex::Regex;
 
-/// 限流原因类型
+/// Rate LimitreasonType
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RateLimitReason {
-    /// 配额耗尽 (QUOTA_EXHAUSTED)
+    /// Quota exhausted (QUOTA_EXHAUSTED)
     QuotaExhausted,
-    /// 速率限制 (RATE_LIMIT_EXCEEDED)
+    /// rateLimit (RATE_LIMIT_EXCEEDED)
     RateLimitExceeded,
-    /// 模型容量耗尽 (MODEL_CAPACITY_EXHAUSTED)
+    /// ModelCapacity exhausted (MODEL_CAPACITY_EXHAUSTED)
     ModelCapacityExhausted,
-    /// 服务器错误 (5xx)
+    /// ServerError (5xx)
     ServerError,
-    /// 未知原因
+    /// unknown reason
     Unknown,
 }
 
-/// 限流信息
+/// Rate LimitInfo
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct RateLimitInfo {
-    /// 限流重置时间
+    /// Rate LimitResetTime
     pub reset_time: SystemTime,
-    /// 重试间隔(秒)
+    /// RetryInterval(秒)
     #[allow(dead_code)]
     pub retry_after_sec: u64,
-    /// 检测时间
+    /// DetectionTime
     #[allow(dead_code)]
     pub detected_at: SystemTime,
-    /// 限流原因
+    /// Rate Limitreason
     #[allow(dead_code)] // Used for logging and diagnostics
     pub reason: RateLimitReason,
-    /// 关联的模型 (用于模型级别限流)
-    /// None 表示账号级别限流,Some(model) 表示特定模型限流
+    /// associatedModel (used forModelLevelRate Limit)
+    /// None expressAccountLevelRate Limit,Some(model) express特定ModelRate Limit
     #[allow(dead_code)] // Used for model-level rate limiting
     pub model: Option<String>,
 }
 
-/// 失败计数过期时间：1小时（超过此时间未失败则重置计数）
+/// FailedcountExpiredTime：1Hour（more than thisTime未Failed则Resetcount）
 const FAILURE_COUNT_EXPIRY_SECONDS: u64 = 3600;
 
-/// 限流跟踪器
+/// Rate LimitTrace器
 pub struct RateLimitTracker {
     limits: DashMap<String, RateLimitInfo>,
-    /// 连续失败计数（用于智能指数退避），带时间戳用于自动过期
+    /// continuousFailedcount（for intelligenceExponential Backoff），带Timestampfor automaticExpired
     failure_counts: DashMap<String, (u32, SystemTime)>,
 }
 
@@ -56,7 +56,7 @@ impl RateLimitTracker {
         }
     }
     
-    /// 获取账号剩余的等待时间(秒)
+    /// GetAccountRemaining的WaitTime(秒)
     pub fn get_remaining_wait(&self, account_id: &str) -> u64 {
         if let Some(info) = self.limits.get(account_id) {
             let now = SystemTime::now();
@@ -67,66 +67,66 @@ impl RateLimitTracker {
         0
     }
     
-    /// 标记账号请求成功，重置连续失败计数
+    /// markAccountRequestSuccess，ResetcontinuousFailedcount
     /// 
-    /// 当账号成功完成请求后调用此方法，将其失败计数归零，
-    /// 这样下次失败时会从最短的锁定时间（60秒）开始。
+    /// WhenAccountSuccessCompleteRequestcall this afterMethod，put itFailedcount reset to zero，
+    /// Like this next timeFailedwill start from the shortestLock定Time（60秒）Begin。
     pub fn mark_success(&self, account_id: &str) {
         if self.failure_counts.remove(account_id).is_some() {
-            tracing::debug!("账号 {} 请求成功，已重置失败计数", account_id);
+            tracing::debug!("Account {} RequestSuccess，已ResetFailedcount", account_id);
         }
-        // 同时清除限流记录（如果有）
+        // MeanwhileClearRate LimitRecord（If有）
         self.limits.remove(account_id);
     }
     
-    /// 精确锁定账号到指定时间点
+    /// accurateLock定Accountto designatedTime点
     /// 
-    /// 使用账号配额中的 reset_time 来精确锁定账号,
-    /// 这比指数退避更加精准。
+    /// UsingAccountQuotain reset_time to be preciseLock定Account,
+    /// This is better thanExponential BackoffMore accurate。
     /// 
-    /// # 参数
-    /// - `model`: 可选的模型名称,用于模型级别限流。None 表示账号级别限流
+    /// # Parameter
+    /// - `model`: Optional的ModelName,used forModelLevelRate Limit。None expressAccountLevelRate Limit
     pub fn set_lockout_until(&self, account_id: &str, reset_time: SystemTime, reason: RateLimitReason, model: Option<String>) {
         let now = SystemTime::now();
         let retry_sec = reset_time
             .duration_since(now)
             .map(|d| d.as_secs())
-            .unwrap_or(60); // 如果时间已过,使用默认 60 秒
+            .unwrap_or(60); // IfTimePassed,UsingDefault 60 秒
         
         let info = RateLimitInfo {
             reset_time,
             retry_after_sec: retry_sec,
             detected_at: now,
             reason,
-            model: model.clone(),  // 🆕 支持模型级别限流
+            model: model.clone(),  // 🆕 SupportModelLevelRate Limit
         };
         
         self.limits.insert(account_id.to_string(), info);
         
         if let Some(m) = &model {
             tracing::info!(
-                "账号 {} 的模型 {} 已精确锁定到配额刷新时间,剩余 {} 秒",
+                "Account {} 的Model {} AccurateLockArriveQuotaRefreshTime,Remaining {} 秒",
                 account_id,
                 m,
                 retry_sec
             );
         } else {
             tracing::info!(
-                "账号 {} 已精确锁定到配额刷新时间,剩余 {} 秒",
+                "Account {} AccurateLockArriveQuotaRefreshTime,Remaining {} 秒",
                 account_id,
                 retry_sec
             );
         }
     }
     
-    /// 使用 ISO 8601 时间字符串精确锁定账号
+    /// Using ISO 8601 Timestring exactLock定Account
     /// 
-    /// 解析类似 "2026-01-08T17:00:00Z" 格式的时间字符串
+    /// ParseSimilar "2026-01-08T17:00:00Z" Format的Timestring
     /// 
-    /// # 参数
-    /// - `model`: 可选的模型名称,用于模型级别限流
+    /// # Parameter
+    /// - `model`: Optional的ModelName,used forModelLevelRate Limit
     pub fn set_lockout_until_iso(&self, account_id: &str, reset_time_str: &str, reason: RateLimitReason, model: Option<String>) -> bool {
-        // 尝试解析 ISO 8601 格式
+        // TryingParse ISO 8601 Format
         match chrono::DateTime::parse_from_rfc3339(reset_time_str) {
             Ok(dt) => {
                 let reset_time = SystemTime::UNIX_EPOCH + 
@@ -136,7 +136,7 @@ impl RateLimitTracker {
             },
             Err(e) => {
                 tracing::warn!(
-                    "无法解析配额刷新时间 '{}': {},将使用默认退避策略",
+                    "Unable to parseQuotaRefreshTime '{}': {},将UsingDefaultbackoff strategy",
                     reset_time_str, e
                 );
                 false
@@ -144,13 +144,13 @@ impl RateLimitTracker {
         }
     }
     
-    /// 从错误响应解析限流信息
+    /// 从ErrorResponseParseRate LimitInfo
     /// 
     /// # Arguments
-    /// * `account_id` - 账号 ID
-    /// * `status` - HTTP 状态码
-    /// * `retry_after_header` - Retry-After header 值
-    /// * `body` - 错误响应 body
+    /// * `account_id` - Account ID
+    /// * `status` - HTTP Status码
+    /// * `retry_after_header` - Retry-After header Value
+    /// * `body` - ErrorResponse body
     pub fn parse_from_error(
         &self,
         account_id: &str,
@@ -159,12 +159,12 @@ impl RateLimitTracker {
         body: &str,
         model: Option<String>,
     ) -> Option<RateLimitInfo> {
-        // 支持 429 (限流) 以及 500/503/529 (后端故障软避让)
+        // Support 429 (Rate Limit) as well as 500/503/529 (Backend fault soft avoidance)
         if status != 429 && status != 500 && status != 503 && status != 529 {
             return None;
         }
         
-        // 1. 解析限流原因类型
+        // 1. ParseRate LimitreasonType
         let reason = if status == 429 {
             tracing::warn!("Google 429 Error Body: {}", body);
             self.parse_rate_limit_reason(body)
@@ -174,33 +174,33 @@ impl RateLimitTracker {
         
         let mut retry_after_sec = None;
         
-        // 2. 从 Retry-After header 提取
+        // 2. 从 Retry-After header extract
         if let Some(retry_after) = retry_after_header {
             if let Ok(seconds) = retry_after.parse::<u64>() {
                 retry_after_sec = Some(seconds);
             }
         }
         
-        // 3. 从错误消息提取 (优先尝试 JSON 解析，再试正则)
+        // 3. 从ErrorMessageextract (priorityTrying JSON Parse，Try the regex again)
         if retry_after_sec.is_none() {
             retry_after_sec = self.parse_retry_time_from_body(body);
         }
         
-        // 4. 处理默认值与软避让逻辑（根据限流类型设置不同默认值）
+        // 4. HandleDefaultValuewith soft avoidance logic（according toRate LimitTypeSetDifferentDefaultValue）
         let retry_sec = match retry_after_sec {
             Some(s) => {
-                // 设置安全缓冲区：最小 2 秒，防止极高频无效重试
+                // SetSafetyBuffer：Minimum 2 秒，Protect against extremely high frequenciesInvalidRetry
                 if s < 2 { 2 } else { s }
             },
             None => {
-                // 获取连续失败次数，用于指数退避（带自动过期逻辑）
+                // GetcontinuousFailedCount，used forExponential Backoff（With automaticExpiredlogic）
                 let failure_count = {
                     let now = SystemTime::now();
                     let mut entry = self.failure_counts.entry(account_id.to_string()).or_insert((0, now));
-                    // 检查是否超过过期时间，如果是则重置计数
+                    // CheckYesNoExceedExpiredTime，IfYes则Resetcount
                     let elapsed = now.duration_since(entry.1).unwrap_or(Duration::from_secs(0)).as_secs();
                     if elapsed > FAILURE_COUNT_EXPIRY_SECONDS {
-                        tracing::debug!("账号 {} 失败计数已过期（{}秒），重置为 0", account_id, elapsed);
+                        tracing::debug!("Account {} Failedcount hasExpired（{}秒），Reset为 0", account_id, elapsed);
                         *entry = (0, now);
                     }
                     entry.0 += 1;
@@ -210,47 +210,47 @@ impl RateLimitTracker {
                 
                 match reason {
                     RateLimitReason::QuotaExhausted => {
-                        // [智能限流] 根据连续失败次数动态调整锁定时间
+                        // [intelligentRate Limit] According to continuousFailedCountDynamicAdjustmentLock定Time
                         // 第1次: 60s, 第2次: 5min, 第3次: 30min, 第4次+: 2h
                         let lockout = match failure_count {
                             1 => {
-                                tracing::warn!("检测到配额耗尽 (QUOTA_EXHAUSTED)，第1次失败，锁定 60秒");
+                                tracing::warn!("detectedQuota exhausted (QUOTA_EXHAUSTED)，第1次Failed，Lock定 60秒");
                                 60
                             },
                             2 => {
-                                tracing::warn!("检测到配额耗尽 (QUOTA_EXHAUSTED)，第2次连续失败，锁定 5分钟");
+                                tracing::warn!("detectedQuota exhausted (QUOTA_EXHAUSTED)，第2consecutive timesFailed，Lock定 5minute");
                                 300
                             },
                             3 => {
-                                tracing::warn!("检测到配额耗尽 (QUOTA_EXHAUSTED)，第3次连续失败，锁定 30分钟");
+                                tracing::warn!("detectedQuota exhausted (QUOTA_EXHAUSTED)，第3consecutive timesFailed，Lock定 30minute");
                                 1800
                             },
                             _ => {
-                                tracing::warn!("检测到配额耗尽 (QUOTA_EXHAUSTED)，第{}次连续失败，锁定 2小时", failure_count);
+                                tracing::warn!("detectedQuota exhausted (QUOTA_EXHAUSTED)，第{}consecutive timesFailed，Lock定 2Hour", failure_count);
                                 7200
                             }
                         };
                         lockout
                     },
                     RateLimitReason::RateLimitExceeded => {
-                        // 速率限制：通常是短暂的，使用较短的默认值（30秒）
-                        tracing::debug!("检测到速率限制 (RATE_LIMIT_EXCEEDED)，使用默认值 30秒");
+                        // rateLimit：generallyYesshort-lived，UsingshorterDefaultValue（30秒）
+                        tracing::debug!("Detected rateLimit (RATE_LIMIT_EXCEEDED)，UsingDefaultValue 30秒");
                         30
                     },
                     RateLimitReason::ModelCapacityExhausted => {
-                        // 模型容量耗尽：服务端暂时无可用 GPU 实例
-                        // 这是临时性问题，使用较短的重试时间（15秒）
-                        tracing::warn!("检测到模型容量不足 (MODEL_CAPACITY_EXHAUSTED)，服务端暂无可用实例，15秒后重试");
+                        // ModelCapacity exhausted：ServerNone at the momentAvailable GPU Instance
+                        // This isTemporarysexual problems，UsingshorterRetryTime（15秒）
+                        tracing::warn!("detectedModelInsufficient capacity (MODEL_CAPACITY_EXHAUSTED)，ServerNoneAvailableInstance，15seconds laterRetry");
                         15
                     },
                     RateLimitReason::ServerError => {
-                        // 服务器错误：执行"软避让"，默认锁定 20 秒
-                        tracing::warn!("检测到 5xx 错误 ({}), 执行 20s 软避让...", status);
+                        // ServerError：Execute"soft avoidance"，DefaultLock定 20 秒
+                        tracing::warn!("detected 5xx Error ({}), Execute 20s soft avoidance...", status);
                         20
                     },
                     RateLimitReason::Unknown => {
-                        // 未知原因：使用中等默认值（60秒）
-                        tracing::debug!("无法解析 429 限流原因, 使用默认值 60秒");
+                        // unknown reason：UsingmediumDefaultValue（60秒）
+                        tracing::debug!("Unable to parse 429 Rate Limitreason, UsingDefaultValue 60秒");
                         60
                     }
                 }
@@ -265,11 +265,11 @@ impl RateLimitTracker {
             model,
         };
         
-        // 存储
+        // storage
         self.limits.insert(account_id.to_string(), info.clone());
         
         tracing::warn!(
-            "账号 {} [{}] 限流类型: {:?}, 重置延时: {}秒",
+            "Account {} [{}] Rate LimitType: {:?}, Resetdelay: {}秒",
             account_id,
             status,
             reason,
@@ -279,9 +279,9 @@ impl RateLimitTracker {
         Some(info)
     }
     
-    /// 解析限流原因类型
+    /// ParseRate LimitreasonType
     fn parse_rate_limit_reason(&self, body: &str) -> RateLimitReason {
-        // 尝试从 JSON 中提取 reason 字段
+        // Trying从 JSON extracted from reason Field
         let trimmed = body.trim();
         if trimmed.starts_with('{') || trimmed.starts_with('[') {
             if let Ok(json) = serde_json::from_str::<serde_json::Value>(trimmed) {
@@ -299,7 +299,7 @@ impl RateLimitTracker {
                         _ => RateLimitReason::Unknown,
                     };
                 }
-                // [NEW] 尝试从 message 字段进行文本匹配（防止 missed reason）
+                // [NEW] Trying从 message Field进Linetext matching（prevent missed reason）
                  if let Some(msg) = json.get("error")
                     .and_then(|e| e.get("message"))
                     .and_then(|v| v.as_str()) {
@@ -311,9 +311,9 @@ impl RateLimitTracker {
             }
         }
         
-        // 如果无法从 JSON 解析，尝试从消息文本判断
+        // IfUnable to access from JSON Parse，Trying从Messagetext judgment
         let body_lower = body.to_lowercase();
-        // [FIX] 优先判断分钟级限制，避免将 TPM 误判为 Quota
+        // [FIX] Prioritize judgment at minute levelLimit，avoid TPM Misjudged as Quota
         if body_lower.contains("per minute") || body_lower.contains("rate limit") || body_lower.contains("too many requests") {
              RateLimitReason::RateLimitExceeded
         } else if body_lower.contains("exhausted") || body_lower.contains("quota") {
@@ -323,17 +323,17 @@ impl RateLimitTracker {
         }
     }
     
-    /// 通用时间解析函数：支持 "2h1m1s" 等所有格式组合
+    /// GeneralTimeParseFunction：Support "2h1m1s" 等AllFormatcombination
     fn parse_duration_string(&self, s: &str) -> Option<u64> {
-        tracing::debug!("[时间解析] 尝试解析: '{}'", s);
+        tracing::debug!("[TimeParse] TryingParse: '{}'", s);
         
-        // 使用正则表达式提取小时、分钟、秒、毫秒
-        // 支持格式："2h1m1s", "1h30m", "5m", "30s", "500ms" 等
+        // UsingRegular expression to extract hours、minute、秒、millisecond
+        // SupportFormat："2h1m1s", "1h30m", "5m", "30s", "500ms" 等
         let re = Regex::new(r"(?:(\d+)h)?(?:(\d+)m)?(?:(\d+(?:\.\d+)?)s)?(?:(\d+)ms)?").ok()?;
         let caps = match re.captures(s) {
             Some(c) => c,
             None => {
-                tracing::warn!("[时间解析] 正则未匹配: '{}'", s);
+                tracing::warn!("[TimeParse] Regex not matched: '{}'", s);
                 return None;
             }
         };
@@ -351,47 +351,47 @@ impl RateLimitTracker {
             .and_then(|m| m.as_str().parse::<u64>().ok())
             .unwrap_or(0);
         
-        tracing::debug!("[时间解析] 提取结果: {}h {}m {:.3}s {}ms", hours, minutes, seconds, milliseconds);
+        tracing::debug!("[TimeParse] extractResult: {}h {}m {:.3}s {}ms", hours, minutes, seconds, milliseconds);
         
-        // 计算总秒数
+        // Calculate total seconds
         let total_seconds = hours * 3600 + minutes * 60 + seconds.ceil() as u64 + (milliseconds + 999) / 1000;
         
-        // 如果总秒数为 0，说明解析失败
+        // IfThe total number of seconds is 0，DescriptionParseFailed
         if total_seconds == 0 {
-            tracing::warn!("[时间解析] 失败: '{}' (总秒数为0)", s);
+            tracing::warn!("[TimeParse] Failed: '{}' (The total number of seconds is0)", s);
             None
         } else {
-            tracing::info!("[时间解析] ✓ 成功: '{}' => {}秒 ({}h {}m {:.1}s)", 
+            tracing::info!("[TimeParse] ✓ Success: '{}' => {}秒 ({}h {}m {:.1}s)", 
                 s, total_seconds, hours, minutes, seconds);
             Some(total_seconds)
         }
     }
     
-    /// 从错误消息 body 中解析重置时间
+    /// 从ErrorMessage body 中ParseResetTime
     fn parse_retry_time_from_body(&self, body: &str) -> Option<u64> {
-        // A. 优先尝试 JSON 精准解析
+        // A. priorityTrying JSON AccurateParse
         let trimmed = body.trim();
         if trimmed.starts_with('{') || trimmed.starts_with('[') {
             if let Ok(json) = serde_json::from_str::<serde_json::Value>(trimmed) {
-                // 1. Google 常见的 quotaResetDelay 格式 (支持所有格式："2h1m1s", "1h30m", "42s", "500ms" 等)
-                // 路径: error.details[0].metadata.quotaResetDelay
+                // 1. Google common quotaResetDelay Format (SupportAllFormat："2h1m1s", "1h30m", "42s", "500ms" 等)
+                // Path: error.details[0].metadata.quotaResetDelay
                 if let Some(delay_str) = json.get("error")
                     .and_then(|e| e.get("details"))
                     .and_then(|d| d.as_array())
                     .and_then(|a| a.get(0))
-                    .and_then(|o| o.get("metadata"))  // 添加 metadata 层级
+                    .and_then(|o| o.get("metadata"))  // Add metadata Hierarchy
                     .and_then(|m| m.get("quotaResetDelay"))
                     .and_then(|v| v.as_str()) {
                     
-                    tracing::debug!("[JSON解析] 找到 quotaResetDelay: '{}'", delay_str);
+                    tracing::debug!("[JSONParse] turn up quotaResetDelay: '{}'", delay_str);
                     
-                    // 使用通用时间解析函数
+                    // UsingGeneralTimeParseFunction
                     if let Some(seconds) = self.parse_duration_string(delay_str) {
                         return Some(seconds);
                     }
                 }
                 
-                // 2. OpenAI 常见的 retry_after 字段 (数字)
+                // 2. OpenAI common retry_after Field (number)
                 if let Some(retry) = json.get("error")
                     .and_then(|e| e.get("retry_after"))
                     .and_then(|v| v.as_u64()) {
@@ -400,8 +400,8 @@ impl RateLimitTracker {
             }
         }
 
-        // B. 正则匹配模式 (兜底)
-        // 模式 1: "Try again in 2m 30s"
+        // B. Regular matchMode (reveal all the details)
+        // Mode 1: "Try again in 2m 30s"
         if let Ok(re) = Regex::new(r"(?i)try again in (\d+)m\s*(\d+)s") {
             if let Some(caps) = re.captures(body) {
                 if let (Ok(m), Ok(s)) = (caps[1].parse::<u64>(), caps[2].parse::<u64>()) {
@@ -410,7 +410,7 @@ impl RateLimitTracker {
             }
         }
         
-        // 模式 2: "Try again in 30s" 或 "backoff for 42s"
+        // Mode 2: "Try again in 30s" 或 "backoff for 42s"
         if let Ok(re) = Regex::new(r"(?i)(?:try again in|backoff for|wait)\s*(\d+)s") {
             if let Some(caps) = re.captures(body) {
                 if let Ok(s) = caps[1].parse::<u64>() {
@@ -419,7 +419,7 @@ impl RateLimitTracker {
             }
         }
         
-        // 模式 3: "quota will reset in X seconds"
+        // Mode 3: "quota will reset in X seconds"
         if let Ok(re) = Regex::new(r"(?i)quota will reset in (\d+) second") {
             if let Some(caps) = re.captures(body) {
                 if let Ok(s) = caps[1].parse::<u64>() {
@@ -428,7 +428,7 @@ impl RateLimitTracker {
             }
         }
         
-        // 模式 4: OpenAI 风格的 "Retry after (\d+) seconds"
+        // Mode 4: OpenAI Stylish "Retry after (\d+) seconds"
         if let Ok(re) = Regex::new(r"(?i)retry after (\d+) second") {
             if let Some(caps) = re.captures(body) {
                 if let Ok(s) = caps[1].parse::<u64>() {
@@ -437,7 +437,7 @@ impl RateLimitTracker {
             }
         }
 
-        // 模式 5: 括号形式 "(wait (\d+)s)"
+        // Mode 5: bracket form "(wait (\d+)s)"
         if let Ok(re) = Regex::new(r"\(wait (\d+)s\)") {
             if let Some(caps) = re.captures(body) {
                 if let Ok(s) = caps[1].parse::<u64>() {
@@ -449,12 +449,12 @@ impl RateLimitTracker {
         None
     }
     
-    /// 获取账号的限流信息
+    /// GetAccount的Rate LimitInfo
     pub fn get(&self, account_id: &str) -> Option<RateLimitInfo> {
         self.limits.get(account_id).map(|r| r.clone())
     }
     
-    /// 检查账号是否仍在限流中
+    /// CheckAccountYesNostillRate Limit中
     pub fn is_rate_limited(&self, account_id: &str) -> bool {
         if let Some(info) = self.get(account_id) {
             info.reset_time > SystemTime::now()
@@ -463,7 +463,7 @@ impl RateLimitTracker {
         }
     }
     
-    /// 获取距离限流重置还有多少秒
+    /// GetdistanceRate LimitResetHow many seconds are left?
     pub fn get_reset_seconds(&self, account_id: &str) -> Option<u64> {
         if let Some(info) = self.get(account_id) {
             info.reset_time
@@ -475,7 +475,7 @@ impl RateLimitTracker {
         }
     }
     
-    /// 清除过期的限流记录
+    /// ClearExpired的Rate LimitRecord
     #[allow(dead_code)]
     pub fn cleanup_expired(&self) -> usize {
         let now = SystemTime::now();
@@ -491,22 +491,22 @@ impl RateLimitTracker {
         });
         
         if count > 0 {
-            tracing::debug!("清除了 {} 个过期的限流记录", count);
+            tracing::debug!("Clear了 {} 个Expired的Rate LimitRecord", count);
         }
         
         count
     }
     
-    /// 清除指定账号的限流记录
+    /// ClearSpecifyAccount的Rate LimitRecord
     #[allow(dead_code)]
     pub fn clear(&self, account_id: &str) -> bool {
         self.limits.remove(account_id).is_some()
     }
     
-    /// 清除所有限流记录 (乐观重置策略)
+    /// ClearAllRate LimitRecord (optimismResetStrategy)
     /// 
-    /// 用于乐观重置机制,当所有账号都被限流但等待时间很短时,
-    /// 清除所有限流记录以解决时序竞争条件
+    /// used for optimismResetmechanism,WhenAllAccountAll wereRate Limit但WaitTimevery short time,
+    /// ClearAllRate LimitRecordto resolve timing contentionCondition
     pub fn clear_all(&self) {
         let count = self.limits.len();
         self.limits.clear();
@@ -569,7 +569,7 @@ mod tests {
     #[test]
     fn test_safety_buffer() {
         let tracker = RateLimitTracker::new();
-        // 如果 API 返回 1s，我们强制设为 2s
+        // If API Return 1s，We force it to be 2s
         tracker.parse_from_error("acc1", 429, Some("1"), "", None);
         let wait = tracker.get_remaining_wait("acc1");
         // Due to time passing, it might be 1 or 2
@@ -579,10 +579,10 @@ mod tests {
     #[test]
     fn test_tpm_exhausted_is_rate_limit_exceeded() {
         let tracker = RateLimitTracker::new();
-        // 模拟真实世界的 TPM 错误，同时包含 "Resource exhausted" 和 "per minute"
+        // simulationTruereal world TPM Error，MeanwhilePacket含 "Resource exhausted" 和 "per minute"
         let body = "Resource has been exhausted (e.g. check quota). Quota limit 'Tokens per minute' exceeded.";
         let reason = tracker.parse_rate_limit_reason(body);
-        // 应该被识别为 RateLimitExceeded，而不是 QuotaExhausted
+        // Shouldidentified as RateLimitExceeded，Instead ofYes QuotaExhausted
         assert_eq!(reason, RateLimitReason::RateLimitExceeded);
     }
 }

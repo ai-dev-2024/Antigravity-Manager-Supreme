@@ -1,4 +1,4 @@
-// API Key 认证中间件
+// API Key AuthenticateMiddleware
 use axum::{
     extract::State,
     extract::Request,
@@ -11,7 +11,7 @@ use tokio::sync::RwLock;
 
 use crate::proxy::{ProxyAuthMode, ProxySecurityConfig};
 
-/// API Key 认证中间件
+/// API Key AuthenticateMiddleware
 pub async fn auth_middleware(
     State(security): State<Arc<RwLock<ProxySecurityConfig>>>,
     request: Request,
@@ -20,7 +20,7 @@ pub async fn auth_middleware(
     let method = request.method().clone();
     let path = request.uri().path().to_string();
 
-    // 过滤心跳和健康检查请求,避免日志噪音
+    // FilterHeartbeat和Health CheckRequest,avoidLognoise
     if !path.contains("event_logging") && path != "/healthz" {
         tracing::info!("Request: {} {}", method, path);
     } else {
@@ -43,7 +43,7 @@ pub async fn auth_middleware(
         return Ok(next.run(request).await);
     }
     
-    // 从 header 中提取 API key
+    // 从 header extracted from API key
     let api_key = request
         .headers()
         .get(header::AUTHORIZATION)
@@ -79,7 +79,7 @@ pub async fn auth_middleware(
 
 #[cfg(test)]
 mod tests {
-    // 移除未使用的 use super::*;
+    // Remove未Using的 use super::*;
 
     #[test]
     fn test_auth_placeholder() {

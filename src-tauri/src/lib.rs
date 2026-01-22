@@ -2,40 +2,14 @@ mod models;
 mod modules;
 mod commands;
 mod utils;
-mod proxy;  // Proxy service module
+mod proxy;  // Anti-generationalServiceModule
 pub mod error;
 
 use tauri::Manager;
 use modules::logger;
-use tracing::{info, warn, error};
+use tracing::{info, error};
 
-/// Increase file descriptor limit for macOS to prevent "Too many open files" errors
-#[cfg(target_os = "macos")]
-fn increase_nofile_limit() {
-    unsafe {
-        let mut rl = libc::rlimit {
-            rlim_cur: 0,
-            rlim_max: 0,
-        };
-        
-        if libc::getrlimit(libc::RLIMIT_NOFILE, &mut rl) == 0 {
-            info!("Current open file limit: soft={}, hard={}", rl.rlim_cur, rl.rlim_max);
-            
-            // Attempt to increase to 4096 or maximum hard limit
-            let target = 4096.min(rl.rlim_max);
-            if rl.rlim_cur < target {
-                rl.rlim_cur = target;
-                if libc::setrlimit(libc::RLIMIT_NOFILE, &rl) == 0 {
-                    info!("Successfully increased hard file limit to {}", target);
-                } else {
-                    warn!("Failed to increase file descriptor limit");
-                }
-            }
-        }
-    }
-}
-
-// Test command
+// TestOrder
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
@@ -43,17 +17,8 @@ fn greet(name: &str) -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Increase file descriptor limit (macOS only)
-    #[cfg(target_os = "macos")]
-    increase_nofile_limit();
-
-    // Initialize logger
+    // InitializeLog
     logger::init_logger();
-
-    // Initialize token stats database
-    if let Err(e) = modules::token_stats::init_db() {
-        error!("Failed to initialize token stats database: {}", e);
-    }
     
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -63,8 +28,6 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec!["--minimized"]),
         ))
-        .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             let _ = app.get_webview_window("main")
                 .map(|window| {
@@ -75,7 +38,6 @@ pub fn run() {
                 });
         }))
         .manage(commands::proxy::ProxyServiceState::new())
-        .manage(commands::cloudflared::CloudflaredState::new())
         .setup(|app| {
             info!("Setup starting...");
 
@@ -104,31 +66,31 @@ pub fn run() {
             modules::tray::create_tray(app.handle())?;
             info!("Tray created");
             
-            // Auto-start proxy service
+            // automaticStartAnti-generationalService
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                // Load config
+                // LoadConfig
                 if let Ok(config) = modules::config::load_app_config() {
                     if config.proxy.auto_start {
                         let state = handle.state::<commands::proxy::ProxyServiceState>();
-                        // Attempt to start service
+                        // TryingStartService
                         if let Err(e) = commands::proxy::start_proxy_service(
                             config.proxy,
                             state,
                             handle.clone(),
                         ).await {
-                            error!("Failed to auto-start proxy service: {}", e);
+                            error!("automaticStartAnti-generationalServiceFailed: {}", e);
                         } else {
-                            info!("Proxy service auto-started successfully");
+                            info!("Anti-generationalServiceautomaticStartSuccess");
                         }
                     }
                 }
             });
             
-            // Start smart scheduler
+            // StartSmart scheduler
             modules::scheduler::start_scheduler(app.handle().clone());
             
-            // Start HTTP API server (for external calls, e.g. VS Code plugin)
+            // Start HTTP API Server（供Outsideprogram call，如 VS Code Plugin）
             match modules::http_api::load_settings() {
                 Ok(settings) if settings.enabled => {
                     modules::http_api::spawn_server(settings.port);
@@ -138,7 +100,7 @@ pub fn run() {
                     info!("HTTP API server is disabled in settings");
                 }
                 Err(e) => {
-                    // Use default port if loading fails
+                    // LoadFailed时UsingDefaultPort
                     error!("Failed to load HTTP API settings: {}, using default port", e);
                     modules::http_api::spawn_server(modules::http_api::DEFAULT_PORT);
                     info!("HTTP API server started on port {}", modules::http_api::DEFAULT_PORT);
@@ -160,7 +122,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             greet,
-            // Account management commands
+            // AccountAdministrative commands
             commands::list_accounts,
             commands::add_account,
             commands::delete_account,
@@ -179,13 +141,13 @@ pub fn run() {
             commands::delete_device_version,
             commands::open_device_folder,
             commands::get_current_account,
-            // Quota commands
+            // QuotaOrder
             commands::fetch_account_quota,
             commands::refresh_all_quotas,
-            // Config commands
+            // ConfigOrder
             commands::load_config,
             commands::save_config,
-            // Additional commands
+            // New command
             commands::prepare_oauth_url,
             commands::start_oauth_login,
             commands::complete_oauth_login,
@@ -208,7 +170,7 @@ pub fn run() {
             commands::should_check_updates,
             commands::update_last_check_time,
             commands::toggle_proxy_status,
-            // Proxy service commands
+            // Anti-generationalServiceOrder
             commands::proxy::start_proxy_service,
             commands::proxy::stop_proxy_service,
             commands::proxy::get_proxy_status,
@@ -230,38 +192,36 @@ pub fn run() {
             commands::proxy::get_proxy_scheduling_config,
             commands::proxy::update_proxy_scheduling_config,
             commands::proxy::clear_proxy_session_bindings,
-            commands::proxy::set_preferred_account,
-            commands::proxy::get_preferred_account,
-            // Autostart commands
+            // Autostart Order
             commands::autostart::toggle_auto_launch,
             commands::autostart::is_auto_launch_enabled,
-            // Warmup commands
+            // Preheat command
             commands::warm_up_all_accounts,
             commands::warm_up_account,
-            // HTTP API settings commands
+            // HTTP API SetOrder
             commands::get_http_api_settings,
             commands::save_http_api_settings,
-            // Token 统计命令
-            commands::get_token_stats_hourly,
-            commands::get_token_stats_daily,
-            commands::get_token_stats_weekly,
-            commands::get_token_stats_by_account,
-            commands::get_token_stats_summary,
-            commands::get_token_stats_by_model,
-            commands::get_token_stats_model_trend_hourly,
-            commands::get_token_stats_model_trend_daily,
-            commands::get_token_stats_account_trend_hourly,
-            commands::get_token_stats_account_trend_daily,
             proxy::cli_sync::get_cli_sync_status,
             proxy::cli_sync::execute_cli_sync,
             proxy::cli_sync::execute_cli_restore,
             proxy::cli_sync::get_cli_config_content,
-            // Cloudflared commands
-            commands::cloudflared::cloudflared_check,
-            commands::cloudflared::cloudflared_install,
-            commands::cloudflared::cloudflared_start,
-            commands::cloudflared::cloudflared_stop,
-            commands::cloudflared::cloudflared_get_status,
+            // Environment commands (Claude + OpenCode integration)
+            commands::environment::get_claude_integration_status,
+            commands::environment::enable_claude_integration,
+            commands::environment::disable_claude_integration,
+            commands::environment::configure_claude_desktop,
+            commands::environment::get_claude_desktop_status,
+            commands::environment::refresh_environment,
+            commands::environment::enable_yolo_mode,
+            commands::environment::disable_yolo_mode,
+            commands::environment::get_yolo_mode_status,
+            // OpenCode integration
+            commands::environment::get_opencode_integration_status,
+            commands::environment::enable_opencode_integration,
+            commands::environment::disable_opencode_integration,
+            commands::environment::enable_opencode_yolo_mode,
+            commands::environment::disable_opencode_yolo_mode,
+            commands::environment::get_opencode_yolo_status,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

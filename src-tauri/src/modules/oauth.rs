@@ -91,7 +91,7 @@ pub async fn exchange_code(code: &str, redirect_uri: &str) -> Result<TokenRespon
         .await
         .map_err(|e| {
             if e.is_connect() || e.is_timeout() {
-                format!("Token exchange request failed: {}. 请检查你的网络代理设置，确保可以稳定连接 Google 服务。", e)
+                format!("Token exchange request failed: {}. 请Checkyour networkProxySet，make sureCanStableConnect Google Service。", e)
             } else {
                 format!("Token exchange request failed: {}", e)
             }
@@ -146,7 +146,7 @@ pub async fn refresh_access_token(refresh_token: &str) -> Result<TokenResponse, 
         .await
         .map_err(|e| {
             if e.is_connect() || e.is_timeout() {
-                format!("Refresh request failed: {}. 无法连接 Google 授权服务器，请检查代理设置。", e)
+                format!("Refresh request failed: {}. Unable to connect Google AuthorizeServer，请CheckProxySet。", e)
             } else {
                 format!("Refresh request failed: {}", e)
             }

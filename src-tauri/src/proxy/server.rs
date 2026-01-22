@@ -13,15 +13,15 @@ use tracing::{debug, error};
 use tokio::sync::RwLock;
 use std::sync::atomic::AtomicUsize;
 
-/// Axum 应用状态
+/// Axum applicationStatus
 #[derive(Clone)]
 pub struct AppState {
     pub token_manager: Arc<TokenManager>,
     pub custom_mapping: Arc<tokio::sync::RwLock<std::collections::HashMap<String, String>>>,
     #[allow(dead_code)]
-    pub request_timeout: u64, // API 请求超时(秒)
+    pub request_timeout: u64, // API RequestTimeout(秒)
     #[allow(dead_code)]
-    pub thought_signature_map: Arc<tokio::sync::Mutex<std::collections::HashMap<String, String>>>, // 思维链签名映射 (ID -> Signature)
+    pub thought_signature_map: Arc<tokio::sync::Mutex<std::collections::HashMap<String, String>>>, // Thought chainSignMapping (ID -> Signature)
     #[allow(dead_code)]
     pub upstream_proxy: Arc<tokio::sync::RwLock<crate::proxy::config::UpstreamProxyConfig>>,
     pub upstream: Arc<crate::proxy::upstream::client::UpstreamClient>,
@@ -32,7 +32,7 @@ pub struct AppState {
     pub experimental: Arc<RwLock<crate::proxy::config::ExperimentalConfig>>,
 }
 
-/// Axum 服务器实例
+/// Axum ServerInstance
 pub struct AxumServer {
     shutdown_tx: Option<oneshot::Sender<()>>,
     custom_mapping: Arc<tokio::sync::RwLock<std::collections::HashMap<String, String>>>,
@@ -48,34 +48,34 @@ impl AxumServer {
             let mut m = self.custom_mapping.write().await;
             *m = config.custom_mapping.clone();
         }
-        tracing::debug!("模型映射 (Custom) 已全量热更新");
+        tracing::debug!("Model Mapping (Custom) Fully calibratedUpdate");
     }
 
-    /// 更新代理配置
+    /// UpdateProxyConfig
     pub async fn update_proxy(&self, new_config: crate::proxy::config::UpstreamProxyConfig) {
         let mut proxy = self.proxy_state.write().await;
         *proxy = new_config;
-        tracing::info!("上游代理配置已热更新");
+        tracing::info!("upstreamProxyConfigAlready hotUpdate");
     }
 
     pub async fn update_security(&self, config: &crate::proxy::config::ProxyConfig) {
         let mut sec = self.security_state.write().await;
         *sec = crate::proxy::ProxySecurityConfig::from_proxy_config(config);
-        tracing::info!("反代服务安全配置已热更新");
+        tracing::info!("Anti-generationalServiceSafetyConfigAlready hotUpdate");
     }
 
     pub async fn update_zai(&self, config: &crate::proxy::config::ProxyConfig) {
         let mut zai = self.zai_state.write().await;
         *zai = config.zai.clone();
-        tracing::info!("z.ai 配置已热更新");
+        tracing::info!("z.ai ConfigAlready hotUpdate");
     }
 
     pub async fn update_experimental(&self, config: &crate::proxy::config::ProxyConfig) {
         let mut exp = self.experimental.write().await;
         *exp = config.experimental.clone();
-        tracing::info!("实验性配置已热更新");
+        tracing::info!("ExperimentalConfigAlready hotUpdate");
     }
-    /// 启动 Axum 服务器
+    /// Start Axum Server
     pub async fn start(
         host: String,
         port: u16,
@@ -101,7 +101,7 @@ impl AxumServer {
 	        let state = AppState {
 	            token_manager: token_manager.clone(),
 	            custom_mapping: custom_mapping_state.clone(),
-	            request_timeout: 300, // 5分钟超时
+	            request_timeout: 300, // 5minuteTimeout
             thought_signature_map: Arc::new(tokio::sync::Mutex::new(
                 std::collections::HashMap::new(),
             )),
@@ -117,9 +117,9 @@ impl AxumServer {
         };
 
 
-        // 构建路由 - 使用新架构的 handlers！
+        // buildRoute - Usingnew architecture handlers！
         use crate::proxy::handlers;
-        // 构建路由
+        // buildRoute
         let app = Router::new()
             // OpenAI Protocol
             .route("/v1/models", get(handlers::openai::handle_list_models))
@@ -131,19 +131,19 @@ impl AxumServer {
                 "/v1/completions",
                 post(handlers::openai::handle_completions),
             )
-            .route("/v1/responses", post(handlers::openai::handle_completions)) // 兼容 Codex CLI
+            .route("/v1/responses", post(handlers::openai::handle_completions)) // Compatible Codex CLI
             .route(
                 "/v1/images/generations",
                 post(handlers::openai::handle_images_generations),
-            ) // 图像生成 API
+            ) // Picturegenerate API
             .route(
                 "/v1/images/edits",
                 post(handlers::openai::handle_images_edits),
-            ) // 图像编辑 API
+            ) // Pictureedit API
             .route(
                 "/v1/audio/transcriptions",
                 post(handlers::audio::handle_audio_transcription),
-            ) // 音频转录 API
+            ) // AudioTranscribe API
             // Claude Protocol
             .route("/v1/messages", post(handlers::claude::handle_messages))
             .route(
@@ -179,7 +179,7 @@ impl AxumServer {
                 post(handlers::gemini::handle_count_tokens),
             ) // Specific route priority
             .route("/v1/models/detect", post(handlers::common::handle_detect_model))
-            .route("/internal/warmup", post(handlers::warmup::handle_warmup)) // 内部预热端点
+            .route("/internal/warmup", post(handlers::warmup::handle_warmup)) // InsideWarm up endpoints
             .route("/v1/api/event_logging/batch", post(silent_ok_handler))
             .route("/v1/api/event_logging", post(silent_ok_handler))
             .route("/healthz", get(health_check_handler))
@@ -193,15 +193,15 @@ impl AxumServer {
             .layer(crate::proxy::middleware::cors_layer())
             .with_state(state);
 
-        // 绑定地址
+        // bindingAddress
         let addr = format!("{}:{}", host, port);
         let listener = tokio::net::TcpListener::bind(&addr)
             .await
-            .map_err(|e| format!("地址 {} 绑定失败: {}", addr, e))?;
+            .map_err(|e| format!("Address {} bindingFailed: {}", addr, e))?;
 
-        tracing::info!("反代服务器启动在 http://{}", addr);
+        tracing::info!("Anti-generationalServerStart在 http://{}", addr);
 
-        // 创建关闭通道
+        // CreateCloseChannel
         let (shutdown_tx, mut shutdown_rx) = oneshot::channel::<()>();
 
         let server_instance = Self {
@@ -213,7 +213,7 @@ impl AxumServer {
             experimental: experimental_state.clone(),
         };
 
-        // 在新任务中启动服务器
+        // in newTask中StartServer
         let handle = tokio::spawn(async move {
             use hyper::server::conn::http1;
             use hyper_util::rt::TokioIo;
@@ -230,20 +230,20 @@ impl AxumServer {
                                 tokio::task::spawn(async move {
                                     if let Err(err) = http1::Builder::new()
                                         .serve_connection(io, service)
-                                        .with_upgrades() // 支持 WebSocket (如果以后需要)
+                                        .with_upgrades() // Support WebSocket (IfafterNeed)
                                         .await
                                     {
-                                        debug!("连接处理结束或出错: {:?}", err);
+                                        debug!("ConnectHandleEndor error: {:?}", err);
                                     }
                                 });
                             }
                             Err(e) => {
-                                error!("接收连接失败: {:?}", e);
+                                error!("ReceiveConnectFailed: {:?}", e);
                             }
                         }
                     }
                     _ = &mut shutdown_rx => {
-                        tracing::info!("反代服务器停止监听");
+                        tracing::info!("Anti-generationalServerStopListen");
                         break;
                     }
                 }
@@ -253,7 +253,7 @@ impl AxumServer {
         Ok((server_instance, handle))
     }
 
-    /// 停止服务器
+    /// StopServer
     pub fn stop(mut self) {
         if let Some(tx) = self.shutdown_tx.take() {
             let _ = tx.send(());
@@ -261,9 +261,9 @@ impl AxumServer {
     }
 }
 
-// ===== API 处理器 (旧代码已移除，由 src/proxy/handlers/* 接管) =====
+// ===== API Handler (The old code hasRemove，由 src/proxy/handlers/* take over) =====
 
-/// 健康检查处理器
+/// Health CheckHandler
 async fn health_check_handler() -> Response {
     Json(serde_json::json!({
         "status": "ok"
@@ -271,7 +271,7 @@ async fn health_check_handler() -> Response {
     .into_response()
 }
 
-/// 静默成功处理器 (用于拦截遥测日志等)
+/// silenceSuccessHandler (Used to intercept telemetryLog等)
 async fn silent_ok_handler() -> Response {
     StatusCode::OK.into_response()
 }

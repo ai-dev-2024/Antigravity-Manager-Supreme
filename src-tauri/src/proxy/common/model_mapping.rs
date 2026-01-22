@@ -1,16 +1,16 @@
-// 模型名称映射
+// ModelNameMapping
 use std::collections::HashMap;
 use once_cell::sync::Lazy;
 
 static CLAUDE_TO_GEMINI: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
     let mut m = HashMap::new();
 
-    // 直接支持的模型
+    // directSupport的Model
     m.insert("claude-opus-4-5-thinking", "claude-opus-4-5-thinking");
     m.insert("claude-sonnet-4-5", "claude-sonnet-4-5");
     m.insert("claude-sonnet-4-5-thinking", "claude-sonnet-4-5-thinking");
 
-    // 别名映射
+    // AliasMapping
     m.insert("claude-sonnet-4-5-20250929", "claude-sonnet-4-5-thinking");
     m.insert("claude-3-5-sonnet-20241022", "claude-sonnet-4-5");
     m.insert("claude-3-5-sonnet-20240620", "claude-sonnet-4-5");
@@ -19,7 +19,7 @@ static CLAUDE_TO_GEMINI: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|
     m.insert("claude-haiku-4", "claude-sonnet-4-5");
     m.insert("claude-3-haiku-20240307", "claude-sonnet-4-5");
     m.insert("claude-haiku-4-5-20251001", "claude-sonnet-4-5");
-    // OpenAI 协议映射表
+    // OpenAI ProtocolMapping表
     m.insert("gpt-4", "gemini-2.5-flash");
     m.insert("gpt-4-turbo", "gemini-2.5-flash");
     m.insert("gpt-4-turbo-preview", "gemini-2.5-flash");
@@ -40,13 +40,13 @@ static CLAUDE_TO_GEMINI: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|
     m.insert("gpt-3.5-turbo-1106", "gemini-2.5-flash");
     m.insert("gpt-3.5-turbo-0613", "gemini-2.5-flash");
 
-    // Gemini 协议映射表
+    // Gemini ProtocolMapping表
     m.insert("gemini-2.5-flash-lite", "gemini-2.5-flash");
     m.insert("gemini-2.5-flash-thinking", "gemini-2.5-flash-thinking");
     m.insert("gemini-3-pro-low", "gemini-3-pro-preview");
     m.insert("gemini-3-pro-high", "gemini-3-pro-preview");
     m.insert("gemini-3-pro-preview", "gemini-3-pro-preview");
-    m.insert("gemini-3-pro", "gemini-3-pro-preview");  // 统一映射到 preview
+    m.insert("gemini-3-pro", "gemini-3-pro-preview");  // unifiedMapping到 preview
     m.insert("gemini-2.5-flash", "gemini-2.5-flash");
     m.insert("gemini-3-flash", "gemini-3-flash");
     m.insert("gemini-3-pro-image", "gemini-3-pro-image");
@@ -76,24 +76,24 @@ pub fn map_claude_model_to_gemini(input: &str) -> String {
     "claude-sonnet-4-5".to_string()
 }
 
-/// 获取所有内置支持的模型列表关键字
+/// GetAllBuilt-in supported model list keywords
 pub fn get_supported_models() -> Vec<String> {
     CLAUDE_TO_GEMINI.keys().map(|s| s.to_string()).collect()
 }
 
-/// 动态获取所有可用模型列表 (包含内置与用户自定义)
+/// Dynamically get all available model lists (Including built-in and user-defined)
 pub async fn get_all_dynamic_models(
     custom_mapping: &tokio::sync::RwLock<std::collections::HashMap<String, String>>,
 ) -> Vec<String> {
     use std::collections::HashSet;
     let mut model_ids = HashSet::new();
 
-    // 1. 获取所有内置映射模型
+    // 1. GetAllbuilt-inMappingModel
     for m in get_supported_models() {
         model_ids.insert(m);
     }
 
-    // 2. 获取所有自定义映射模型 (Custom)
+    // 2. GetAllCustomMappingModel (Custom)
     {
         let mapping = custom_mapping.read().await;
         for key in mapping.keys() {
@@ -101,7 +101,7 @@ pub async fn get_all_dynamic_models(
         }
     }
 
-    // 5. 确保包含常用的 Gemini/画画模型 ID
+    // 5. make surePacketContains commonly used Gemini/drawModel ID
     model_ids.insert("gemini-3-pro-low".to_string());
     
     // [NEW] Issue #247: Dynamically generate all Image Gen Combinations
@@ -177,22 +177,22 @@ fn wildcard_match(pattern: &str, text: &str) -> bool {
     true
 }
 
-/// 核心模型路由解析引擎
-/// 优先级：精确匹配 > 通配符匹配 > 系统默认映射
+/// CoreModelRouteParseengine
+/// Priority：exact match > wildcard matching > SystemDefaultMapping
 /// 
-/// # 参数
-/// - `original_model`: 原始模型名称
-/// - `custom_mapping`: 用户自定义映射表
+/// # Parameter
+/// - `original_model`: RawModelName
+/// - `custom_mapping`: UserCustomMapping表
 /// 
-/// # 返回
-/// 映射后的目标模型名称
+/// # Return
+/// MappinglaterTargetModelName
 pub fn resolve_model_route(
     original_model: &str,
     custom_mapping: &std::collections::HashMap<String, String>,
 ) -> String {
-    // 1. 精确匹配 (最高优先级)
+    // 1. exact match (HighestPriority)
     if let Some(target) = custom_mapping.get(original_model) {
-        crate::modules::logger::log_info(&format!("[Router] 精确映射: {} -> {}", original_model, target));
+        crate::modules::logger::log_info(&format!("[Router] accurateMapping: {} -> {}", original_model, target));
         return target.clone();
     }
     
@@ -219,10 +219,10 @@ pub fn resolve_model_route(
         return target.to_string();
     }
     
-    // 3. 系统默认映射
+    // 3. SystemDefaultMapping
     let result = map_claude_model_to_gemini(original_model);
     if result != original_model {
-        crate::modules::logger::log_info(&format!("[Router] 系统默认映射: {} -> {}", original_model, result));
+        crate::modules::logger::log_info(&format!("[Router] SystemDefaultMapping: {} -> {}", original_model, result));
     }
     result
 }

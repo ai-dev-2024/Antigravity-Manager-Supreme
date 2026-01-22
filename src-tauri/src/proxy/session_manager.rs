@@ -3,22 +3,22 @@ use crate::proxy::mappers::claude::models::{ClaudeRequest, MessageContent};
 use crate::proxy::mappers::openai::models::{OpenAIRequest, OpenAIContent};
 use serde_json::Value;
 
-/// 会话管理器工具
+/// SessionManagerTool
 pub struct SessionManager;
 
 impl SessionManager {
-    /// 根据 Claude 请求生成稳定的会话指纹 (Session Fingerprint)
+    /// according to Claude RequestgenerateStable的Sessionfingerprint (Session Fingerprint)
     /// 
-    /// 设计理念:
-    /// - 只哈希第一条用户消息内容,不混入模型名称或时间戳
-    /// - 确保同一对话的所有轮次使用相同的 session_id
-    /// - 最大化 prompt caching 的命中率
+    /// design concept:
+    /// - 只HashArticle 1UserMessageContent,Do not mix inModelName或Timestamp
+    /// - ensure the sameConversation的AllroundsUsingSame的 session_id
+    /// - Maximize prompt caching hit rate
     /// 
-    /// 优先级:
-    /// 1. metadata.user_id (客户端显式提供)
-    /// 2. 第一条用户消息的 SHA256 哈希
+    /// Priority:
+    /// 1. metadata.user_id (Clientprovided explicitly)
+    /// 2. Article 1UserMessage的 SHA256 Hash
     pub fn extract_session_id(request: &ClaudeRequest) -> String {
-        // 1. 优先使用 metadata 中的 user_id
+        // 1. priorityUsing metadata in user_id
         if let Some(metadata) = &request.metadata {
             if let Some(user_id) = &metadata.user_id {
                 if !user_id.is_empty() && !user_id.contains("session-") {
@@ -28,7 +28,7 @@ impl SessionManager {
             }
         }
 
-        // 2. 备选方案：基于第一条用户消息的 SHA256 哈希
+        // 2. Alternatives：Based on Article 1UserMessage的 SHA256 Hash
         let mut hasher = Sha256::new();
 
         let mut content_found = false;
@@ -49,16 +49,16 @@ impl SessionManager {
             };
 
             let clean_text = text.trim();
-            // 跳过过短的消息 (可能是 CLI 的探测消息) 或含有系统标签的消息
+            // Skip those that are too shortMessage (MayYes CLI detectionMessage) or containSystemTab的Message
             if clean_text.len() > 10 && !clean_text.contains("<system-reminder>") {
                 hasher.update(clean_text.as_bytes());
                 content_found = true;
-                break; // 只取第一条关键消息作为锚点
+                break; // Take only the first levelKeyMessageas anchor point
             }
         }
 
         if !content_found {
-            // 如果没找到有意义的内容，退化为对最后一条消息进行哈希
+            // Ifnot foundMeaningful的Content，degenerate into pairsFinallyone pieceMessage进LineHash
             if let Some(last_msg) = request.messages.last() {
                 hasher.update(format!("{:?}", last_msg.content).as_bytes());
             }
@@ -76,7 +76,7 @@ impl SessionManager {
         sid
     }
 
-    /// 根据 OpenAI 请求生成稳定的会话指纹
+    /// according to OpenAI RequestgenerateStable的Sessionfingerprint
     pub fn extract_openai_session_id(request: &OpenAIRequest) -> String {
         let mut hasher = Sha256::new();
 
@@ -118,7 +118,7 @@ impl SessionManager {
         sid
     }
 
-    /// 根据 Gemini 原生请求 (JSON) 生成稳定的会话指纹
+    /// according to Gemini NativeRequest (JSON) generateStable的Sessionfingerprint
     pub fn extract_gemini_session_id(request: &Value, _model_name: &str) -> String {
         let mut hasher = Sha256::new();
 
@@ -147,7 +147,7 @@ impl SessionManager {
         }
 
         if !content_found {
-             // 兜底：对整个 Body 的首个 user part 进行摘要
+             // reveal all the details：to the whole Body the first user part 进LineDigest
              hasher.update(request.to_string().as_bytes());
         }
 
