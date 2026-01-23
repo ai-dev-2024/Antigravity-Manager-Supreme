@@ -819,21 +819,35 @@ pub fn start_antigravity() -> Result<(), String> {
 
     #[cfg(target_os = "windows")]
     {
-        // Try to start via registry or default path
-        let mut cmd = Command::new("cmd");
-        cmd.args(["/C", "start", "antigravity://"]);
-
-        // Add startup arguments
-        if let Some(ref args) = args {
-            for arg in args {
-                cmd.arg(arg);
+        let has_args = args.as_ref().map_or(false, |a| !a.is_empty());
+        
+        if has_args {
+            if let Some(detected_path) = get_antigravity_executable_path() {
+                let path_str = detected_path.to_string_lossy().to_string();
+                crate::modules::logger::log_info(&format!(
+                    "Starting with auto-detected path (has args): {}",
+                    path_str
+                ));
+                
+                let mut cmd = Command::new(&path_str);
+                if let Some(ref args) = args {
+                    for arg in args {
+                        cmd.arg(arg);
+                    }
+                }
+                
+                cmd.spawn().map_err(|e| format!("Startup failed: {}", e))?;
+            } else {
+                return Err("Startup arguments configured but cannot find Antigravity executable path. Please set the executable path manually in Settings.".to_string());
             }
-        }
-
-        let result = cmd.spawn();
-
-        if result.is_err() {
-            return Err("Startup failed, please open Antigravity manually".to_string());
+        } else {
+            let mut cmd = Command::new("cmd");
+            cmd.args(["/C", "start", "antigravity://"]);
+            
+            let result = cmd.spawn();
+            if result.is_err() {
+                return Err("Startup failed, please open Antigravity manually".to_string());
+            }
         }
     }
 

@@ -51,6 +51,10 @@ static CLAUDE_TO_GEMINI: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|
     m.insert("gemini-3-flash", "gemini-3-flash");
     m.insert("gemini-3-pro-image", "gemini-3-pro-image");
 
+    // [New] Unified Virtual ID for Background Tasks (Title, Summary, etc.)
+    // Allows users to override all background tasks via custom_mapping
+    m.insert("internal-background-task", "gemini-2.5-flash");
+
 
     m
 });

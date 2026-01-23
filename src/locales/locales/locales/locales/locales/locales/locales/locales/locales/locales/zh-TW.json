@@ -57,7 +57,9 @@
         "switch_to_russian": "切換到俄文",
         "switch_to_russian_short": "RU",
         "switch_to_portuguese": "切換到葡萄牙文",
-        "switch_to_portuguese_short": "PT"
+        "switch_to_portuguese_short": "PT",
+        "switch_to_korean": "切換到韓語",
+        "switch_to_korean_short": "KO"
     },
     "dashboard": {
         "hello": "你好, 使用者 👋",
@@ -474,7 +476,9 @@
                 "enable": "啟用上游代理",
                 "url": "代理地址",
                 "url_placeholder": "例如: http://127.0.0.1:7890 或 socks5://127.0.0.1:7890",
-                "tip": "支援 HTTP、HTTPS 和 SOCKS5 協定。"
+                "tip": "支援 HTTP、HTTPS 和 SOCKS5 協定。",
+                "validation_error": "啟用上游代理時必須填寫代理地址",
+                "restart_hint": "代理設定已儲存，重新啟動應用程式後生效"
             },
             "scheduling": {
                 "title": "帳號輪換與會話排程",
@@ -566,6 +570,10 @@
             "title": "模型路由中心 (Model Router)",
             "subtitle": "按“規格家族”統一路由 OpenAI/Claude 模型，或新增最高優先順序的“精確對映”。\n注意：Claude 原生直通模型（claude-opus-4-5-thinking 等 3 個）預設直通，需在“專家精確對映”中新增規則才能修改。",
             "subtitle_simple": "透過萬用字元或精確對映自定義模型路由規則",
+            "background_task_title": "Background Task Model",
+            "background_task_desc": "Model used for Claude CLI background tasks like title generation, summary, etc. (Default: gemini-2.5-flash)",
+            "use_default": "Use System Default",
+            "current_model": "Current Model",
             "apply_presets": "應用預設對映",
             "presets_applied": "預設對映已應用",
             "custom_mappings": "自定義對映 (Custom Mappings)",

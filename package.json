@@ -1,5 +1,7 @@
 {
-  "name": "antigravity-manager-supreme",
+  "version": "3.3.50",
+  "name": "antigravity-tools",
+  "type": "module",
   "private": true,
   "version": "1.2.0",
   "type": "module",

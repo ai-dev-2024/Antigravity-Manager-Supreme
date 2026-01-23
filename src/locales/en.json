@@ -57,7 +57,9 @@
         "switch_to_russian": "Switch to Russian",
         "switch_to_russian_short": "RU",
         "switch_to_portuguese": "Switch to Portuguese",
-        "switch_to_portuguese_short": "PT"
+        "switch_to_portuguese_short": "PT",
+        "switch_to_korean": "Switch to Korean",
+        "switch_to_korean_short": "KO"
     },
     "dashboard": {
         "hello": "Hello, User 👋",
@@ -479,7 +481,9 @@
                 "enable": "Enable Upstream Proxy",
                 "url": "Proxy URL",
                 "url_placeholder": "e.g. http://127.0.0.1:7890 or socks5://127.0.0.1:7890",
-                "tip": "Supports HTTP, HTTPS and SOCKS5."
+                "tip": "Supports HTTP, HTTPS and SOCKS5.",
+                "validation_error": "Proxy URL is required when upstream proxy is enabled",
+                "restart_hint": "Proxy settings saved. Restart the app to apply changes."
             },
             "scheduling": {
                 "title": "Account Rotation & Scheduling",
@@ -574,6 +578,10 @@
             "title": "Model Router",
             "subtitle": "Route models by series or add custom exact mappings.\nNote: Native Claude pass-through models (e.g. claude-opus-4-5-thinking) bypass series groups by default. Use \"Expert Custom Routing\" to override.",
             "subtitle_simple": "Customize model routing with wildcards or exact mappings",
+            "background_task_title": "Background Task Model",
+            "background_task_desc": "Model used for Claude CLI background tasks like title generation, summary, etc. (Default: gemini-2.5-flash)",
+            "use_default": "Use System Default",
+            "current_model": "Current Model",
             "apply_presets": "Apply Presets",
             "presets_applied": "Presets applied successfully",
             "custom_mappings": "Custom Mappings",

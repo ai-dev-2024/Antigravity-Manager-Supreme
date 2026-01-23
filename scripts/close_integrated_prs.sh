@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# 关闭已集成到 v3.3.49 的 PR 脚本
+# 关闭已集成到 v3.3.50 的 PR 脚本
 # 使用前请确保已安装并登录 GitHub CLI: brew install gh && gh auth login
 
 REPO="lbjlaq/Antigravity-Manager"
-VERSION="v3.3.49"
+VERSION="v3.3.50"
 
 # 感谢消息模板
 THANK_YOU_MESSAGE="感谢您的贡献！🎉
@@ -41,7 +41,8 @@ PRS_LIST=(
     "798|vietnhatthai|[Translation Fix] Correct spelling error in Vietnamese settings",
     "846|lengjingxu|[核心功能] 客户端热更新与 Token 统计系统",
     "949|lbjlaq|Streaming chunks order fix",
-    "950|lbjlaq|[Fix] Remove redundant code and update README"
+    "950|lbjlaq|[Fix] Remove redundant code and update README",
+    "973|Mag1cFall|fix: 修复 Windows 平台启动参数不生效的问题"
 )
 
 # 检查 GitHub CLI 是否已安装

@@ -464,7 +464,9 @@
                 "enable": "Включить апстрим прокси",
                 "url": "URL прокси",
                 "url_placeholder": "например, http://127.0.0.1:7890 или socks5://127.0.0.1:7890",
-                "tip": "Поддерживает HTTP, HTTPS и SOCKS5."
+                "tip": "Поддерживает HTTP, HTTPS и SOCKS5.",
+                "validation_error": "URL прокси обязателен при включенном апстрим прокси",
+                "restart_hint": "Настройки прокси сохранены. Перезапустите приложение для применения изменений."
             },
             "scheduling": {
                 "title": "Ротация аккаунтов и планирование",
@@ -559,6 +561,10 @@
             "title": "Маршрутизатор моделей",
             "subtitle": "Маршрутизировать модели по сериям или добавить пользовательские точные отображения.\nПримечание: Нативные модели проходного Claude (например, claude-opus-4-5-thinking) по умолчанию обходят группы серий. Используйте \"Экспертную пользовательскую маршрутизацию\" для переопределения.",
             "subtitle_simple": "Настроить маршрутизацию моделей с подстановочными символами или точными отображениями",
+            "background_task_title": "Background Task Model",
+            "background_task_desc": "Model used for Claude CLI background tasks like title generation, summary, etc. (Default: gemini-2.5-flash)",
+            "use_default": "Use System Default",
+            "current_model": "Current Model",
             "apply_presets": "Применить пресеты",
             "presets_applied": "Пресеты успешно применены",
             "custom_mappings": "Пользовательские отображения",

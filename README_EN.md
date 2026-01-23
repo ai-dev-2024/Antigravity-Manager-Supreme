@@ -1,6 +1,6 @@
 # Antigravity Tools 🚀
 # Antigravity Tools 🚀
-> Professional AI Account Management & Proxy System (v3.3.49)
+> Professional AI Account Management & Proxy System (v3.3.50)
 
 <div align="center">
   <img src="public/icon.png" alt="Antigravity Logo" width="120" height="120" style="border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
@@ -10,7 +10,7 @@
   
   <p>
     <a href="https://github.com/lbjlaq/Antigravity-Manager">
-      <img src="https://img.shields.io/badge/Version-3.3.49-blue?style=flat-square" alt="Version">
+      <img src="https://img.shields.io/badge/Version-3.3.50-blue?style=flat-square" alt="Version">
     </a>
     <img src="https://img.shields.io/badge/Tauri-v2-orange?style=flat-square" alt="Tauri">
     <img src="https://img.shields.io/badge/Backend-Rust-red?style=flat-square" alt="Rust">
@@ -212,6 +212,29 @@ print(response.choices[0].message.content)
 ## 📝 Developer & Community
 
 *   **Changelog**:
+    *   **v3.3.50 (2026-01-23)**:
+        -   **[Core Feature] Configurable Background Task Models**:
+            -   **Enhancement**: Users can now customize the model used for "Background Tasks" (e.g., title generation, summary compression), decoupled from the hardcoded `gemini-2.5-flash`.
+            -   **UI Update**: Added a "Background Task Model" setting in the "Model Mapping" page, allowing selection of any available model (e.g., `gemini-3-flash`) via dropdown.
+            -   **Routing Fix**: Resolved an issue where background tasks might bypass user custom mappings. `internal-background-task` now strictly adheres to user redirection rules.
+        -   **[Important Notice] Upstream Model Capacity Warning**:
+            -   **Capacity Exhausted**: We have received numerous reports that upstream Google `gemini-2.5-flash` and `gemini-2.5-flash-lite` models are currently experiencing severe capacity limitations (Rate Limited / Capacity Exhausted).
+            -   **Recommended Action**: To ensure service availability, we strongly recommend manually redirecting these models to alternatives (e.g., `gemini-3-flash` or `gemini-3-pro-high`) in "Custom Mappings" until upstream services recover.
+        -   **[Core Fix] Windows Startup Argument Support (PR #973)**:
+            -   **Fix**: Resolved an issue where startup arguments (e.g., tunneling configurations) were not correctly parsed and applied on the Windows platform. Thanks to @Mag1cFall for the contribution.
+        -   **[Core Fix] Enhanced Claude Signature Validation (PR #1009)**:
+            -   **Optimization**: Strengthened the signature validation logic for Claude models, fixing 400 errors in long conversations or complex tool-calling scenarios.
+            -   **Compatibility**: Introduced minimum signature length checks and a trust-on-length strategy for unknown signatures, significantly improving the stability of JSON tool calls.
+        -   **[i18n] Vietnamese Translation Optimization (PR #1017)**:
+            -   **Refinement**: Optimized Vietnamese translations for the About page and other UI elements for better clarity and conciseness.
+        -   **[i18n] Turkish Tray Translation Enhancement (PR #1023)**:
+            -   **Optimization**: Added full Turkish translation support for the system tray menu, improving the experience for Turkish-speaking users.
+            -   **[Enhancement] Multi-language Support & I18n Settings (PR #1029)**:
+            -   **New Language Support**: Added more comprehensive support for Portuguese, Japanese, Vietnamese, Turkish, Russian, and more.
+            -   **I18n Settings Panel**: Added a language selector in the Settings page, supporting instant switching of the application's display language.
+        -   **[i18n] Korean Support & UI Refinement (New)**:
+            -   **Korean Integration**: Added full Korean (`ko`) translation support, available for selection in Settings.
+            -   **UI Upgrade**: Refactored the language switcher in the top navigation bar from a single-click toggle to a more intuitive dropdown menu, displaying language abbreviations and full names for better usability.
     *   **v3.3.49 (2026-01-22)**:
         -   **[Core Fix] Thinking Interruption & 0-Token Defense (Fix Thinking Interruption)**:
             -   **Issue**: Addressed an issue where Gemini models would unexpectedly terminate the stream after outputting "Thinking" content, causing Claude clients to receive 0-token responses and deadlock with errors.
@@ -253,6 +276,10 @@ print(response.choices[0].message.content)
         -   **[Optimization] OAuth Communication Quality (Issue #948, #887)**:
             -   **Timeout Extension**: Increased auth request timeouts to 60 seconds to significantly improve token exchange success rates in proxy environments.
             -   **Error Guidance**: Provided clear guidance for Google API connectivity issues, helping users troubleshoot proxy settings.
+        -   **[UX Enhancement] Upstream Proxy Validation & Restart Hint (Contributed by @zhiqianzheng)**:
+            -   **Config Validation**: When the user enables upstream proxy but leaves the URL empty, the save operation is blocked with a clear error message, preventing connection failures due to invalid configuration.
+            -   **Restart Reminder**: After successfully saving proxy settings, users are reminded to restart the app for changes to take effect, reducing troubleshooting time.
+            -   **i18n Support**: Added translations for Simplified Chinese, Traditional Chinese, English, and Japanese.
 
     *   **v3.3.48 (2026-01-21)**:
         -   **[Core Fix] Windows Console Flashing Fix (Fix PR #933)**:

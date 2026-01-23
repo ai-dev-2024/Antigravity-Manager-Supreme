@@ -775,35 +775,15 @@ fn build_system_instruction(system: &Option<SystemPrompt>, _model_name: &str, ha
     if let Some(sys) = system {
         match sys {
             SystemPrompt::String(text) => {
-                // [FIX] Filter OpenCode DefaultHint词，but keepUserCustominstruction (Instructions from: ...)
-                if text.contains("You are an interactive CLI tool") {
-                    // extractUserCustomcommand part
-                    if let Some(idx) = text.find("Instructions from:") {
-                        let custom_part = &text[idx..];
-                        tracing::info!("[Claude-Request] Extracted custom instructions (len: {}), filtered default prompt", custom_part.len());
-                        parts.push(json!({"text": custom_part}));
-                    } else {
-                        tracing::info!("[Claude-Request] Filtering out OpenCode default system instruction (len: {})", text.len());
-                    }
-                } else {
-                    parts.push(json!({"text": text}));
-                }
+                // [MODIFIED] No longer filter "You are an interactive CLI tool"
+                // We pass everything through to ensure Flash/Lite models get full instructions
+                parts.push(json!({"text": text}));
             }
             SystemPrompt::Array(blocks) => {
                 for block in blocks {
                     if block.block_type == "text" {
-                        // [FIX] Filter OpenCode DefaultHint词，but keepUserCustominstruction
-                        if block.text.contains("You are an interactive CLI tool") {
-                            if let Some(idx) = block.text.find("Instructions from:") {
-                                let custom_part = &block.text[idx..];
-                                tracing::info!("[Claude-Request] Extracted custom instructions from block (len: {})", custom_part.len());
-                                parts.push(json!({"text": custom_part}));
-                            } else {
-                                tracing::info!("[Claude-Request] Filtering out OpenCode default system block (len: {})", block.text.len());
-                            }
-                        } else {
-                            parts.push(json!({"text": block.text}));
-                        }
+                        // [MODIFIED] No longer filter "You are an interactive CLI tool"
+                        parts.push(json!({"text": block.text}));
                     }
                 }
             }
@@ -936,6 +916,17 @@ fn build_contents(
                         // [FIX #752] Strict signature validation
                         // Only use signatures that are cached and compatible with the target model
                         if let Some(sig) = signature {
+                            // Check signature length first - if it's too short, it's definitely invalid
+                            if sig.len() < MIN_SIGNATURE_LENGTH {
+                                tracing::warn!(
+                                    "[Thinking-Signature] Signature too short (len: {} < {}), downgrading to text.",
+                                    sig.len(), MIN_SIGNATURE_LENGTH
+                                );
+                                parts.push(json!({"text": thinking}));
+                                saw_non_thinking = true;
+                                continue;
+                            }
+                            
                             let cached_family = crate::proxy::SignatureCache::global().get_signature_family(sig);
 
                             match cached_family {
@@ -966,14 +957,31 @@ fn build_contents(
                                     parts.push(part);
                                 }
                                 None => {
-                                    // Unknown signature origin: downgrade to text for safety
-                                    tracing::warn!(
-                                        "[Thinking-Signature] Unknown signature origin (len: {}). Downgrading to text for safety.",
-                                        sig.len()
-                                    );
-                                    parts.push(json!({"text": thinking}));
-                                    saw_non_thinking = true;
-                                    continue;
+                                    // For JSON tool calling compatibility, if signature is long enough but unknown,
+                                    // we should trust it rather than downgrade to text
+                                    if sig.len() >= MIN_SIGNATURE_LENGTH {
+                                        tracing::debug!(
+                                            "[Thinking-Signature] Unknown signature origin but valid length (len: {}), using as-is for JSON tool calling.",
+                                            sig.len()
+                                        );
+                                        *last_thought_signature = Some(sig.clone());
+                                        let mut part = json!({
+                                            "text": thinking,
+                                            "thought": true,
+                                            "thoughtSignature": sig
+                                        });
+                                        crate::proxy::common::json_schema::clean_json_schema(&mut part);
+                                        parts.push(part);
+                                    } else {
+                                        // Unknown and too short: downgrade to text for safety
+                                        tracing::warn!(
+                                            "[Thinking-Signature] Unknown signature origin and too short (len: {}). Downgrading to text for safety.",
+                                            sig.len()
+                                        );
+                                        parts.push(json!({"text": thinking}));
+                                        saw_non_thinking = true;
+                                        continue;
+                                    }
                                 }
                             }
                         } else {
@@ -1088,8 +1096,13 @@ fn build_contents(
                             if is_retry && signature.is_none() {
                                 tracing::warn!("[Tool-Signature] Skipping signature backfill for tool_use: {} during retry.", id);
                             } else {
-                                // Check signature length
-                                if sig.len() >= MIN_SIGNATURE_LENGTH {
+                                // Check signature length first - if it's too short, it's definitely invalid
+                                if sig.len() < MIN_SIGNATURE_LENGTH {
+                                    tracing::warn!(
+                                        "[Tool-Signature] Signature too short for tool_use: {} (len: {} < {}), skipping.",
+                                        id, sig.len(), MIN_SIGNATURE_LENGTH
+                                    );
+                                } else {
                                     // Check signature compatibility (optional for tool_use)
                                     let cached_family = crate::proxy::SignatureCache::global()
                                         .get_signature_family(&sig);
@@ -1108,27 +1121,32 @@ fn build_contents(
                                             }
                                         }
                                         None => {
-                                            // Unknown origin: only use in non-thinking mode
-                                            if is_thinking_enabled {
-                                                tracing::warn!(
-                                                    "[Tool-Signature] Unknown signature origin for tool_use: {} (len: {}). Dropping in thinking mode.",
-                                                    id, sig.len()
+                                            // For JSON tool calling compatibility, if signature is long enough but unknown,
+                                            // we should trust it rather than drop it
+                                            if sig.len() >= MIN_SIGNATURE_LENGTH {
+                                                tracing::debug!(
+                                                    "[Tool-Signature] Unknown signature origin but valid length (len: {}) for tool_use: {}, using as-is for JSON tool calling.",
+                                                    sig.len(), id
                                                 );
-                                                false
-                                            } else {
-                                                // In non-thinking mode, allow unknown signatures
                                                 true
+                                            } else {
+                                                // Unknown and too short: only use in non-thinking mode
+                                                if is_thinking_enabled {
+                                                    tracing::warn!(
+                                                        "[Tool-Signature] Unknown signature origin and too short for tool_use: {} (len: {}). Dropping in thinking mode.",
+                                                        id, sig.len()
+                                                    );
+                                                    false
+                                                } else {
+                                                    // In non-thinking mode, allow unknown signatures
+                                                    true
+                                                }
                                             }
                                         }
                                     };
                                     if should_use_sig {
                                         part["thoughtSignature"] = json!(sig);
                                     }
-                                } else {
-                                    tracing::warn!(
-                                        "[Tool-Signature] Signature too short for tool_use: {} (len: {})",
-                                        id, sig.len()
-                                    );
                                 }
                             }
                         } else {

@@ -2173,164 +2173,46 @@ print(response.text)`;
                             <div className="p-3 space-y-3">
                                 {/* åˆ†ç»„æ˜ å°„åŒºåŸŸ */}
                                 <div>
-                                    <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                                        <Layers size={14} /> {t('proxy.router.group_title')}
-                                    </h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
-                                        {/* Claude 4.5 ç³»åˆ— */}
-                                        <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/10 dark:to-amber-900/10 p-3 rounded-xl border border-orange-100 dark:border-orange-800/30 relative overflow-hidden group hover:border-orange-400 transition-all duration-300">
-                                            <div className="flex items-center gap-3 mb-3">
-                                                <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/30">
-                                                    <BrainCircuit size={16} />
-                                                </div>
-                                                <div>
-                                                    <div className="text-xs font-bold text-card-foreground">{t('proxy.router.groups.claude_45.name')}</div>
-                                                    <div className="text-[10px] text-gray-500 line-clamp-1">{t('proxy.router.groups.claude_45.desc')}</div>
-                                                </div>
+                                    {/* 后台任务模型配置 (Compact Mode) */}
+                                    <div className="mb-4 pb-4 border-b border-gray-100 dark:border-base-200">
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                            <div className="flex-1">
+                                                <h3 className="text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                                                    <Sparkles size={14} className="text-blue-500" />
+                                                    {t('proxy.router.background_task_title')}
+                                                </h3>
+                                                <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+                                                    {t('proxy.router.background_task_desc')}
+                                                </p>
                                             </div>
-                                            <select
-                                                className="select select-sm select-bordered w-full font-mono text-[11px] bg-card/80 backdrop-blur-sm"
-                                                value={appConfig.proxy.anthropic_mapping?.["claude-4.5-series"] || ""}
-                                                onChange={(e) => handleMappingUpdate('anthropic', 'claude-4.5-series', e.target.value)}
-                                            >
-                                                <option value="gemini-3-pro-high">gemini-3-pro-high{t('proxy.router.default_suffix', ' (Default)')}</option>
-                                                <optgroup label="Claude 4.5">
-                                                    <option value="claude-opus-4-5-thinking">claude-opus-4-5-thinking</option>
-                                                    <option value="claude-sonnet-4-5">claude-sonnet-4-5</option>
-                                                    <option value="claude-sonnet-4-5-thinking">claude-sonnet-4-5-thinking</option>
-                                                </optgroup>
-                                                <optgroup label="Gemini 3">
-                                                    <option value="gemini-3-pro-high">gemini-3-pro-high</option>
-                                                    <option value="gemini-3-pro-low">gemini-3-pro-low</option>
-                                                    <option value="gemini-3-flash">gemini-3-flash</option>
-                                                </optgroup>
-                                                <optgroup label="Gemini 2.5">
-                                                    <option value="gemini-2.5-pro">gemini-2.5-pro</option>
-                                                    <option value="gemini-2.5-flash">gemini-2.5-flash</option>
-                                                    <option value="gemini-2.5-flash-thinking">gemini-2.5-flash-thinking</option>
-                                                    <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option>
-                                                </optgroup>
-                                            </select>
-                                        </div>
 
-                                        {/* Claude 3.5 ç³»åˆ— */}
-                                        <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/10 dark:to-pink-900/10 p-3 rounded-xl border border-purple-100 dark:border-purple-800/30 relative overflow-hidden group hover:border-purple-400 transition-all duration-300">
-                                            <div className="flex items-center gap-3 mb-3">
-                                                <div className="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center text-white shadow-lg shadow-purple-500/30">
-                                                    <Puzzle size={16} />
+                                            <div className="flex items-center gap-2 w-full sm:w-auto min-w-[200px] max-w-sm">
+                                                <div className="relative flex-1">
+                                                    <GroupedSelect
+                                                        value={appConfig.proxy.custom_mapping?.['internal-background-task'] || ''}
+                                                        onChange={(val) => handleMappingUpdate('custom', 'internal-background-task', val)}
+                                                        options={[
+                                                            { value: '', label: 'Default (gemini-2.5-flash)', group: 'System' },
+                                                            ...customMappingOptions
+                                                        ]}
+                                                        placeholder="Default (gemini-2.5-flash)"
+                                                        className="font-mono text-[11px] h-8 dark:bg-base-200 w-full"
+                                                    />
                                                 </div>
-                                                <div>
-                                                    <div className="text-xs font-bold text-card-foreground">{t('proxy.router.groups.claude_35.name')}</div>
-                                                    <div className="text-[10px] text-gray-500 line-clamp-1">{t('proxy.router.groups.claude_35.desc')}</div>
-                                                </div>
-                                            </div>
-                                            <select
-                                                className="select select-sm select-bordered w-full font-mono text-[11px] bg-card/80 backdrop-blur-sm"
-                                                value={appConfig.proxy.anthropic_mapping?.["claude-3.5-series"] || ""}
-                                                onChange={(e) => handleMappingUpdate('anthropic', 'claude-3.5-series', e.target.value)}
-                                            >
-                                                <option value="claude-sonnet-4-5-thinking">claude-sonnet-4-5-thinking{t('proxy.router.default_suffix', ' (Default)')}</option>
-                                                <optgroup label="Claude 4.5">
-                                                    <option value="claude-opus-4-5-thinking">claude-opus-4-5-thinking</option>
-                                                    <option value="claude-sonnet-4-5">claude-sonnet-4-5</option>
-                                                    <option value="claude-sonnet-4-5-thinking">claude-sonnet-4-5-thinking</option>
-                                                </optgroup>
-                                                <optgroup label="Gemini 3">
-                                                    <option value="gemini-3-pro-high">gemini-3-pro-high</option>
-                                                    <option value="gemini-3-pro-low">gemini-3-pro-low</option>
-                                                    <option value="gemini-3-flash">gemini-3-flash</option>
-                                                </optgroup>
-                                                <optgroup label="Gemini 2.5">
-                                                    <option value="gemini-2.5-pro">gemini-2.5-pro</option>
-                                                    <option value="gemini-2.5-flash">gemini-2.5-flash</option>
-                                                    <option value="gemini-2.5-flash-thinking">gemini-2.5-flash-thinking</option>
-                                                    <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option>
-                                                </optgroup>
-                                            </select>
-                                        </div>
 
-                                        {/* GPT-4 ç³»åˆ— */}
-                                        <div className="bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/10 dark:to-blue-900/10 p-3 rounded-xl border border-indigo-100 dark:border-indigo-800/30 relative overflow-hidden group hover:border-indigo-400 transition-all duration-300">
-                                            <div className="flex items-center gap-3 mb-3">
-                                                <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
-                                                    <Zap size={16} />
-                                                </div>
-                                                <div>
-                                                    <div className="text-xs font-bold text-card-foreground">{t('proxy.router.groups.gpt_4.name')}</div>
-                                                    <div className="text-[10px] text-gray-500 line-clamp-1">{t('proxy.router.groups.gpt_4.desc')}</div>
-                                                </div>
+                                                {appConfig.proxy.custom_mapping && appConfig.proxy.custom_mapping['internal-background-task'] && (
+                                                    <button
+                                                        onClick={() => handleRemoveCustomMapping('internal-background-task')}
+                                                        className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors"
+                                                        title={t('proxy.router.use_default')}
+                                                    >
+                                                        <RefreshCw size={12} />
+                                                    </button>
+                                                )}
                                             </div>
-                                            <select
-                                                className="select select-sm select-bordered w-full font-mono text-[11px] bg-card/80 backdrop-blur-sm"
-                                                value={appConfig.proxy.openai_mapping?.["gpt-4-series"] || ""}
-                                                onChange={(e) => handleMappingUpdate('openai', 'gpt-4-series', e.target.value)}
-                                            >
-                                                <option value="gemini-3-pro-high">gemini-3-pro-high{t('proxy.router.default_suffix', ' (Default)')}</option>
-                                                <optgroup label="Gemini 3 (Recommended)">
-                                                    <option value="gemini-3-pro-high">gemini-3-pro-high (High Quality)</option>
-                                                    <option value="gemini-3-pro-low">gemini-3-pro-low (Balanced)</option>
-                                                    <option value="gemini-3-flash">gemini-3-flash (Fast)</option>
-                                                </optgroup>
-                                            </select>
-                                            <p className="mt-1 text-[9px] text-indigo-500">{t('proxy.router.gemini3_only_warning')}</p>
-                                        </div>
-
-                                        {/* GPT-4o / 3.5 ç³»åˆ— */}
-                                        <div className="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/10 dark:to-green-900/10 p-3 rounded-xl border border-emerald-100 dark:border-emerald-800/30 relative overflow-hidden group hover:border-emerald-400 transition-all duration-300">
-                                            <div className="flex items-center gap-3 mb-3">
-                                                <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-500/30">
-                                                    <Wind size={16} />
-                                                </div>
-                                                <div>
-                                                    <div className="text-xs font-bold text-card-foreground">{t('proxy.router.groups.gpt_4o.name')}</div>
-                                                    <div className="text-[10px] text-gray-500 line-clamp-1">{t('proxy.router.groups.gpt_4o.desc')}</div>
-                                                </div>
-                                            </div>
-                                            <select
-                                                className="select select-sm select-bordered w-full font-mono text-[11px] bg-card/80 backdrop-blur-sm"
-                                                value={appConfig.proxy.openai_mapping?.["gpt-4o-series"] || ""}
-                                                onChange={(e) => handleMappingUpdate('openai', 'gpt-4o-series', e.target.value)}
-                                            >
-                                                <option value="gemini-3-flash">gemini-3-flash{t('proxy.router.default_suffix', ' (Default)')}</option>
-                                                <optgroup label="Gemini 3 (Recommended)">
-                                                    <option value="gemini-3-flash">gemini-3-flash (Fast)</option>
-                                                    <option value="gemini-3-pro-high">gemini-3-pro-high (High Quality)</option>
-                                                    <option value="gemini-3-pro-low">gemini-3-pro-low (Balanced)</option>
-                                                </optgroup>
-                                            </select>
-                                            <p className="mt-1 text-[9px] text-emerald-600">{t('proxy.router.gemini3_only_warning')}</p>
-                                        </div>
-
-                                        {/* GPT-5 ç³»åˆ— */}
-                                        <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/10 dark:to-orange-900/10 p-3 rounded-xl border border-amber-100 dark:border-amber-800/30 relative overflow-hidden group hover:border-amber-400 transition-all duration-300">
-                                            <div className="flex items-center gap-3 mb-3">
-                                                <div className="w-8 h-8 rounded-lg bg-amber-600 flex items-center justify-center text-white shadow-lg shadow-amber-500/30">
-                                                    <Zap size={16} />
-                                                </div>
-                                                <div>
-                                                    <div className="text-xs font-bold text-card-foreground">{t('proxy.router.groups.gpt_5.name')}</div>
-                                                    <div className="text-[10px] text-gray-500 line-clamp-1">{t('proxy.router.groups.gpt_5.desc')}</div>
-                                                </div>
-                                            </div>
-                                            <select
-                                                className="select select-sm select-bordered w-full font-mono text-[11px] bg-card/80 backdrop-blur-sm"
-                                                value={appConfig.proxy.openai_mapping?.["gpt-5-series"] || ""}
-                                                onChange={(e) => handleMappingUpdate('openai', 'gpt-5-series', e.target.value)}
-                                            >
-                                                <option value="gemini-3-flash">gemini-3-flash{t('proxy.router.default_suffix', ' (Default)')}</option>
-                                                <optgroup label="Gemini 3 (Recommended)">
-                                                    <option value="gemini-3-flash">gemini-3-flash (Fast)</option>
-                                                    <option value="gemini-3-pro-high">gemini-3-pro-high (High Quality)</option>
-                                                    <option value="gemini-3-pro-low">gemini-3-pro-low (Balanced)</option>
-                                                </optgroup>
-                                            </select>
-                                            <p className="mt-1 text-[9px] text-amber-600">{t('proxy.router.gemini3_only_warning')}</p>
                                         </div>
                                     </div>
-                                </div>
 
-                                {/* ç²¾ç¡®æ˜ å°„ç®¡ç† */}
-                                <div className="pt-4 border-t border-border">
                                     <div className="flex items-center justify-between mb-3">
                                         <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
                                             <ArrowRight size={14} /> {t('proxy.router.expert_title')}
