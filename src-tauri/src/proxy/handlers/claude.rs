@@ -552,18 +552,18 @@ pub async fn handle_messages(
         let mut request_with_mapped = request_for_body.clone();
 
         if let Some(task_type) = background_task_type {
-            // 检测到后台任务,强制降级到 Flash 模型
+            // Background detectedTask,forceFallback到 Flash Model
             let virtual_model_id = select_background_model(task_type);
             
-            // [FIX] 必须根据虚拟 ID Re-resolve 路由，以支持用户自定义映射 (如 internal-task -> gemini-3)
-            // 否则会直接使用 generic ID 导致下游无法识别或只能使用静态默认值
+            // [FIX] Mustaccording toVirtual ID Re-resolve Route，以SupportUserCustomMapping (如 internal-task -> gemini-3)
+            // Elsewill be directUsing generic ID As a result, the downstream cannot recognize or can onlyUsingStaticDefaultValue
             let resolved_model = crate::proxy::common::model_mapping::resolve_model_route(
                 virtual_model_id, 
                 &*state.custom_mapping.read().await
             );
 
             info!(
-                "[{}][AUTO] 检测到后台任务 (类型: {:?}), 路由重定向: {} -> {} (最终物理模型: {})",
+                "[{}][AUTO] Background detectedTask (Type: {:?}), RouteRedirect: {} -> {} (ultimate physicsModel: {})",
                 trace_id,
                 task_type,
                 mapped_model,
@@ -571,7 +571,7 @@ pub async fn handle_messages(
                 resolved_model
             );
             
-            // 覆盖用户自定义映射 (同时更新变量和 Request 对象)
+            // coverUserCustomMapping (MeanwhileUpdateVariable和 Request Object)
             mapped_model = resolved_model.clone();
             request_with_mapped.model = resolved_model;
             

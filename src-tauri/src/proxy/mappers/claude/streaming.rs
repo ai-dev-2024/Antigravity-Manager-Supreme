@@ -598,7 +598,7 @@ impl StreamingState {
                     "type": "error",
                     "error": {
                         "type": "network_error",
-                        "message": "networkConnectUnstable,请Check您的network或ProxySet。",
+                        "message": "networkConnectUnstable,请Checkyournetwork或ProxySet。",
                         "code": "stream_decode_error",
                         "details": {
                             "error_count": self.parse_error_count,

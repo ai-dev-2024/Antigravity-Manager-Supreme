@@ -430,9 +430,7 @@
                 "enable": "アップストリームプロキシを有効化",
                 "url": "プロキシURL",
                 "url_placeholder": "例: http://127.0.0.1:7890 や socks5://127.0.0.1:7890",
-                "tip": "HTTP, HTTPS, SOCKS5 をサポートしています。",
-                "validation_error": "プロキシを有効にする場合、プロキシURLは必須です",
-                "restart_hint": "プロキシ設定が保存されました。変更を適用するにはアプリを再起動してください。"
+                "tip": "HTTP, HTTPS, SOCKS5 をサポートしています。"
             },
             "scheduling": {
                 "title": "アカウントローテーションとスケジューリング",
@@ -527,10 +525,6 @@
             "title": "モデルルーター",
             "subtitle": "シリーズごとにモデルをルーティングするか、カスタムマッピングを追加します。\n注: ネイティブなClaudeパススルーモデル (例: claude-opus-4-5-thinking) はデフォルトでシリーズグループをバイパスします。上書きするには「エキスパートカスタムルーティング」を使用してください。",
             "subtitle_simple": "ワイルドカードまたは完全一致マッピングでモデルルーティングをカスタマイズ",
-            "background_task_title": "Background Task Model",
-            "background_task_desc": "Model used for Claude CLI background tasks like title generation, summary, etc. (Default: gemini-2.5-flash)",
-            "use_default": "Use System Default",
-            "current_model": "Current Model",
             "apply_presets": "プリセットを適用",
             "presets_applied": "プリセットを正常に適用しました",
             "custom_mappings": "カスタムマッピング",

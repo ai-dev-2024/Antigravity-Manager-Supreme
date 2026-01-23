@@ -33,7 +33,7 @@ pub struct RateLimitInfo {
     #[allow(dead_code)] // Used for logging and diagnostics
     pub reason: RateLimitReason,
     /// associatedModel (used forModelLevelRate Limit)
-    /// None expressAccountLevelRate Limit,Some(model) express特定ModelRate Limit
+    /// None expressAccountLevelRate Limit,Some(model) expressspecificModelRate Limit
     #[allow(dead_code)] // Used for model-level rate limiting
     pub model: Option<String>,
 }

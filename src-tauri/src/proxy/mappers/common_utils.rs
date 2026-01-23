@@ -393,7 +393,7 @@ pub fn contains_non_networking_tool(tools: &Option<Vec<Value>>) -> bool {
                         }
                     }
                 }
-                is_networking = true; // Even if allYesnetworking，外层也标记为networking
+                is_networking = true; // Even if allYesnetworking，The outer layer is also markednetworking
             }
 
             if !is_networking {

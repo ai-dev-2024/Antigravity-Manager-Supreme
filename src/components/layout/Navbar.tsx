@@ -1,4 +1,3 @@
-import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Sun, Moon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -78,44 +77,18 @@ function Navbar() {
         }
     };
 
-    const [isLangOpen, setIsLangOpen] = useState(false);
-    const langMenuRef = useRef<HTMLDivElement>(null);
-
-    // Close language menu when clicking outside
-    useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (langMenuRef.current && !langMenuRef.current.contains(event.target as Node)) {
-                setIsLangOpen(false);
-            }
-        }
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []);
-
-    const languages = [
-        { code: 'zh', label: '简体中文', short: 'ZH' },
-        { code: 'zh-TW', label: '繁體中文', short: 'TW' },
-        { code: 'en', label: 'English', short: 'EN' },
-        { code: 'ja', label: '日本語', short: 'JA' },
-        { code: 'tr', label: 'Türkçe', short: 'TR' },
-        { code: 'vi', label: 'Tiếng Việt', short: 'VI' },
-        { code: 'pt', label: 'Português', short: 'PT' },
-        { code: 'ko', label: '한국어', short: 'KO' },
-        { code: 'ru', label: 'Русский', short: 'RU' },
-    ];
-
-    const handleLanguageChange = async (langCode: string) => {
+    const toggleLanguage = async () => {
         if (!config) return;
+        const langs = ['zh', 'zh-TW', 'en', 'ja', 'tr', 'vi', 'pt', 'ru'] as const;
+        const currentIndex = langs.indexOf(config.language as any);
+        const nextLang = langs[(currentIndex + 1) % langs.length];
 
         await saveConfig({
             ...config,
-            language: langCode,
+            language: nextLang,
             theme: config.theme
         });
-        i18n.changeLanguage(langCode);
-        setIsLangOpen(false);
+        i18n.changeLanguage(nextLang);
     };
 
     return (
@@ -170,42 +143,16 @@ function Navbar() {
                             )}
                         </button>
 
-                        {/* 语言切换下拉菜单 */}
-                        <div className="relative" ref={langMenuRef}>
-                            <button
-                                onClick={() => setIsLangOpen(!isLangOpen)}
-                                className="w-10 h-10 rounded-full bg-gray-100 dark:bg-base-200 hover:bg-gray-200 dark:hover:bg-base-100 flex items-center justify-center transition-colors"
-                                title={t('settings.general.language')}
-                            >
-                                <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                                    {languages.find(l => l.code === config?.language)?.short || 'EN'}
-                                </span>
-                            </button>
-
-                            {/* 下拉菜单 */}
-                            {isLangOpen && (
-                                <div className="absolute right-0 mt-2 w-32 bg-white dark:bg-base-200 rounded-xl shadow-lg border border-gray-100 dark:border-base-100 py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right">
-                                    {languages.map((lang) => (
-                                        <button
-                                            key={lang.code}
-                                            onClick={() => handleLanguageChange(lang.code)}
-                                            className={`w-full px-4 py-2 text-left text-sm flex items-center justify-between hover:bg-gray-50 dark:hover:bg-base-100 transition-colors ${config?.language === lang.code
-                                                ? 'text-blue-500 font-medium bg-blue-50 dark:bg-blue-900/10'
-                                                : 'text-gray-700 dark:text-gray-300'
-                                                }`}
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <span className="font-mono font-bold w-6">{lang.short}</span>
-                                                <span className="text-xs opacity-70">{lang.label}</span>
-                                            </div>
-                                            {config?.language === lang.code && (
-                                                <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                                            )}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                        {/* 语言切换按钮 */}
+                        <button
+                            onClick={toggleLanguage}
+                            className="w-10 h-10 rounded-full bg-gray-100 dark:bg-base-200 hover:bg-gray-200 dark:hover:bg-base-100 flex items-center justify-center transition-colors"
+                            title={t('nav.switch_to_' + (config?.language === 'zh' ? 'traditional_chinese' : config?.language === 'zh-TW' ? 'english' : config?.language === 'en' ? 'japanese' : config?.language === 'ja' ? 'turkish' : config?.language === 'tr' ? 'vietnamese' : config?.language === 'vi' ? 'portuguese' : config?.language === 'pt' ? 'russian' : 'chinese'))}
+                        >
+                            <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                                {t('nav.switch_to_' + (config?.language === 'zh' ? 'traditional_chinese_short' : config?.language === 'zh-TW' ? 'english_short' : config?.language === 'en' ? 'japanese_short' : config?.language === 'ja' ? 'turkish_short' : config?.language === 'tr' ? 'vietnamese_short' : config?.language === 'vi' ? 'portuguese_short' : config?.language === 'pt' ? 'russian_short' : 'chinese_short'))}
+                            </span>
+                        </button>
                     </div>
                 </div>
             </div>
