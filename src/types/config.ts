@@ -10,7 +10,12 @@ export interface ProxyConfig {
     port: number;
     api_key: string;
     auto_start: boolean;
+    auto_restart_on_config_change?: boolean;
     custom_mapping?: Record<string, string>;
+    openai_mapping?: Record<string, string>;
+    anthropic_mapping?: Record<string, string>;
+    minimax?: Record<string, any>;
+    base_url_override?: string;
     request_timeout: number;
     enable_logging: boolean;
     upstream_proxy: UpstreamProxyConfig;
@@ -76,6 +81,7 @@ export interface ExperimentalConfig {
 export interface AppConfig {
     language: string;
     theme: string;
+    auto_switch?: boolean; // Auto-switch to best account when quota depletes
     auto_refresh: boolean;
     refresh_interval: number;
     auto_sync: boolean;

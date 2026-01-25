@@ -1948,7 +1948,7 @@ print(response.text)`;
                                                             <input
                                                                 type="text"
                                                                 className="input input-xs input-bordered w-full font-mono h-6"
-                                                                value={to}
+                                                                value={String(to)}
                                                                 onChange={(e) => upsertMinimaxModelMapping(from, e.target.value)}
                                                             />
                                                         </div>

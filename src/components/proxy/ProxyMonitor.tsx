@@ -90,14 +90,13 @@ const LogTable: React.FC<LogTableProps> = ({
                             </td>
                             <td style={{ width: '70px' }}>
                                 {log.protocol && (
-                                    <span className={`badge badge-xs text-white border-none ${
-                                        log.protocol === 'openai' ? 'bg-green-500' :
-                                        log.protocol === 'anthropic' ? 'bg-orange-500' :
-                                        log.protocol === 'gemini' ? 'bg-blue-500' : 'bg-gray-400'
-                                    }`}>
+                                    <span className={`badge badge-xs text-white border-none ${log.protocol === 'openai' ? 'bg-green-500' :
+                                            log.protocol === 'anthropic' ? 'bg-orange-500' :
+                                                log.protocol === 'gemini' ? 'bg-blue-500' : 'bg-gray-400'
+                                        }`}>
                                         {log.protocol === 'openai' ? 'OpenAI' :
-                                         log.protocol === 'anthropic' ? 'Claude' :
-                                         log.protocol === 'gemini' ? 'Gemini' : log.protocol}
+                                            log.protocol === 'anthropic' ? 'Claude' :
+                                                log.protocol === 'gemini' ? 'Gemini' : log.protocol}
                                     </span>
                                 )}
                             </td>
@@ -276,7 +275,7 @@ export const ProxyMonitor: React.FC<ProxyMonitorProps> = ({ className }) => {
         fetchAccounts();
 
         let unlistenFn: (() => void) | null = null;
-        let updateTimeout: number | null = null;
+        let updateTimeout: ReturnType<typeof setTimeout> | null = null;
 
         const setupListener = async () => {
             // Prevent duplicate listener registration (React 18 StrictMode)
@@ -285,11 +284,11 @@ export const ProxyMonitor: React.FC<ProxyMonitorProps> = ({ className }) => {
                 return;
             }
             listenerSetupRef.current = true;
-            
+
             console.debug('[ProxyMonitor] Setting up event listener for proxy://request');
             unlistenFn = await listen<ProxyRequestLog>('proxy://request', (event) => {
                 if (!isMountedRef.current) return;
-                
+
                 const newLog = event.payload;
 
                 // 移除 body 以减少内存占用
@@ -312,7 +311,7 @@ export const ProxyMonitor: React.FC<ProxyMonitorProps> = ({ className }) => {
                 if (updateTimeout) clearTimeout(updateTimeout);
                 updateTimeout = setTimeout(async () => {
                     if (!isMountedRef.current) return;
-                    
+
                     const currentPending = pendingLogsRef.current;
                     if (currentPending.length > 0) {
                         setLogs(prev => {
@@ -345,7 +344,7 @@ export const ProxyMonitor: React.FC<ProxyMonitorProps> = ({ className }) => {
             });
         };
         setupListener();
-        
+
         return () => {
             isMountedRef.current = false;
             listenerSetupRef.current = false;
@@ -600,12 +599,11 @@ export const ProxyMonitor: React.FC<ProxyMonitorProps> = ({ className }) => {
                                         {selectedLog.protocol && (
                                             <div className="space-y-1.5">
                                                 <span className="block text-gray-500 dark:text-slate-400 uppercase font-black text-[10px] tracking-widest">{t('monitor.details.protocol')}</span>
-                                                <span className={`inline-block px-2.5 py-1 rounded-md font-mono font-black text-xs uppercase ${
-                                                    selectedLog.protocol === 'openai' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50' :
-                                                    selectedLog.protocol === 'anthropic' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50' :
-                                                    selectedLog.protocol === 'gemini' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50' :
-                                                    'bg-gray-100 text-gray-700 dark:bg-gray-900/40 dark:text-gray-400'
-                                                }`}>
+                                                <span className={`inline-block px-2.5 py-1 rounded-md font-mono font-black text-xs uppercase ${selectedLog.protocol === 'openai' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50' :
+                                                        selectedLog.protocol === 'anthropic' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50' :
+                                                            selectedLog.protocol === 'gemini' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50' :
+                                                                'bg-gray-100 text-gray-700 dark:bg-gray-900/40 dark:text-gray-400'
+                                                    }`}>
                                                     {selectedLog.protocol}
                                                 </span>
                                             </div>

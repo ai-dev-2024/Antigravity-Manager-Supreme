@@ -17,6 +17,7 @@ interface AccountGridProps {
     onDelete: (accountId: string) => void;
     onToggleProxy: (accountId: string) => void;
     onWarmup?: (accountId: string) => void;
+    hideDetails?: boolean;
 }
 
 

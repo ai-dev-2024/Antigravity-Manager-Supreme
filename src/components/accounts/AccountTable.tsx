@@ -68,6 +68,7 @@ interface AccountTableProps {
     onWarmup?: (accountId: string) => void;
     /** 拖拽排序回调，当用户完成拖拽时触发 */
     onReorder?: (accountIds: string[]) => void;
+    hideDetails?: boolean;
 }
 
 interface SortableRowProps {
@@ -297,7 +298,7 @@ function AccountRowContent({
 }: AccountRowContentProps) {
     const { t } = useTranslation();
     const { config } = useConfigStore();
-    
+
     // 模型配置映射：model_id -> { label, protectedKey }
     const MODEL_CONFIG: Record<string, { label: string; protectedKey: string }> = {
         'gemini-3-pro-high': { label: 'G3 Pro', protectedKey: 'gemini-pro' },
@@ -305,7 +306,7 @@ function AccountRowContent({
         'gemini-3-pro-image': { label: 'G3 Image', protectedKey: 'gemini-pro-image' },
         'claude-sonnet-4-5-thinking': { label: 'Claude 4.5', protectedKey: 'claude-sonnet' },
     };
-    
+
     // 获取要显示的模型列表
     const pinnedModels = config?.pinned_quota_models?.models || Object.keys(MODEL_CONFIG);
     const isDisabled = Boolean(account.disabled);
@@ -401,7 +402,7 @@ function AccountRowContent({
                         {pinnedModels.filter(modelId => MODEL_CONFIG[modelId]).map((modelId) => {
                             const modelConfig = MODEL_CONFIG[modelId];
                             const modelData = account.quota?.models.find(m => m.name.toLowerCase() === modelId);
-                            
+
                             return (
                                 <div key={modelId} className="relative h-[22px] flex items-center px-1.5 rounded-md overflow-hidden border border-gray-100/50 dark:border-white/5 bg-gray-50/30 dark:bg-white/5 group/quota">
                                     {modelData && (
