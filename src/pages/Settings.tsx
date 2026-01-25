@@ -695,24 +695,40 @@ function Settings() {
                                     </div>
                                 </div>
 
-                                {/* GitHub Card - Centered */}
-                                <div className="flex justify-center w-full max-w-md px-4">
+                                {/* GitHub Cards */}
+                                <div className="flex flex-col gap-3 w-full max-w-md px-4">
+                                    {/* Upstream Repo */}
+                                    <a
+                                        href="https://github.com/lbjlaq/Antigravity-Manager"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="bg-card p-3 rounded-xl border border-gray-100 dark:border-base-300 shadow-sm hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-all group flex items-center gap-4 cursor-pointer w-full"
+                                    >
+                                        <div className="p-2 bg-gray-50 dark:bg-gray-800 rounded-lg group-hover:scale-110 transition-transform duration-300">
+                                            <Github className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                                        </div>
+                                        <div className="flex-1 text-left">
+                                            <div className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Upstream</div>
+                                            <div className="font-medium text-card-foreground">lbjlaq/Antigravity-Manager</div>
+                                        </div>
+                                        <ExternalLink className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </a>
+
+                                    {/* Supreme Fork (My Repo) */}
                                     <a
                                         href="https://github.com/ai-dev-2024/Antigravity-Manager-Supreme"
                                         target="_blank"
                                         rel="noreferrer"
-                                        className="bg-card p-4 rounded-2xl border border-gray-100 dark:border-base-300 shadow-sm hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-all group flex flex-col items-center text-center gap-3 cursor-pointer w-full"
+                                        className="bg-card p-3 rounded-xl border border-blue-100 dark:border-blue-900/30 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-800 transition-all group flex items-center gap-4 cursor-pointer w-full"
                                     >
-                                        <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl group-hover:scale-110 transition-transform duration-300">
-                                            <Github className="w-6 h-6 text-gray-900 dark:text-white" />
+                                        <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg group-hover:scale-110 transition-transform duration-300">
+                                            <Github className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                                         </div>
-                                        <div>
-                                            <div className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-1">{t('settings.about.github')}</div>
-                                            <div className="flex items-center gap-1 font-bold text-card-foreground">
-                                                <span>{t('settings.about.view_code')}</span>
-                                                <ExternalLink className="w-3 h-3 text-gray-400" />
-                                            </div>
+                                        <div className="flex-1 text-left">
+                                            <div className="text-[10px] text-blue-500/80 uppercase tracking-wider font-semibold">Maintained Fork</div>
+                                            <div className="font-bold text-lg text-card-foreground">Antigravity-Manager-Supreme</div>
                                         </div>
+                                        <ExternalLink className="w-4 h-4 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                                     </a>
                                 </div>
 
