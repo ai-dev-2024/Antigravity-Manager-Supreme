@@ -389,8 +389,10 @@ jobs:
           NEW_VERSION="${{ needs.check-upstream.outputs.our_new_version }}"
           
           # Check if tag already exists locally or remotely
-          git fetch --tags origin
-          while git rev-parse "$NEW_VERSION" >/dev/null 2>&1 || git ls-remote --tags origin | grep -q "refs/tags/$NEW_VERSION"; do
+          # Note: Don't use 'git fetch --tags' as it conflicts with upstream v3.3.x tags
+          # Instead, use git ls-remote to check remote tags without fetching
+          REMOTE_TAGS=$(git ls-remote --tags origin 2>/dev/null | grep -oE 'refs/tags/v[0-9.]+$' | sed 's|refs/tags/||' || echo "")
+          while git rev-parse "$NEW_VERSION" >/dev/null 2>&1 || echo "$REMOTE_TAGS" | grep -q "^$NEW_VERSION$"; do
             echo "Tag $NEW_VERSION already exists, incrementing..."
             # Extract and increment patch version
             CURRENT_PATCH=$(echo "$NEW_VERSION" | sed 's/v[0-9]*\.[0-9]*\.//')
