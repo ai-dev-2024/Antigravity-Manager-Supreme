@@ -25,6 +25,46 @@
 
 ---
 
+## 🔄 Auto-Sync Workflow
+
+This diagram illustrates how **Antigravity Manager Supreme** automatically stays in sync with the upstream repository while preserving your customizations.
+
+```mermaid
+graph TD
+    A[Schedule: Every 6h] --> B{Check Upstream}
+    B -- New Version --> C[Start Sync Job]
+    B -- No Updates --> D[End]
+
+    subgraph Sync & Customize
+        C --> E[Backup Protected Files]
+        E --> F[Merge Upstream/Main]
+        H[Restore Protected Files]
+        F -- Success --> H
+        F -- Conflict --> G[Hard Reset to Upstream]
+        G --> H
+        
+        H --> I[Translate Chinese -> English]
+        I --> J[Update README Links]
+        J --> K[Calculate Next Version]
+        K --> L[Tag & Push]
+    end
+
+    subgraph Release
+        L -- 'v*' Tag Push --> M[Trigger Release Workflow]
+        M --> N[Build Windows/Mac/Linux]
+        N --> O[Publish Release]
+    end
+
+    style E fill:#f9f,stroke:#333
+    style H fill:#f9f,stroke:#333
+    style I fill:#bbf,stroke:#333
+    style M fill:#bfb,stroke:#333
+```
+
+> **Note:** The "Backup & Restore" step ensures features like **Best Accounts**, **Dark Theme**, and **One-Click CLI** are never overwritten.
+
+---
+
 ## ⚡ What Makes Supreme Different?
 
 | Feature | Original | Supreme |
