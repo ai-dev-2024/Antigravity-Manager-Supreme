@@ -233,7 +233,7 @@ response = client.chat.completions.create(
 
 ## 📋 Changelog
 
-### v1.2.0 (2026-01-11) - Auto-Switch & Button Fixes
+### v1.1.10 (2026-01-25) - Auto-Switch & Button Fixes
 - 🔧 **Fixed Auto-Switch**: Now properly relaunches Antigravity after switching accounts
 - 🔧 **Fixed Best Buttons**: "Best Claude", "Best Gemini", and "Switch to Best" all relaunch Antigravity after switching
 - 🧠 **Model-Aware Auto-Switch**: Monitors both Claude & Gemini quotas; switches to the best account for the depleted model
