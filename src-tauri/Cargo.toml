@@ -1,6 +1,6 @@
 [package]
 name = "antigravity_manager_supreme"
-version = "1.1.9"
+version = "1.1.10"
 description = "Antigravity Manager Supreme - Enhanced fork with OpenCode integration"
 authors = ["ai-dev-2024"]
 license = "CC-BY-NC-SA-4.0"
