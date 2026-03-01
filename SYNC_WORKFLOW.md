@@ -1,174 +1,94 @@
 # Upstream Sync & Auto-Release Workflow
 
-This document explains how Antigravity Manager Supreme automatically syncs with the upstream repository, translates code, preserves customizations, and builds releases.
+Technical documentation for the automated sync pipeline.
 
-## 🎯 Overview Flow
+## Overview
 
-```mermaid
-graph TB
-    subgraph "Every 6 Hours (GitHub Actions)"
-        A[Scheduled Trigger] --> B{New Upstream Release?}
-        B -->|Yes| C[Fetch Upstream]
-        B -->|No| Z[Skip - Already Synced]
-    end
-
-    subgraph "Sync Process"
-        C --> D[Backup Protected Files]
-        D --> E[Merge Upstream Code]
-        E --> F[Restore Customizations]
-        F --> G[Translate Chinese → English]
-        G --> H[Update README Links]
-    end
-
-    subgraph "Release Process"
-        H --> I[Create New Tag v1.X.Y]
-        I --> J[Push to GitHub]
-        J --> K[Trigger Release Workflow]
-    end
-
-    subgraph "Multi-Platform Build"
-        K --> L[Build Windows MSI/EXE]
-        K --> M[Build macOS DMG Intel/ARM]
-        K --> N[Build Linux DEB/RPM/AppImage]
-        L --> O[Publish Release]
-        M --> O
-        N --> O
-    end
-
-    style A fill:#4CAF50,color:white
-    style O fill:#2196F3,color:white
-    style Z fill:#9E9E9E,color:white
+```
+Schedule (every 6h) → Check upstream → Checkout code → Apply branding → Clean secrets → Tag → Release
 ```
 
-## ⏰ Schedule
+## Workflows
 
-| Trigger | Time (UTC) | Description |
-|---------|------------|-------------|
-| Scheduled | 0:00, 6:00, 12:00, 18:00 | Automatic check every 6 hours |
-| Manual | Any time | "Run workflow" button in Actions |
+### 1. `sync-upstream.yml` — Sync & Brand
 
-## 📋 Detailed Steps
+| Step | Action |
+|------|--------|
+| **Check upstream** | Queries GitHub API for latest upstream release tag |
+| **Compare versions** | Reads `.last-synced-upstream` to detect new releases |
+| **Checkout upstream** | Clones upstream at the release tag (clean slate) |
+| **Restore protected files** | Re-applies workflows, README, icons from our branch |
+| **Apply branding** | Sets app name, identifier, version in `tauri.conf.json` + `package.json` + `Cargo.toml` |
+| **Clean OAuth secrets** | Replaces any hardcoded Google OAuth credentials with `once_cell::Lazy` env var lookups |
+| **Force push** | Pushes to `main` (force-with-lease) |
+| **Tag** | Creates `v1.1.X` tag → triggers release workflow |
 
-### 1. Check for New Upstream Release
-```mermaid
-sequenceDiagram
-    participant GH as GitHub Actions
-    participant UP as Upstream Repo
-    participant LS as .last-synced-upstream
+**Triggers:** `schedule` (every 6h) or `workflow_dispatch` (manual)
 
-    GH->>UP: Query latest release
-    UP-->>GH: v3.3.37
-    GH->>LS: Read last synced version
-    LS-->>GH: v3.3.35
-    GH->>GH: Compare versions
-    Note over GH: v3.3.37 > v3.3.35 → New release!
+### 2. `release.yml` — Multi-Platform Build
+
+| Step | Action |
+|------|--------|
+| **Build matrix** | 4 parallel builds: Windows x64, Linux amd64, macOS aarch64, macOS x64 |
+| **Upload artifacts** | Each build uploads its installers as workflow artifacts |
+| **Publish release** | Downloads all artifacts, generates `updater.json`, creates GitHub Release |
+
+**Triggers:** Tag push matching `v*` or `workflow_dispatch`
+
+**Build outputs per platform:**
+
+| Platform | Artifacts |
+|----------|-----------|
+| Windows | `.exe` (NSIS), `.msi` |
+| macOS ARM | `_aarch64.dmg` |
+| macOS Intel | `_x64.dmg` |
+| Linux | `.deb`, `.rpm`, `.AppImage` |
+
+## Protected Files
+
+Files that survive every upstream sync:
+
+```
+.github/workflows/release.yml
+.github/workflows/sync-upstream.yml
+README.md
+CUSTOMIZATIONS.md
+SYNC_WORKFLOW.md
+src-tauri/icons/
+scripts/translate-chinese.py
+.last-synced-upstream
 ```
 
-### 2. Protected Files (Customizations Preserved)
+Everything else is replaced with upstream code on each sync.
 
-These files are backed up before merge and restored after:
+## Version Mapping
 
-| Category | Files |
-|----------|-------|
-| **Workflows** | `.github/workflows/release.yml`, `sync-upstream.yml` |
-| **Documentation** | `README.md`, `CUSTOMIZATIONS.md`, `SYNC_WORKFLOW.md` |
-| **UI Pages** | `Dashboard.tsx`, `Settings.tsx`, `Accounts.tsx`, `ApiProxy.tsx`, `Monitor.tsx` |
-| **Dashboard Components** | `src/components/dashboard/` (all files) |
-| **Backend Commands** | `environment.rs`, `mod.rs`, `autostart.rs`, `proxy.rs` |
-| **Tauri Modules** | `updater.rs`, `tray.rs` |
-| **Config** | `tauri.conf.json`, `package.json`, `tailwind.config.js` |
-| **Scripts** | `scripts/translate-chinese.py` |
-| **Tracking** | `.last-synced-upstream` |
+| Our Version | Meaning |
+|-------------|---------|
+| `v1.1.X` | Supreme release X, synced to latest upstream |
 
-### 3. Translation Process
+The patch number auto-increments on each successful sync.
 
-```mermaid
-flowchart LR
-    A[Rust Source Files] --> B{translate-chinese.py}
-    B -->|"400+ patterns"| C[Offline Translation]
-    C --> D{Remaining Chinese?}
-    D -->|Yes| E[Google Translate API]
-    D -->|No| F[Done]
-    E --> F
-    F --> G[English Codebase]
-```
-
-### 4. Version Mapping
-
-| Upstream Version | Supreme Version | Notes |
-|------------------|-----------------|-------|
-| v3.3.35 | v1.1.4 | Auto-incremented |
-| v3.3.36 | v1.1.5 | Next sync |
-| v3.3.37 | v1.1.6 | After that |
-
-## 🔧 Supreme Customizations
-
-### UI/UX Enhancements
-
-```mermaid
-graph LR
-    subgraph "Original UI"
-        A1[Chinese Comments]
-        A2[Basic Theme]
-        A3[Manual Switching]
-    end
-
-    subgraph "Supreme UI"
-        B1[English Codebase]
-        B2[Dark Theme with shadcn/ui]
-        B3[Auto-Switch on Quota Depletion]
-        B4[YOLO Mode for CLI]
-        B5[Dynamic Badges]
-    end
-
-    A1 -.->|Translated| B1
-    A2 -.->|Upgraded| B2
-    A3 -.->|Enhanced| B3
-```
-
-### Feature Additions
-
-| Feature | Description | Location |
-|---------|-------------|----------|
-| **Auto-Switch** | Switches accounts when quota depletes to 0% | Dashboard |
-| **YOLO Mode** | One-command Claude CLI with `--dangerously-skip-permissions` | PowerShell/CMD |
-| **Dark Theme** | Professional shadcn/ui dark mode with Antigravity-style colors | App-wide |
-| **Dynamic Badges** | Version badges auto-update from GitHub API | README |
-| **All-Platform Releases** | Windows, macOS (Intel + ARM), Linux builds | GitHub Releases |
-
-## ✅ Verifying the Workflow
-
-### Check Latest Sync
-```bash
-cat .last-synced-upstream
-# Output: v3.3.35
-```
-
-### Check GitHub Actions Status
-1. Go to [Actions tab](https://github.com/ai-dev-2024/Antigravity-Manager-Supreme/actions)
-2. Look for "Sync Upstream & Translate" workflow
-3. ✅ Green = Success | ❌ Red = Needs attention
-
-### Manual Trigger with Force Sync
-1. Actions → "Sync Upstream & Translate"
-2. "Run workflow"
-3. ✅ Check "Force sync" to re-sync even if up-to-date
-
-## 🛠️ Troubleshooting
+## Troubleshooting
 
 | Issue | Cause | Solution |
 |-------|-------|----------|
-| "Already synced" | No new upstream release | Expected behavior, wait for next release |
-| Push fails | History diverged | Workflow has auto-retry with `--force-with-lease` |
-| Translation incomplete | API rate limit | Falls back to 100+ inline patterns |
-| Build fails | Tauri/Rust issue | Check release.yml logs |
+| "Already synced" | No new upstream release | Expected — wait for next release |
+| Build fails | Upstream introduced breaking change | Check release.yml logs, may need workflow update |
+| OAuth push blocked | Hardcoded secrets in upstream | The sync workflow auto-cleans these |
+| Sync skipped | `.last-synced-upstream` matches latest | Use "Force sync" in workflow_dispatch |
 
-## 📂 Key Files
+## Manual Trigger
+
+1. Go to [Actions](https://github.com/ai-dev-2024/Antigravity-Manager-Supreme/actions)
+2. Select **"Sync Upstream & Translate"**
+3. Click **"Run workflow"**
+4. Optionally check **"Force sync"** to re-sync even if up-to-date
+
+## Key Files
 
 | File | Purpose |
 |------|---------|
-| `.github/workflows/sync-upstream.yml` | Main sync + translate workflow |
-| `.github/workflows/release.yml` | Multi-platform build workflow |
-| `scripts/translate-chinese.py` | Translation script (400+ mappings) |
+| `.github/workflows/sync-upstream.yml` | Sync + branding + tagging |
+| `.github/workflows/release.yml` | Multi-platform build + publish |
 | `.last-synced-upstream` | Tracks last synced upstream version |
-| `CUSTOMIZATIONS.md` | Documents our custom features |
