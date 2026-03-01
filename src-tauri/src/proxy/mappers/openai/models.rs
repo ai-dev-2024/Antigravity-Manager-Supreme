@@ -1,9 +1,9 @@
-// OpenAI DataModel
+// OpenAI 数据模型
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct OpenAIRequest {
     pub model: String,
     #[serde(default)]
@@ -13,12 +13,12 @@ pub struct OpenAIRequest {
     #[serde(default)]
     pub stream: bool,
     #[serde(default)]
-    pub n: Option<u32>, // [NEW] Supportmultiple candidatesResultAmount
+    pub n: Option<u32>, // [NEW] 支持多候选结果数量
     #[serde(rename = "max_tokens")]
     pub max_tokens: Option<u32>,
-    pub temperature: Option<f32>,
+    pub temperature: Option<f64>,
     #[serde(rename = "top_p")]
-    pub top_p: Option<f32>,
+    pub top_p: Option<f64>,
     pub stop: Option<Value>,
     pub response_format: Option<ResponseFormat>,
     #[serde(default)]
@@ -35,7 +35,27 @@ pub struct OpenAIRequest {
     pub size: Option<String>,
     #[serde(default)]
     pub quality: Option<String>,
+    #[serde(default, rename = "personGeneration")]
+    pub person_generation: Option<String>,
+    // [NEW] Thinking/Extended Thinking 支持 (兼容 Anthropic/Claude 协议)
+    #[serde(default)]
+    pub thinking: Option<ThinkingConfig>,
+    // [NEW] Direct imageSize support (for Gemini native parameter)
+    #[serde(default, rename = "imageSize")]
+    pub image_size: Option<String>,
 }
+
+/// Thinking 配置 (兼容 Anthropic 和 OpenAI 扩展协议)
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ThinkingConfig {
+    #[serde(rename = "type")]
+    pub thinking_type: Option<String>, // "enabled", "disabled", or "adaptive"
+    #[serde(rename = "budget_tokens")]
+    pub budget_tokens: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub effort: Option<String>, // "low", "high", or "max"
+}
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResponseFormat {

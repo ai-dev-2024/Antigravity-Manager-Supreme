@@ -1,25 +1,47 @@
-// ModelNameMapping
+// 模型名称映射
 use std::collections::HashMap;
 use once_cell::sync::Lazy;
+use dashmap::DashMap;
+
+// 动态官方废弃模型转发表 (old_model_id -> new_model_id)
+pub static DYNAMIC_MODEL_FORWARDING_RULES: Lazy<DashMap<String, String>> = Lazy::new(|| DashMap::new());
+
+pub fn update_dynamic_forwarding_rules(old_model: String, new_model: String) {
+    if !DYNAMIC_MODEL_FORWARDING_RULES.contains_key(&old_model) {
+        crate::modules::logger::log_info(&format!("[Mapping] Registered automatic forwarding rule: {} -> {}", old_model, new_model));
+    }
+    DYNAMIC_MODEL_FORWARDING_RULES.insert(old_model, new_model);
+}
 
 static CLAUDE_TO_GEMINI: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
     let mut m = HashMap::new();
 
-    // directSupport的Model
-    m.insert("claude-opus-4-5-thinking", "claude-opus-4-5-thinking");
-    m.insert("claude-sonnet-4-5", "claude-sonnet-4-5");
-    m.insert("claude-sonnet-4-5-thinking", "claude-sonnet-4-5-thinking");
+    // 直接支持的模型
+    m.insert("claude-sonnet-4-6", "claude-sonnet-4-6");
+    m.insert("claude-sonnet-4-6-thinking", "claude-sonnet-4-6-thinking");
 
-    // AliasMapping
-    m.insert("claude-sonnet-4-5-20250929", "claude-sonnet-4-5-thinking");
-    m.insert("claude-3-5-sonnet-20241022", "claude-sonnet-4-5");
-    m.insert("claude-3-5-sonnet-20240620", "claude-sonnet-4-5");
-    m.insert("claude-opus-4", "claude-opus-4-5-thinking");
-    m.insert("claude-opus-4-5-20251101", "claude-opus-4-5-thinking");
-    m.insert("claude-haiku-4", "claude-sonnet-4-5");
-    m.insert("claude-3-haiku-20240307", "claude-sonnet-4-5");
-    m.insert("claude-haiku-4-5-20251001", "claude-sonnet-4-5");
-    // OpenAI ProtocolMapping表
+    // [Redirect] Sonnet 4.5 -> Sonnet 4.6
+    m.insert("claude-sonnet-4-5", "claude-sonnet-4-6");
+    m.insert("claude-sonnet-4-5-thinking", "claude-sonnet-4-6-thinking");
+
+    // 别名映射
+    m.insert("claude-sonnet-4-5-20250929", "claude-sonnet-4-6-thinking");
+    m.insert("claude-3-5-sonnet-20241022", "claude-sonnet-4-6");
+    m.insert("claude-3-5-sonnet-20240620", "claude-sonnet-4-6");
+    // [Redirect] Opus 4.5 -> Opus 4.6 (Issue #1743)
+    m.insert("claude-opus-4", "claude-opus-4-6-thinking");
+    m.insert("claude-opus-4-5-thinking", "claude-opus-4-6-thinking");
+    m.insert("claude-opus-4-5-20251101", "claude-opus-4-6-thinking");
+
+    // Claude Opus 4.6
+    m.insert("claude-opus-4-6-thinking", "claude-opus-4-6-thinking");
+    m.insert("claude-opus-4-6", "claude-opus-4-6-thinking");
+    m.insert("claude-opus-4-6-20260201", "claude-opus-4-6-thinking");
+
+    m.insert("claude-haiku-4", "claude-sonnet-4-6");
+    m.insert("claude-3-haiku-20240307", "claude-sonnet-4-6");
+    m.insert("claude-haiku-4-5-20251001", "claude-sonnet-4-6");
+    // OpenAI 协议映射表
     m.insert("gpt-4", "gemini-2.5-flash");
     m.insert("gpt-4-turbo", "gemini-2.5-flash");
     m.insert("gpt-4-turbo-preview", "gemini-2.5-flash");
@@ -40,13 +62,19 @@ static CLAUDE_TO_GEMINI: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|
     m.insert("gpt-3.5-turbo-1106", "gemini-2.5-flash");
     m.insert("gpt-3.5-turbo-0613", "gemini-2.5-flash");
 
-    // Gemini ProtocolMapping表
+    // Gemini 协议映射表
     m.insert("gemini-2.5-flash-lite", "gemini-2.5-flash");
     m.insert("gemini-2.5-flash-thinking", "gemini-2.5-flash-thinking");
-    m.insert("gemini-3-pro-low", "gemini-3-pro-preview");
-    m.insert("gemini-3-pro-high", "gemini-3-pro-preview");
-    m.insert("gemini-3-pro-preview", "gemini-3-pro-preview");
-    m.insert("gemini-3-pro", "gemini-3-pro-preview");  // unifiedMapping到 preview
+    // [Migrate] Gemini 3 Pro High/Low -> Gemini 3.1 Pro High/Low
+    // Keep 3.0 aliases for backward compatibility.
+    m.insert("gemini-3.1-pro-low", "gemini-3.1-pro-preview");
+    m.insert("gemini-3.1-pro-high", "gemini-3.1-pro-preview");
+    m.insert("gemini-3.1-pro-preview", "gemini-3.1-pro-preview");
+    m.insert("gemini-3.1-pro", "gemini-3.1-pro-preview");
+    m.insert("gemini-3-pro-low", "gemini-3.1-pro-preview");
+    m.insert("gemini-3-pro-high", "gemini-3.1-pro-preview");
+    m.insert("gemini-3-pro-preview", "gemini-3.1-pro-preview");
+    m.insert("gemini-3-pro", "gemini-3.1-pro-preview");
     m.insert("gemini-2.5-flash", "gemini-2.5-flash");
     m.insert("gemini-3-flash", "gemini-3-flash");
     m.insert("gemini-3-pro-image", "gemini-3-pro-image");
@@ -59,6 +87,32 @@ static CLAUDE_TO_GEMINI: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|
     m
 });
 
+
+/// Map Claude model names to Gemini model names
+/// 
+/// # 映射策略
+/// 1. **精确匹配**: 检查 CLAUDE_TO_GEMINI 映射表
+/// 2. **已知前缀透传**: gemini-* 和 *-thinking 模型直接透传
+/// 3. **[NEW] 直接透传**: 未知模型 ID 直接传递给 Google API (支持体验未发布模型)
+/// 
+/// # 参数
+/// - `input`: 原始模型名称
+/// 
+/// # 返回
+/// 映射后的目标模型名称
+/// 
+/// # 示例
+/// ```
+/// // 精确匹配
+/// assert_eq!(map_claude_model_to_gemini("claude-opus-4"), "claude-opus-4-5-thinking");
+/// 
+/// // Gemini 模型透传
+/// assert_eq!(map_claude_model_to_gemini("gemini-2.5-flash"), "gemini-2.5-flash");
+/// 
+/// // 直接透传未知模型 (NEW!)
+/// assert_eq!(map_claude_model_to_gemini("claude-opus-4-6"), "claude-opus-4-6");
+/// assert_eq!(map_claude_model_to_gemini("claude-sonnet-5"), "claude-sonnet-5");
+/// ```
 pub fn map_claude_model_to_gemini(input: &str) -> String {
     // 1. Check exact match in map
     if let Some(mapped) = CLAUDE_TO_GEMINI.get(input) {
@@ -70,34 +124,32 @@ pub fn map_claude_model_to_gemini(input: &str) -> String {
         return input.to_string();
     }
 
-    // [NEW] Intelligent fallback based on model keywords
-    let lower = input.to_lowercase();
-    if lower.contains("opus") {
-        return "gemini-3-pro-preview".to_string();
-    }
 
-    // 3. Fallback to default
-    "claude-sonnet-4-5".to_string()
+    // 3. [ENHANCED] 直接透传未知模型 ID,而不是强制 fallback
+    // 这允许用户通过自定义映射体验未发布的模型 (如 claude-opus-4-6)
+    // Google API 会自动处理无效模型并返回错误,用户可以根据错误调整映射
+    input.to_string()
 }
 
-/// GetAllBuilt-in supported model list keywords
+/// 获取所有内置支持的模型列表关键字
 pub fn get_supported_models() -> Vec<String> {
     CLAUDE_TO_GEMINI.keys().map(|s| s.to_string()).collect()
 }
 
-/// Dynamically get all available model lists (Including built-in and user-defined)
+/// 动态获取所有可用模型列表 (包含内置与用户自定义与官方端点动态下发)
 pub async fn get_all_dynamic_models(
     custom_mapping: &tokio::sync::RwLock<std::collections::HashMap<String, String>>,
+    token_manager: Option<&crate::proxy::token_manager::TokenManager>,
 ) -> Vec<String> {
     use std::collections::HashSet;
     let mut model_ids = HashSet::new();
 
-    // 1. GetAllbuilt-inMappingModel
+    // 1. 获取所有内置映射模型
     for m in get_supported_models() {
         model_ids.insert(m);
     }
 
-    // 2. GetAllCustomMappingModel (Custom)
+    // 2. 获取所有自定义映射模型 (Custom)
     {
         let mapping = custom_mapping.read().await;
         for key in mapping.keys() {
@@ -105,8 +157,15 @@ pub async fn get_all_dynamic_models(
         }
     }
 
-    // 5. make surePacketContains commonly used Gemini/drawModel ID
-    model_ids.insert("gemini-3-pro-low".to_string());
+    // 3. [NEW] 获取所有账号从官方接口汇聚而来的动态模型
+    if let Some(tm) = token_manager {
+        for dynamic_model in tm.get_all_collected_models() {
+            model_ids.insert(dynamic_model);
+        }
+    }
+
+    // 5. 确保包含常用的 Gemini/画画模型 ID
+    model_ids.insert("gemini-3.1-pro-low".to_string());
     
     // [NEW] Issue #247: Dynamically generate all Image Gen Combinations
     let base = "gemini-3-pro-image";
@@ -126,8 +185,8 @@ pub async fn get_all_dynamic_models(
     model_ids.insert("gemini-2.5-flash".to_string());
     // gemini-2.5-pro removed 
     model_ids.insert("gemini-3-flash".to_string());
-    model_ids.insert("gemini-3-pro-high".to_string());
-    model_ids.insert("gemini-3-pro-low".to_string());
+    model_ids.insert("gemini-3.1-pro-high".to_string());
+    model_ids.insert("gemini-3.1-pro-low".to_string());
 
 
     let mut sorted_ids: Vec<_> = model_ids.into_iter().collect();
@@ -181,22 +240,29 @@ fn wildcard_match(pattern: &str, text: &str) -> bool {
     true
 }
 
-/// CoreModelRouteParseengine
-/// Priority：exact match > wildcard matching > SystemDefaultMapping
+/// 核心模型路由解析引擎
+/// 优先级：精确匹配 > 通配符匹配 > 系统默认映射
 /// 
-/// # Parameter
-/// - `original_model`: RawModelName
-/// - `custom_mapping`: UserCustomMapping表
+/// # 参数
+/// - `original_model`: 原始模型名称
+/// - `custom_mapping`: 用户自定义映射表
 /// 
-/// # Return
-/// MappinglaterTargetModelName
+/// # 返回
+/// 映射后的目标模型名称
 pub fn resolve_model_route(
     original_model: &str,
     custom_mapping: &std::collections::HashMap<String, String>,
 ) -> String {
-    // 1. exact match (HighestPriority)
+    // 0. API 热更新废弃模型转发 (最高物理优先级，强制纠正)
+    // 如果用户非要用已经被移除的模型，并且官方下发了 fallback path，我们在此拦截并纠正
+    if let Some(forwarded) = DYNAMIC_MODEL_FORWARDING_RULES.get(original_model) {
+        crate::modules::logger::log_info(&format!("[Router] 官方淘汰重定向: {} -> {}", original_model, forwarded.value()));
+        return forwarded.value().clone();
+    }
+
+    // 1. 精确匹配 (次高优先级)
     if let Some(target) = custom_mapping.get(original_model) {
-        crate::modules::logger::log_info(&format!("[Router] accurateMapping: {} -> {}", original_model, target));
+        crate::modules::logger::log_info(&format!("[Router] 精确映射: {} -> {}", original_model, target));
         return target.clone();
     }
     
@@ -223,10 +289,10 @@ pub fn resolve_model_route(
         return target.to_string();
     }
     
-    // 3. SystemDefaultMapping
+    // 3. 系统默认映射
     let result = map_claude_model_to_gemini(original_model);
     if result != original_model {
-        crate::modules::logger::log_info(&format!("[Router] SystemDefaultMapping: {} -> {}", original_model, result));
+        crate::modules::logger::log_info(&format!("[Router] 系统默认映射: {} -> {}", original_model, result));
     }
     result
 }
@@ -241,20 +307,29 @@ pub fn resolve_model_route(
 /// 
 /// Returns `None` if the model doesn't match any of the 3 protected categories.
 pub fn normalize_to_standard_id(model_name: &str) -> Option<String> {
-    // [FIX] Strict matching based on user-defined groups (Case Insensitive)
     let lower = model_name.to_lowercase();
-    match lower.as_str() {
-        // Gemini 3 Flash Group
-        "gemini-3-flash" => Some("gemini-3-flash".to_string()),
-
-        // Gemini 3 Pro High Group
-        "gemini-3-pro-high" | "gemini-3-pro-low" => Some("gemini-3-pro-high".to_string()),
-
-        // Claude 4.5 Sonnet Group
-        "claude-sonnet-4-5" | "claude-sonnet-4-5-thinking" | "claude-opus-4-5-thinking" => Some("claude-sonnet-4-5".to_string()),
-
-        _ => None
+    
+    // 1. image 资源 (优先匹配，使用 contains 匹配以支持任何变体，如 gemini-3.1-flash-image)
+    if lower.contains("image") {
+        return Some("gemini-3-pro-image".to_string());
     }
+
+    // 2. gemini-3-flash (包含所有 flash 变体)
+    if lower.contains("flash") {
+        return Some("gemini-3-flash".to_string());
+    }
+
+    // 3. gemini-3-pro-high (包含 pro 变体)
+    if lower.contains("pro") && !lower.contains("image") {
+        return Some("gemini-3-pro-high".to_string());
+    }
+
+    // 4. Claude 系列 (合并 Opus, Sonnet, Haiku 为统一保护组 'claude')
+    if lower.contains("claude") || lower.contains("opus") || lower.contains("sonnet") || lower.contains("haiku") {
+        return Some("claude".to_string());
+    }
+
+    None
 }
 
 #[cfg(test)]
@@ -265,11 +340,20 @@ mod tests {
     fn test_model_mapping() {
         assert_eq!(
             map_claude_model_to_gemini("claude-3-5-sonnet-20241022"),
-            "claude-sonnet-4-5"
+            "claude-sonnet-4-6"
+        );
+        // [Redirect] Sonnet 4.5 -> Sonnet 4.6
+        assert_eq!(
+            map_claude_model_to_gemini("claude-sonnet-4-5"),
+            "claude-sonnet-4-6"
+        );
+        assert_eq!(
+            map_claude_model_to_gemini("claude-sonnet-4-5-thinking"),
+            "claude-sonnet-4-6-thinking"
         );
         assert_eq!(
             map_claude_model_to_gemini("claude-opus-4"),
-            "claude-opus-4-5-thinking"
+            "claude-opus-4-6-thinking"
         );
         // Test gemini pass-through (should not be caught by "mini" rule)
         assert_eq!(
@@ -278,7 +362,63 @@ mod tests {
         );
         assert_eq!(
             map_claude_model_to_gemini("unknown-model"),
-            "claude-sonnet-4-5"
+            "unknown-model"
+        );
+        // [Migrate] Gemini 3 Pro High/Low should route to Gemini 3.1 Pro
+        assert_eq!(
+            map_claude_model_to_gemini("gemini-3-pro-high"),
+            "gemini-3.1-pro-preview"
+        );
+        assert_eq!(
+            map_claude_model_to_gemini("gemini-3-pro-low"),
+            "gemini-3.1-pro-preview"
+        );
+        assert_eq!(
+            map_claude_model_to_gemini("gemini-3.1-pro-high"),
+            "gemini-3.1-pro-preview"
+        );
+        assert_eq!(
+            map_claude_model_to_gemini("gemini-3.1-pro-low"),
+            "gemini-3.1-pro-preview"
+        );
+
+        // Test Normalization (Opus 4.6 now merged into "claude" group)
+        assert_eq!(normalize_to_standard_id("claude-opus-4-6-thinking"), Some("claude".to_string()));
+        assert_eq!(
+            normalize_to_standard_id("claude-sonnet-4-5"),
+            Some("claude".to_string())
+        );
+
+        // [Regression] gemini-3-pro-image must NOT be grouped with gemini-3-pro-high
+        assert_eq!(
+            normalize_to_standard_id("gemini-3-pro-image"),
+            Some("gemini-3-pro-image".to_string())
+        );
+        assert_eq!(
+            normalize_to_standard_id("gemini-3-pro-high"),
+            Some("gemini-3-pro-high".to_string())
+        );
+
+        // [FIX #1955] Test normalization with image suffixes
+        assert_eq!(
+            normalize_to_standard_id("gemini-3-pro-image-4k"),
+            Some("gemini-3-pro-image".to_string())
+        );
+        assert_eq!(
+            normalize_to_standard_id("gemini-3-pro-image-16x9"),
+            Some("gemini-3-pro-image".to_string())
+        );
+        assert_eq!(
+            normalize_to_standard_id("gemini-3-pro-image-4k-16x9"),
+            Some("gemini-3-pro-image".to_string())
+        );
+        assert_eq!(
+            normalize_to_standard_id("gemini-3.1-flash-image"),
+            Some("gemini-3-pro-image".to_string())
+        );
+        assert_eq!(
+            normalize_to_standard_id("gemini-3.1-flash-image-4k"),
+            Some("gemini-3-pro-image".to_string())
         );
     }
 
@@ -322,7 +462,7 @@ mod tests {
         // Negative case: *thinking* should NOT match models without "thinking"
         assert_eq!(
             resolve_model_route("random-model-name", &custom),
-            "claude-sonnet-4-5"  // Falls back to system default
+            "random-model-name"  // Falls back to system default (pass-through)
         );
     }
 

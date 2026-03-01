@@ -1,32 +1,36 @@
-// ErrorClassificationModule - Place the bottom layerErrorConvert为UserfriendlyMessage
-use reqwest::Error;
+// 错误分类模块 - 将底层错误转换为用户友好的消息
 
-/// ClassificationStreaming responseError并ReturnErrorType、EnglishMessage和 i18n key
+/// 分类流式响应错误并返回错误类型、英文消息和 i18n key
 /// 
-/// ReturnValue: (ErrorType, EnglishErrorMessage, i18n_key)
-/// - ErrorType: used forLog和Error码
-/// - EnglishMessage: fallback Message,for non-browsersClientUsing
-/// - i18n_key: Front-end translationKey,for browserClientlocalization
-pub fn classify_stream_error(error: &Error) -> (&'static str, &'static str, &'static str) {
-    if error.is_timeout() {
+/// 返回值: (错误类型, 英文错误消息, i18n_key)
+/// - 错误类型: 用于日志和错误码
+/// - 英文消息: fallback 消息,供非浏览器客户端使用
+/// - i18n_key: 前端翻译键,供浏览器客户端本地化
+/// 分类流式响应错误并返回错误类型、英文消息和 i18n key
+/// 
+/// 返回值: (错误类型, 英文错误消息, i18n_key)
+pub fn classify_stream_error<E: std::fmt::Display>(error: &E) -> (&'static str, &'static str, &'static str) {
+    let error_str = error.to_string().to_lowercase();
+    
+    if error_str.contains("timeout") || error_str.contains("deadline") {
         (
             "timeout_error",
             "Request timeout, please check your network connection",
             "errors.stream.timeout_error"
         )
-    } else if error.is_connect() {
+    } else if error_str.contains("connection") || error_str.contains("connect") || error_str.contains("dns") {
         (
             "connection_error",
             "Connection failed, please check your network or proxy settings",
             "errors.stream.connection_error"
         )
-    } else if error.is_decode() {
+    } else if error_str.contains("decode") || error_str.contains("parse") {
         (
             "decode_error",
             "Network unstable, data transmission interrupted. Try: 1) Check network 2) Switch proxy 3) Retry",
             "errors.stream.decode_error"
         )
-    } else if error.is_body() {
+    } else if error_str.contains("stream") || error_str.contains("body") {
         (
             "stream_error",
             "Stream transmission error, please retry later",
@@ -47,40 +51,24 @@ mod tests {
 
     #[test]
     fn test_classify_timeout_error() {
-        // Createa simulatedTimeout error
-        let url = "http://example.com";
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_millis(1))
-            .build()
-            .unwrap();
+        // 使用简单的字符串错误进行模拟测试
+        let error = "Connection timed out after 30s";
+        let (error_type, message, i18n_key) = classify_stream_error(&error);
         
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        let error = rt.block_on(async {
-            client.get(url).send().await.unwrap_err()
-        });
-        
-        if error.is_timeout() {
-            let (error_type, message, i18n_key) = classify_stream_error(&error);
-            assert_eq!(error_type, "timeout_error");
-            assert!(message.contains("timeout"));
-            assert_eq!(i18n_key, "errors.stream.timeout_error");
-        }
+        assert_eq!(error_type, "timeout_error");
+        assert!(message.contains("timeout"));
+        assert_eq!(i18n_key, "errors.stream.timeout_error");
     }
 
     #[test]
     fn test_error_message_format() {
-        // TestErrorMessageFormat
-        let url = "http://invalid-domain-that-does-not-exist-12345.com";
-        let client = reqwest::Client::new();
-        
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        let error = rt.block_on(async {
-            client.get(url).send().await.unwrap_err()
-        });
+        // 测试错误消息格式
+        // 模拟一个 DNS 错误
+        let error = "error trying to connect: dns error: failed to lookup address information";
         
         let (error_type, message, i18n_key) = classify_stream_error(&error);
         
-        // ErrorTypeShouldYesknownTypeone
+        // 错误类型应该是已知的类型之一
         assert!(
             error_type == "timeout_error" ||
             error_type == "connection_error" ||
@@ -89,16 +77,16 @@ mod tests {
             error_type == "unknown_error"
         );
         
-        // Message不Should为Empty
+        // 消息不应该为空
         assert!(!message.is_empty());
         
-        // i18n_key Should以 errors.stream. beginning
+        // i18n_key 应该以 errors.stream. 开头
         assert!(i18n_key.starts_with("errors.stream."));
     }
 
     #[test]
     fn test_i18n_keys_format() {
-        // ValidateAllErrorTypeAll are correct i18n_key Format
+        // 验证所有错误类型都有正确的 i18n_key 格式
         let test_cases = vec![
             ("timeout_error", "errors.stream.timeout_error"),
             ("connection_error", "errors.stream.connection_error"),
@@ -107,7 +95,7 @@ mod tests {
             ("unknown_error", "errors.stream.unknown_error"),
         ];
         
-        // Herewe onlyValidate i18n_key Format
+        // 这里我们只验证 i18n_key 格式
         for (expected_type, expected_key) in test_cases {
             assert_eq!(format!("errors.stream.{}", expected_type), expected_key);
         }

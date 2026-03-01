@@ -23,7 +23,9 @@
         "warning": "警告",
         "info": "提示",
         "details": "詳情",
+        "example": "範例",
         "clear": "清除",
+        "clearing": "清理中...",
         "prev_page": "上一頁",
         "next_page": "下一頁",
         "pagination_info": "顯示第 {{start}} 到 {{end}} 條，共 {{total}} 條",
@@ -33,7 +35,14 @@
         "enabled": "已啟用",
         "disabled": "已停用",
         "tauri_api_not_loaded": "Tauri API 未正確載入,請重啟應用",
-        "environment_error": "環境錯誤: {{error}}"
+        "environment_error": "環境錯誤: {{error}}",
+        "submit": "提交",
+        "update": "更新",
+        "load_failed": "載入失敗",
+        "create_success": "建立成功",
+        "update_success": "更新成功",
+        "delete_success": "刪除成功",
+        "copied": "已複製到剪貼簿"
     },
     "nav": {
         "dashboard": "儀表板",
@@ -41,6 +50,8 @@
         "proxy": "API 反向代理",
         "token_stats": "統計",
         "call_records": "流量日誌",
+        "security": "IP 管理",
+        "security_logs": "IP 日志",
         "settings": "設定",
         "theme_to_dark": "切換到深色模式",
         "theme_to_light": "切換到淺色模式",
@@ -61,7 +72,12 @@
         "switch_to_portuguese": "切換到葡萄牙文",
         "switch_to_portuguese_short": "PT",
         "switch_to_korean": "切換到韓語",
-        "switch_to_korean_short": "KO"
+        "switch_to_korean_short": "KO",
+        "switch_to_spanish": "切換到西班牙語",
+        "switch_to_spanish_short": "ES",
+        "switch_to_malay": "切換到馬來語",
+        "switch_to_malay_short": "MY",
+        "user_token": "用戶 Token"
     },
     "dashboard": {
         "hello": "你好, 使用者 👋",
@@ -97,6 +113,7 @@
         }
     },
     "accounts": {
+        "account": "帳號",
         "search_placeholder": "搜尋信箱...",
         "all": "全部",
         "available": "可用",
@@ -104,6 +121,9 @@
         "ultra": "ULTRA",
         "pro": "PRO",
         "free": "FREE",
+        "edit_label": "編輯標籤",
+        "custom_label_placeholder": "輸入自訂標籤",
+        "label_updated": "標籤已更新",
         "add_account": "新增帳號",
         "refresh_all": "重新整理所有",
         "refresh_selected": "重新整理 ({{count}})",
@@ -125,12 +145,23 @@
         "forbidden_badge": "403",
         "forbidden_tooltip": "API 返回 403 Forbidden，帳號無權使用 Gemini Code Assist",
         "forbidden_msg": "帳號無權限，已跳過自動重新整理",
+        "status": {
+            "forbidden": "403 Forbidden",
+            "disabled": "帳號已停用",
+            "proxy_disabled": "反向代理已停用"
+        },
+        "error_details": "錯誤詳情",
+        "error_status": "錯誤狀態",
+        "error_time": "檢測時間",
+        "view_error": "檢視原因",
+        "click_to_verify": "點選去驗證",
         "no_data": "無資料",
         "last_used": "最後使用",
         "reset_time": "重置時間",
         "switch_to": "切換到此帳號",
         "actions": "操作",
         "device_fingerprint": "裝置指紋",
+        "show_all_quotas": "顯示所有配額",
         "device_fingerprint_dialog": {
             "title": "裝置指紋",
             "operations": "裝置指紋操作",
@@ -176,7 +207,9 @@
         "warmup_batch_triggered": "已成功為 {{count}} 個帳號觸發預熱任務",
         "quota_protected": "受保護",
         "details": {
-            "title": "配額詳情"
+            "title": "配額詳情",
+            "model_quota": "模型配額",
+            "protected_models": "受保護模型"
         },
         "toast": {
             "proxy_enabled": "成功啟用 {{count}} 個帳號的反向代理功能",
@@ -198,7 +231,15 @@
                 "copy_link": "複製授權連結",
                 "copied": "已複製",
                 "link_label": "授權連結",
-                "link_click_to_copy": "點選複製"
+                "link_click_to_copy": "點選複製",
+                "manual_hint": "瀏覽器沒有自動跳轉？請在此處貼上回調連結或 Authorization Code：",
+                "manual_placeholder": "在此處貼上連結或代碼...",
+                "error_no_flow": "未找到活躍的授權流程，請重新開始 OAuth 授權。",
+                "web_hint": "將在新視窗中開啟 Google 登入頁",
+                "error_no_url": "無法獲取 OAuth URL",
+                "popup_blocked": "彈窗被攔截，請允許彈出視窗",
+                "manual_submitting": "正在提交認證碼...",
+                "manual_submitted": "認證碼已提交，後台處理中..."
             },
             "token": {
                 "label": "Refresh Token",
@@ -269,7 +310,8 @@
             "account": "帳號",
             "proxy": "代理設定",
             "advanced": "進階",
-            "about": "關於"
+            "about": "關於",
+            "debug": "除錯"
         },
         "general": {
             "title": "通用設定",
@@ -298,7 +340,7 @@
             "refresh_interval": "重新整理間隔（分鐘）",
             "auto_sync": "自動獲取當前帳號",
             "auto_sync_desc": "定期自動重新整理當前活動帳號的資訊",
-            "sync_interval": "同步間隔（秒）"
+            "sync_interval": "同步間隔（分鐘）"
         },
         "warmup": {
             "title": "智慧預熱",
@@ -321,6 +363,59 @@
         },
         "proxy": {
             "title": "代理設定"
+        },
+        "proxy_pool": {
+            "title": "代理池",
+            "strategy_priority": "按權重隨機",
+            "strategy_round_robin": "順序循環",
+            "strategy_random": "隨機",
+            "strategy_least_connections": "最少連線",
+            "test_all": "全量檢測",
+            "batch_import": "匯入",
+            "binding_manager": "綁定",
+            "add_proxy": "新增代理",
+            "edit_proxy": "編輯代理",
+            "name": "名稱",
+            "url": "代理地址",
+            "username": "使用者名稱",
+            "password": "密碼",
+            "max_accounts": "最大帳號數",
+            "max_accounts_hint": "0 = 不限制",
+            "priority": "優先級",
+            "priority_hint": "越小越優先",
+            "health_check_url": "健康檢查地址",
+            "tags": "標籤",
+            "add_tag_placeholder": "新增標籤...",
+            "seconds": "秒",
+            "confirm_delete": "確定要刪除此代理嗎？",
+            "empty": "暫無代理",
+            "column_priority": "權重",
+            "column_status": "狀態",
+            "column_details": "代理詳情",
+            "column_bindings": "綁定",
+            "test_completed": "健康檢查已完成",
+            "test_failed": "健康檢查失敗",
+            "import_title": "批次匯入代理",
+            "import_label": "貼上代理列表 (每行一個)",
+            "import_hint": "支援格式: protocol://user:pass@host:port, host:port:user:pass",
+            "import_preview": "預覽",
+            "import_confirm": "匯入 {{count}} 個代理",
+            "no_valid_proxies": "未找到有效代理",
+            "binding": {
+                "title": "帳號代理綁定",
+                "load_failed": "載入綁定失敗",
+                "unbind_success": "解綁成功",
+                "bind_success": "綁定成功",
+                "update_failed": "更新綁定失敗",
+                "assigned_proxy": "已分配代理",
+                "default_strategy": "預設 (跟隨策略)"
+            },
+            "status": {
+                "inactive": "未啟用",
+                "checking": "正在檢測",
+                "healthy": "正常",
+                "timeout": "已逾時"
+            }
         },
         "advanced": {
             "title": "進階設定",
@@ -352,6 +447,20 @@
             "clear_logs_title": "清理紀錄確認",
             "clear_logs_msg": "確定要清理所有紀錄快取檔案嗎？",
             "logs_cleared": "紀錄快取已清理",
+            "antigravity_cache_title": "Antigravity 快取清理",
+            "antigravity_cache_desc": "清理 Antigravity 應用程式的快取可以解決登入失敗、版本驗證錯誤、OAuth 授權失敗等問題。",
+            "antigravity_cache_warning": "請確保 Antigravity 應用程式已完全關閉後再執行清理操作。",
+            "clear_antigravity_cache": "清理 Antigravity 快取",
+            "clear_cache_confirm_title": "確認清理 Antigravity 快取",
+            "clear_cache_confirm_msg": "將清理以下快取目錄：",
+            "cache_cleared_success": "快取清理完成，釋放 {{size}} MB 空間",
+            "cache_not_found": "未找到 Antigravity 快取目錄",
+            "debug_logs_title": "除錯日誌",
+            "debug_logs_enable_desc": "啟用後會記錄完整請求與回應鏈路，建議僅在排查問題時開啟。",
+            "debug_logs_desc": "記錄完整鏈路：原始輸入、轉換後的 v1internal 請求、以及上游回應。僅用於問題排查，可能包含敏感資料。",
+            "debug_log_dir": "除錯日誌輸出目錄",
+            "debug_log_dir_hint": "不填寫則使用預設目錄：{{path}}/debug_logs",
+            "debug_log_dir_select": "選擇除錯日誌輸出目錄",
             "http_api_title": "HTTP API 服務",
             "http_api_desc": "為外部程式(如 VS Code 外掛)提供本地 HTTP 介面。",
             "http_api_enabled": "啟用 HTTP API",
@@ -384,6 +493,51 @@
             "support_alipay": "Alipay",
             "support_wechat": "Weixin Pay",
             "support_buymeacoffee": "Buy Me a Coffee"
+        },
+        "debug": {
+            "debug_logging": "除錯日誌",
+            "debug_logging_desc": "啟用後會記錄完整請求與回應鏈路，建議僅在排查問題時開啟。"
+        },
+        "menu": {
+            "title": "選單顯示設定",
+            "desc": "選擇要在選單列中顯示的功能項目。隱藏不常用的選單可以節省空間。",
+            "selected_items_note": "被選中的項目將顯示在頂部選單列中。",
+            "required": "必選"
+        },
+        "advanced_thinking": {
+            "title": "高級思維与全局配置",
+            "description": "集中管理思維能力、圖像模式及全局指令。"
+        },
+        "thinking_budget": {
+            "title": "思考預算 (Thinking Budget)",
+            "description": "控制 AI 深度思考時的 Token 預算。某些模型（如 Flash、帶 -thinking 後綴的模型）受上游 24576 上限限制。",
+            "mode_label": "處理模式",
+            "mode": {
+                "auto": "自動限制",
+                "passthrough": "透傳",
+                "custom": "自定義"
+            },
+            "auto_hint": "自動模式：對 Flash 模型、-thinking 後綴模型、以及啟用 Web Search 的請求自動限制在 24576 以避免 API 錯誤。",
+            "passthrough_warning": "透傳：直接使用調用方原始值，不支持高值可能導致失敗。",
+            "custom_value_hint": "推薦：24576 (Flash) 或 51200 (擴展)",
+            "tokens": "tokens"
+        },
+        "image_thinking_mode": {
+            "title": "圖像思維模式 (Image Thinking Mode)",
+            "hint": "影響畫質與生成流程",
+            "options": {
+                "enabled": "開啟",
+                "disabled": "關閉",
+                "enabled_desc": "開啟：保留思維鏈，返回草圖 + 成品雙圖。",
+                "disabled_desc": "關閉：禁用思維鏈，直接生成單張超清圖片（畫質優先）。"
+            }
+        },
+        "global_system_prompt": {
+            "title": "全局系統提示詞 (Global System Prompt)",
+            "hint": "自動注入所有請求的 systemInstruction",
+            "placeholder": "輸入全局系統提示詞...\n例如：你是一位資深的全棧開發工程師，擅長 React 和 Rust。請使用繁體中文回复。",
+            "char_count": "{{count}} 字符",
+            "long_prompt_warning": "提示詞較長（超過 2000 字符），可能會佔用較多的上下文窗口空間。"
         }
     },
     "tray": {
@@ -411,6 +565,12 @@
         },
         "config": {
             "title": "服務配置",
+            "request": {
+                "user_agent": "User-Agent 覆蓋",
+                "user_agent_tooltip": "自定義發送給上游 API 的 User-Agent 請求頭。留空則使用默認值。",
+                "user_agent_hint": "當前默認值: antigravity/<version> <os>/<arch>",
+                "user_agent_placeholder": "輸入自定義 User-Agent 字串..."
+            },
             "port": "監聽通訊埠",
             "port_tooltip": "本地 API 代理監聽的通訊埠。需要先停止服務再修改，修改後需重啟生效。",
             "port_hint": "預設 8045，修改通訊埠需重啟服務",
@@ -432,6 +592,13 @@
             "warning_key": "注意：請妥善保管您的 API 金鑰，不要洩露給他人。",
             "api_key_invalid": "API 密鑰格式無效,必須以 sk- 開頭且長度至少 10 個字符",
             "api_key_updated": "API 密鑰已更新",
+            "admin_password": "Web UI 管理後台密碼",
+            "admin_password_tooltip": "用於登錄 Web 管理後台的密碼。如果為空，則默認使用 API 密鑰（API Key）。",
+            "admin_password_default": "（同 API 密鑰）",
+            "admin_password_placeholder": "輸入新密碼，留空則使用 API 密鑰",
+            "admin_password_hint": "提示：在 Docker/Web 部署場景中，您可以設置一個獨立的登錄密碼，提高 API 密鑰的安全性。",
+            "admin_password_short": "密碼太短（最少 4 個字符）",
+            "admin_password_updated": "Web UI 登錄密碼已更新",
             "auth": {
                 "title": "存取授權",
                 "title_tooltip": "控制代理是否需要鑑權，以及哪些路由需要提供 API 金鑰。",
@@ -513,10 +680,12 @@
             "upstream_proxy": {
                 "title": "全域上游代理 (Global Proxy)",
                 "desc": "開啟後，應用內所有外部請求（API 反向代理、Token 重新整理、配額查詢、更新檢測）都將透過此代理。",
+                "desc_short": "用於無法匹配代理池帳號時的通用出口或降級方案。",
                 "enable": "啟用上游代理",
                 "url": "代理地址",
                 "url_placeholder": "例如: http://127.0.0.1:7890 或 socks5://127.0.0.1:7890",
                 "tip": "支援 HTTP、HTTPS 和 SOCKS5 協定。",
+                "socks5h_hint": "若需避開上游風控並保留原始功能變數名稱解析 (Remote DNS)，請手動將協定改為 socks5h://",
                 "validation_error": "啟用上游代理時必須填寫代理地址",
                 "restart_hint": "代理設定已儲存，重新啟動應用程式後生效"
             },
@@ -540,9 +709,20 @@
                 "max_wait_tooltip": "僅在“快取優先”模式下生效：如果帳號限流重置時間小於此值，則原地等待而非切換帳號。",
                 "clear_bindings": "清除會話繫結",
                 "clear_bindings_tooltip": "立即斷開所有會話與帳號的繫結關係，強制下一次請求重新分配帳號。",
+                "clear_rate_limits": "清除限流記錄",
+                "clear_rate_limits_tooltip": "立即清除所有帳號的本地限流記錄，強制下一次請求嘗試直接呼叫上游。",
                 "fixed_account": "固定帳戶模式",
                 "fixed_account_tooltip": "啟用後，所有 API 請求將只使用所選帳戶，而不會在帳戶之間輪換。",
                 "round_robin_set": "輪詢模式已啟用"
+            },
+            "circuit_breaker": {
+                "title": "自適應熔斷器",
+                "tooltip": "當帳號因配額耗盡反覆失敗時，自動增加鎖定時間。這可以防止在死帳號上浪費 API 呼叫，同時允許瞬態錯誤快速恢復。",
+                "backoff_levels": "退避等級 (秒)",
+                "input_placeholder": "輸入退避時長 (秒)，以逗號分隔",
+                "level": "等級 {{level}}",
+                "invalid_format": "格式無效。請使用逗號分隔的數字 (例如 60, 300)",
+                "clear_records": "清除所有限流記錄"
             },
             "experimental": {
                 "title": "實驗性設定 (Experimental)",
@@ -613,7 +793,9 @@
             "regenerate_key_title": "重新生成 API Key",
             "regenerate_key_msg": "確定要重新生成 API Key 嗎？舊的 Key 將立即失效。",
             "clear_bindings_title": "清除會話繫結",
-            "clear_bindings_msg": "確定要清除所有會話與帳號的繫結對映嗎？"
+            "clear_bindings_msg": "確定要清除所有會話與帳號的繫結對映嗎？",
+            "clear_rate_limits_title": "清除限流記錄",
+            "clear_rate_limits_confirm": "確定要清除所有本地限流記錄嗎？"
         },
         "model": {
             "flash": "極速回應",
@@ -645,37 +827,49 @@
             "restore_defaults": "恢復預設配置",
             "reset_all": "重置全部"
         },
-        "models": {
-            "flash": "極速回應",
-            "flash_thinking": "思考能力",
-            "pro_high": "最強推理",
-            "pro_low": "低配額",
-            "sonnet": "程式碼推理",
-            "sonnet_thinking": "思維鏈",
-            "opus_thinking": "最強思維"
-        },
         "router": {
             "title": "模型路由中心 (Model Router)",
-            "subtitle": "按“規格家族”統一路由 OpenAI/Claude 模型，或新增最高優先順序的“精確對映”。\n注意：Claude 原生直通模型（claude-opus-4-5-thinking 等 3 個）預設直通，需在“專家精確對映”中新增規則才能修改。",
+            "subtitle": "按“規格家族”統一路由 OpenAI/Claude 模型，或新增最高優先順序的“精確對映”。\n注意：Claude 原生直通模型（claude-opus-4-6-thinking 等 3 個）預設直通，需在“專家精確對映”中新增規則才能修改。",
             "subtitle_simple": "透過萬用字元或精確對映自定義模型路由規則",
-            "background_task_title": "Background Task Model",
-            "background_task_desc": "Model used for Claude CLI background tasks like title generation, summary, etc. (Default: gemini-2.5-flash)",
-            "use_default": "Use System Default",
-            "current_model": "Current Model",
+            "background_task_title": "後台任務模型",
+            "background_task_desc": "用於 Claude CLI 後台任務的模型,如標題生成、總結等。(預設: gemini-2.5-flash)",
+            "use_default": "使用系統預設",
+            "current_model": "目前模型",
             "apply_presets": "應用預設對映",
             "presets_applied": "預設對映已應用",
+            "preset_default": "預設預設",
+            "preset_default_desc": "GPT-4 → Gemini Pro, Claude → Opus",
+            "preset_performance": "性能優先",
+            "preset_performance_desc": "全部使用高性能模型",
+            "preset_cost": "成本優化",
+            "preset_cost_desc": "優先使用經濟型模型",
+            "preset_balanced": "均衡模式",
+            "preset_balanced_desc": "平衡性能和成本",
+            "built_in_presets": "內置預設",
+            "custom_presets": "自定義預設",
+            "apply_selected": "應用所选",
+            "add_preset": "保存當前映射",
+            "delete_preset": "刪除當前預設",
+            "cannot_delete_builtin": "無法刪除內置預設",
+            "no_mapping_to_save": "沒有可保存的映射配置",
+            "preset_name_required": "請先輸入預設名稱",
+            "preset_saved": "預設保存成功",
+            "manage_presets_title": "管理自定義預設",
+            "save_current_as_preset": "保存當前配置",
+            "preset_name_placeholder": "輸入預設名稱...",
+            "save_hint": "將當前激活的模型映射保存為可重複使用的預設。",
+            "your_presets": "您的預設",
+            "no_custom_presets": "暫無自定義預設",
+            "mappings_count": "個映射",
+            "custom_preset_desc": "用戶自定義預設",
             "custom_mappings": "自定義對映 (Custom Mappings)",
             "original_id": "原始模型 ID",
             "route_to": "路由目標",
             "group_title": "模型家族分組 (Series Groups)",
-            "gemini3_group_label": "Gemini 3 (推薦)",
-            "gemini3_option_high": "gemini-3-pro-high (高品質)",
-            "gemini3_option_low": "gemini-3-pro-low (均衡)",
-            "gemini3_option_flash": "gemini-3-flash (快速)",
             "groups": {
                 "claude_45": {
-                    "name": "Claude 4.5 系列",
-                    "desc": "Opus 4.5, Sonnet 4.5 (推理)"
+                    "name": "Claude 4.6 TK 系列",
+                    "desc": "Opus 4.5 TK (推理)"
                 },
                 "claude_35": {
                     "name": "Claude 3.5 系列",
@@ -694,8 +888,10 @@
                     "desc": "GPT-5.1, GPT-5.2 xhigh"
                 }
             },
-            "expert_title": "專家精確對映 (Expert Custom Routing)",
+            "expert_title": "專家精確對映",
             "expert_subtitle": "精確比對支援從任何協定傳來的原始模型 ID。",
+            "custom_mapping_tip": "💡 支援手動輸入任意模型 ID，可體驗未發布模型（如 claude-opus-4-6）。",
+            "custom_mapping_warning": "注意：並非所有帳號都支援未發布模型。",
             "money_saving_tip": "💰 省錢提示:",
             "haiku_optimization_tip": "Claude CLI 預設使用 {{model}} 處理背景任務,建議對映到廉價 Flash 模型可節省約 95% 成本",
             "haiku_optimization_btn": "一鍵最佳化",
@@ -827,8 +1023,27 @@
     },
     "update_notification": {
         "title": "發現新版本",
-        "message": "新版本已準備就緒，包含多項最佳化與改進。當前版本: v{{current}}",
-        "action": "立即更新"
+        "message": "新版本已準備就緒，包含諸多優化與改進。目前版本: v{{current}}",
+        "ready": "更新準備就緒",
+        "downloading": "正在下載更新...",
+        "restarting": "正在重新啟動應用程式...",
+        "auto_update": "自動更新",
+        "toast": {
+            "not_ready": "自動更新包尚未就緒，為您跳轉到下載頁面...",
+            "failed": "自動更新失敗，為您跳轉到下載頁面..."
+        }
+    },
+    "login": {
+        "title": "安全存取控制",
+        "desc": "當前運行在 Web 模式下，請輸入管理密碼或 API Key 以進入後台。",
+        "placeholder": "請輸入管理密碼或 API Key",
+        "btn_login": "驗證並進入",
+        "btn_verifying": "驗證中...",
+        "error_invalid_key": "密碼或 API Key 錯誤，請重試",
+        "error_network": "網路連線失敗，請檢查服務是否正常運行",
+        "note": "注意：如果設置了獨立的管理密碼，請輸入管理密碼；否則請輸入 API_KEY。",
+        "lookup_hint": "如果您忘記了，請運行 docker logs antigravity-manager 尋找 Current API Key 或 Web UI Password",
+        "config_hint": "或執行 grep -E '\"api_key\"|\"admin_password\"' ~/.antigravity_tools/gui_config.json 查看。"
     },
     "token_stats": {
         "title": "Token 消費統計",
@@ -856,5 +1071,134 @@
         "total": "合計",
         "percentage": "佔比",
         "no_data": "暫無資料"
+    },
+    "security": {
+        "title": "安全監控",
+        "refresh_data": "重新整理資料",
+        "refresh": "重新整理",
+        "tab_logs": "存取日誌",
+        "tab_stats": "統計分析",
+        "tab_blacklist": "黑名單管理",
+        "tab_whitelist": "白名單管理",
+        "tab_config": "安全設定",
+        "stats": {
+            "total_requests": "總請求數",
+            "total_requests_desc": "所有記錄的請求",
+            "unique_ips": "獨立 IP 數",
+            "unique_ips_desc": "不同的客戶端 IP 位址",
+            "blocked_requests": "攔截請求數",
+            "blocked_requests_desc": "被規則拒絕的請求",
+            "ip_activity_token_usage": "IP 活躍度 & Token 消耗",
+            "hour": "時",
+            "day": "日",
+            "week": "週",
+            "month": "月",
+            "rank": "排名",
+            "ip_address": "IP 位址",
+            "activity_reqs": "活躍度 (請求數)",
+            "total_token": "總 Token",
+            "prompt": "提問",
+            "completion": "回答",
+            "no_data": "暫無資料"
+        },
+        "logs": {
+            "search_placeholder": "搜尋 IP, 路徑, User Agent...",
+            "username": "用戶",
+            "show_blocked_only": "僅顯示被攔截",
+            "status": "狀態",
+            "ip_address": "IP 位址",
+            "method": "方法",
+            "path": "路徑",
+            "duration": "耗時",
+            "time": "時間",
+            "reason": "原因",
+            "blocked": "攔截",
+            "no_logs": "暫無日誌",
+            "total_records": "共 {{total}} 條記錄",
+            "prev_page": "上一頁",
+            "next_page": "下一頁",
+            "page_num": "第 {{page}} 頁",
+            "per_page_suffix": "/頁"
+        },
+        "blacklist": {
+            "add_ip": "新增 IP",
+            "search_placeholder": "搜尋...",
+            "added_at": "新增時間",
+            "expires_at": "過期時間",
+            "no_data": "暫無黑名單資料",
+            "add_title": "新增到黑名單",
+            "ip_cidr_label": "IP 位址或 CIDR",
+            "ip_cidr_placeholder": "例如 192.168.1.1 或 10.0.0.0/24",
+            "reason_label": "原因 (可選)",
+            "reason_placeholder": "例如：惡意掃描",
+            "expires_label": "過期時間 (小時，可選)",
+            "expires_placeholder": "留空則永久生效",
+            "cancel": "取消",
+            "confirm": "新增",
+            "add_btn": "新增"
+        },
+        "whitelist": {
+            "add_ip": "新增信任 IP",
+            "no_data": "暫無白名單資料",
+            "add_title": "新增到白名單",
+            "description_label": "備註 (可選)",
+            "description_placeholder": "例如：內部伺服器",
+            "cancel": "取消",
+            "confirm": "新增",
+            "add_btn": "新增"
+        },
+        "config": {
+            "title": "安全設定",
+            "save": "儲存變更",
+            "saving": "儲存中...",
+            "blacklist_title": "IP 黑名單",
+            "blacklist_desc": "管理被攔截的 IP 位址和規則。",
+            "enable_blacklist": "啟用黑名單保護",
+            "block_msg_label": "自定義攔截訊息",
+            "block_msg_desc": "返回給被攔截客戶端的響應內容。",
+            "whitelist_title": "IP 白名單",
+            "whitelist_desc": "管理信任的 IP 位址。",
+            "enable_whitelist": "啟用白名單模式",
+            "whitelist_warning": "警告: 啟用白名單模式將攔截所有不在白名單中的 IP 請求。如果您透過代理存取，請務必小心不要將自己鎖在外面。",
+            "whitelist_priority": "白名單優先 (覆蓋黑名單)",
+            "whitelist_priority_desc": "啟用後，白名單 IP 將被允許存取，即使它們匹配黑名單規則。",
+            "load_error": "載入設定失敗",
+            "save_success": "設定已儲存",
+            "save_error": "儲存設定失敗"
+        }
+    },
+    "user_token": {
+        "title": "用戶 Token 管理",
+        "total_users": "用戶總數",
+        "active_tokens": "活躍 Token",
+        "total_created": "累計建立",
+        "create": "建立 Token",
+        "username": "用戶名",
+        "token": "Token",
+        "expires": "過期時間",
+        "usage": "使用量",
+        "ip_limit": "IP 限制",
+        "created": "建立時間",
+        "today_requests": "今日請求數",
+        "never": "永不過期",
+        "renew": "續期",
+        "renew_button": "續期",
+        "unlimited": "不限",
+        "create_title": "建立新 Token",
+        "description": "描述",
+        "curfew": "宵禁時間 (服務不可用時段)",
+        "edit_title": "編輯 Token",
+        "username_required": "用戶名不能為空",
+        "renew_success": "續期成功",
+        "expires_day": "1 天",
+        "expires_week": "1 週",
+        "expires_month": "1 個月",
+        "expires_never": "永不過期",
+        "no_data": "暫無數據",
+        "placeholder_username": "例如: user1",
+        "placeholder_desc": "選填備註",
+        "placeholder_max_ips": "0 = 不限制",
+        "hint_max_ips": "0 表示不限制",
+        "hint_curfew": "留空則禁用。基於伺服器時間。"
     }
 }

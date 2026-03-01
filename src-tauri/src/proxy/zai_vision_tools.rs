@@ -12,7 +12,8 @@ fn build_client(upstream_proxy: UpstreamProxyConfig, timeout_secs: u64) -> Resul
         .timeout(Duration::from_secs(timeout_secs.max(5)));
 
     if upstream_proxy.enabled && !upstream_proxy.url.is_empty() {
-        let proxy = reqwest::Proxy::all(&upstream_proxy.url)
+        let url = crate::proxy::config::normalize_proxy_url(&upstream_proxy.url);
+        let proxy = reqwest::Proxy::all(&url)
             .map_err(|e| format!("Invalid upstream proxy url: {}", e))?;
         builder = builder.proxy(proxy);
     }

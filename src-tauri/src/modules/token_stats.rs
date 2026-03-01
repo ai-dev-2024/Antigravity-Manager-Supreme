@@ -55,7 +55,7 @@ pub struct AccountTrendPoint {
     pub account_data: std::collections::HashMap<String, u64>,
 }
 
-fn get_db_path() -> Result<PathBuf, String> {
+pub(crate) fn get_db_path() -> Result<PathBuf, String> {
     let data_dir = crate::modules::account::get_data_dir()?;
     Ok(data_dir.join("token_stats.db"))
 }

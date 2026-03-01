@@ -18,6 +18,13 @@ struct CacheEntry<T> {
     timestamp: SystemTime,
 }
 
+/// Specialized entry for session-based signatures to track message count
+#[derive(Clone, Debug)]
+struct SessionSignatureEntry {
+    signature: String,
+    message_count: usize,
+}
+
 impl<T> CacheEntry<T> {
     fn new(data: T) -> Self {
         Self {
@@ -50,7 +57,7 @@ pub struct SignatureCache {
     /// Key: session fingerprint (e.g., "sid-a1b2c3d4...")
     /// Value: The most recent valid thought signature for this session
     /// This prevents signature pollution between different conversations
-    session_signatures: Mutex<HashMap<String, CacheEntry<String>>>,
+    session_signatures: Mutex<HashMap<String, CacheEntry<SessionSignatureEntry>>>,
 }
 
 impl SignatureCache {
@@ -146,28 +153,53 @@ impl SignatureCache {
     /// # Arguments
     /// * `session_id` - Session fingerprint (e.g., "sid-a1b2c3d4...")
     /// * `signature` - The thought signature to store
-    pub fn cache_session_signature(&self, session_id: &str, signature: String) {
+    /// * `message_count` - The current message count of the conversation (to detect Rewind)
+    pub fn cache_session_signature(&self, session_id: &str, signature: String, message_count: usize) {
         if signature.len() < MIN_SIGNATURE_LENGTH {
             return;
         }
 
         if let Ok(mut cache) = self.session_signatures.lock() {
-            // Only update if new signature is longer (likely more complete)
             let should_store = match cache.get(session_id) {
                 None => true,
                 Some(existing) => {
-                    // Expired entries should be replaced
-                    existing.is_expired() || signature.len() > existing.data.len()
+                    if existing.is_expired() {
+                        true
+                    } else if message_count < existing.data.message_count {
+                        // [CRITICAL] Rewind detected: user deleted messages or reverted to an earlier state.
+                        // The cached signature is now from a "future" that no longer exists in history.
+                        // We MUST force an update to prevent sending a future signature.
+                        tracing::info!(
+                            "[SignatureCache] Rewind detected for {}: {} -> {} messages. Forcing signature update.",
+                            session_id,
+                            existing.data.message_count,
+                            message_count
+                        );
+                        true
+                    } else if message_count == existing.data.message_count {
+                        // Same message count: only update if the new signature is longer (more complete)
+                        signature.len() > existing.data.signature.len()
+                    } else {
+                        // message_count > existing.data.message_count: normal progression
+                        true
+                    }
                 }
             };
 
             if should_store {
                 tracing::debug!(
-                    "[SignatureCache] Session {} -> storing signature (len={})",
+                    "[SignatureCache] Session {} (msg_count={}) -> storing signature (len={})",
                     session_id,
+                    message_count,
                     signature.len()
                 );
-                cache.insert(session_id.to_string(), CacheEntry::new(signature));
+                cache.insert(
+                    session_id.to_string(), 
+                    CacheEntry::new(SessionSignatureEntry { 
+                        signature, 
+                        message_count 
+                    })
+                );
             }
 
             // Cleanup when limit is reached (Session cache has largest limit)
@@ -196,15 +228,25 @@ impl SignatureCache {
                     tracing::debug!(
                         "[SignatureCache] Session {} -> HIT (len={})",
                         session_id,
-                        entry.data.len()
+                        entry.data.signature.len()
                     );
-                    return Some(entry.data.clone());
+                    return Some(entry.data.signature.clone());
                 } else {
                     tracing::debug!("[SignatureCache] Session {} -> EXPIRED", session_id);
                 }
             }
         }
         None
+    }
+
+    /// 删除指定会话的缓存签名
+    #[allow(dead_code)] // 预留给管理接口或调试使用
+    pub fn delete_session_signature(&self, session_id: &str) {
+        if let Ok(mut cache) = self.session_signatures.lock() {
+            if cache.remove(session_id).is_some() {
+                tracing::debug!("[SignatureCache] Deleted session signature for: {}", session_id);
+            }
+        }
     }
 
     /// Clear all caches (for testing or manual reset)
@@ -264,20 +306,24 @@ mod tests {
         assert!(cache.get_session_signature("sid-test123").is_none());
         
         // Store first signature
-        cache.cache_session_signature("sid-test123", sig1.clone());
+        cache.cache_session_signature("sid-test123", sig1.clone(), 5);
         assert_eq!(cache.get_session_signature("sid-test123"), Some(sig1.clone()));
         
-        // Longer signature should replace
-        cache.cache_session_signature("sid-test123", sig2.clone());
+        // Longer signature should replace (same msg count)
+        cache.cache_session_signature("sid-test123", sig2.clone(), 5);
         assert_eq!(cache.get_session_signature("sid-test123"), Some(sig2.clone()));
         
-        // Shorter valid signature should NOT replace
-        cache.cache_session_signature("sid-test123", sig1.clone());
+        // Shorter valid signature should NOT replace (same msg count)
+        cache.cache_session_signature("sid-test123", sig1.clone(), 5);
         assert_eq!(cache.get_session_signature("sid-test123"), Some(sig2.clone()));
+
+        // Rewind: Shorter signature MUST replace if message count is lower
+        cache.cache_session_signature("sid-test123", sig1.clone(), 3);
+        assert_eq!(cache.get_session_signature("sid-test123"), Some(sig1.clone()));
         
-        // Too short signature should be ignored entirely
-        cache.cache_session_signature("sid-test123", sig3);
-        assert_eq!(cache.get_session_signature("sid-test123"), Some(sig2));
+        // Too short signature should be ignored entirely (even if rewind)
+        cache.cache_session_signature("sid-test123", sig3, 1);
+        assert_eq!(cache.get_session_signature("sid-test123"), Some(sig1));
         
         // Different session should be isolated
         assert!(cache.get_session_signature("sid-other").is_none());
@@ -290,7 +336,7 @@ mod tests {
         
         cache.cache_tool_signature("tool_1", sig.clone());
         cache.cache_thinking_family(sig.clone(), "model".to_string());
-        cache.cache_session_signature("sid-1", sig.clone());
+        cache.cache_session_signature("sid-1", sig.clone(), 1);
         
         assert!(cache.get_tool_signature("tool_1").is_some());
         assert!(cache.get_signature_family(&sig).is_some());

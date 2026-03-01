@@ -1,5 +1,5 @@
-// Claude RequestConvert (Claude → Gemini v1internal)
-// correspond transformClaudeRequestIn
+// Claude 请求转换 (Claude → Gemini v1internal)
+// 对应 transformClaudeRequestIn
 
 use super::models::*;
 use crate::proxy::mappers::signature_store::get_thought_signature; // Deprecated, kept for fallback
@@ -65,23 +65,23 @@ fn build_safety_settings() -> Value {
     ])
 }
 
-/// clean upMessagein cache_control Field
-/// 
-/// thisFunction会DepthTraverseAllMessageContentBlock,Remove cache_control Field。
-/// This isnecessary,Because:
-/// 1. VS Code 等Clientwill make historyMessage(Packet含 cache_control)Send back intact
-/// 2. Anthropic API Not acceptedRequest中Packet含 cache_control Field
-/// 3. even thoughYesForward到 Gemini,也Shouldclean to keepProtocolpurity
-/// 
-/// [FIX #593] EnhanceVersion:AdddetailedLogused forDebug MCP ToolCompatiblesexual problems
+/// 清理消息中的 cache_control 字段
+///
+/// 这个函数会深度遍历所有消息内容块,移除 cache_control 字段。
+/// 这是必要的,因为:
+/// 1. VS Code 等客户端会将历史消息(包含 cache_control)原封不动发回
+/// 2. Anthropic API 不接受请求中包含 cache_control 字段
+/// 3. 即使是转发到 Gemini,也应该清理以保持协议纯净性
+///
+/// [FIX #593] 增强版本:添加详细日志用于调试 MCP 工具兼容性问题
 pub fn clean_cache_control_from_messages(messages: &mut [Message]) {
     tracing::info!(
         "[DEBUG-593] Starting cache_control cleanup for {} messages",
         messages.len()
     );
-    
+
     let mut total_cleaned = 0;
-    
+
     for (idx, msg) in messages.iter_mut().enumerate() {
         if let MessageContent::Array(blocks) = &mut msg.content {
             for (block_idx, block) in blocks.iter_mut().enumerate() {
@@ -136,7 +136,7 @@ pub fn clean_cache_control_from_messages(messages: &mut [Message]) {
             }
         }
     }
-    
+
     if total_cleaned > 0 {
         tracing::info!(
             "[DEBUG-593] Cache control cleanup complete: removed {} cache_control fields",
@@ -147,10 +147,10 @@ pub fn clean_cache_control_from_messages(messages: &mut [Message]) {
     }
 }
 
-/// [FIX #593] recursionDepthclean up JSON in cache_control Field
-/// 
-/// used forHandleNestedStructand non-standardPosition的 cache_control。
-/// This isFinallya line of defense,make sureSend给 Antigravity 的RequestHit or missPacket含Any cache_control。
+/// [FIX #593] 递归深度清理 JSON 中的 cache_control 字段
+///
+/// 用于处理嵌套结构和非标准位置的 cache_control。
+/// 这是最后一道防线,确保发送给 Antigravity 的请求中不包含任何 cache_control。
 fn deep_clean_cache_control(value: &mut Value) {
     match value {
         Value::Object(map) => {
@@ -171,7 +171,7 @@ fn deep_clean_cache_control(value: &mut Value) {
 }
 
 /// [FIX #564] Sort blocks in assistant messages to ensure thinking blocks are first
-/// 
+///
 /// When context compression (kilo) reorders message blocks, thinking blocks may appear
 /// after text blocks. Claude/Anthropic API requires thinking blocks to be first if
 /// any thinking blocks exist in the message. This function pre-sorts blocks to ensure
@@ -182,12 +182,12 @@ fn sort_thinking_blocks_first(messages: &mut [Message]) {
             if let MessageContent::Array(blocks) = &mut msg.content {
                 // [FIX #709] Triple-stage partition: [Thinking, Text, ToolUse]
                 // This ensures protocol compliance while maintaining logical order.
-                
+
                 let mut thinking_blocks: Vec<ContentBlock> = Vec::new();
                 let mut text_blocks: Vec<ContentBlock> = Vec::new();
                 let mut tool_blocks: Vec<ContentBlock> = Vec::new();
                 let mut other_blocks: Vec<ContentBlock> = Vec::new();
-                
+
                 let original_len = blocks.len();
                 let mut needs_reorder = false;
                 let mut saw_non_thinking = false;
@@ -215,7 +215,8 @@ fn sort_thinking_blocks_first(messages: &mut [Message]) {
                     // This also handles empty text block filtering.
                     for block in blocks.drain(..) {
                         match &block {
-                            ContentBlock::Thinking { .. } | ContentBlock::RedactedThinking { .. } => {
+                            ContentBlock::Thinking { .. }
+                            | ContentBlock::RedactedThinking { .. } => {
                                 thinking_blocks.push(block);
                             }
                             ContentBlock::Text { text } => {
@@ -250,11 +251,11 @@ fn sort_thinking_blocks_first(messages: &mut [Message]) {
     }
 }
 
-/// Merge ClaudeRequest consecutive sameRoleMessage
-/// 
-/// scene: When从 Spec/Plan Modeswitch backEncodeMode时，MayTwo consecutive "user" Message
-/// (one pieceYes ToolResult，one pieceYes <system-reminder>)。
-/// this would violateRolealternation rule，lead to 400 Report an error。
+/// 合并 ClaudeRequest 中连续的同角色消息
+///
+/// 场景: 当从 Spec/Plan 模式切换回编码模式时，可能出现连续两条 "user" 消息
+/// (一条是 ToolResult，一条是 <system-reminder>)。
+/// 这会违反角色交替规则，导致 400 报错。
 pub fn merge_consecutive_messages(messages: &mut Vec<Message>) {
     if messages.len() <= 1 {
         return;
@@ -267,7 +268,7 @@ pub fn merge_consecutive_messages(messages: &mut Vec<Message>) {
     if let Some(mut current) = messages_iter.next() {
         for next in messages_iter {
             if current.role == next.role {
-                // MergeContent
+                // 合并内容
                 match (&mut current.content, next.content) {
                     (MessageContent::Array(current_blocks), MessageContent::Array(next_blocks)) => {
                         current_blocks.extend(next_blocks);
@@ -279,7 +280,9 @@ pub fn merge_consecutive_messages(messages: &mut Vec<Message>) {
                         *current_text = format!("{}\n\n{}", current_text, next_text);
                     }
                     (MessageContent::String(current_text), MessageContent::Array(next_blocks)) => {
-                        let mut new_blocks = vec![ContentBlock::Text { text: current_text.clone() }];
+                        let mut new_blocks = vec![ContentBlock::Text {
+                            text: current_text.clone(),
+                        }];
                         new_blocks.extend(next_blocks);
                         current.content = MessageContent::Array(new_blocks);
                     }
@@ -295,7 +298,7 @@ pub fn merge_consecutive_messages(messages: &mut Vec<Message>) {
     *messages = merged;
 }
 
-/// Convert Claude Request为 Gemini v1internal Format
+/// 转换 Claude 请求为 Gemini v1internal 格式
 
 /// [FIX #709] Reorder serialized Gemini parts to ensure thinking blocks are first
 fn reorder_gemini_parts(parts: &mut Vec<Value>) {
@@ -333,57 +336,81 @@ pub fn transform_claude_request_in(
     claude_req: &ClaudeRequest,
     project_id: &str,
     is_retry: bool,
+    account_id: Option<&str>,
+    session_id: &str,
 ) -> Result<Value, String> {
-    // [CRITICAL FIX] Clean up beforehandAllMessagein cache_control Field
-    // this solved VS Code Plugin等Clientin multiple roundsConversationlieutenant general historyMessage的 cache_control Field
-    // Caused by sending it back intact "Extra inputs are not permitted" Error
+    let message_count = claude_req.messages.len();
+
+    // [CRITICAL FIX] 预先清理所有消息中的 cache_control 字段
+    // 这解决了 VS Code 插件等客户端在多轮对话中将历史消息的 cache_control 字段
+    // 原封不动发回导致的 "Extra inputs are not permitted" 错误
     let mut cleaned_req = claude_req.clone();
 
-    // [FIX #813] Mergeconsecutive sameRoleMessage (Consecutive User Messages)
-    // make sureRequestconform to Anthropic 和 Gemini 的RolealternatelyProtocol
+    // [FIX #813] 合并连续的同角色消息 (Consecutive User Messages)
+    // 确保请求符合 Anthropic 和 Gemini 的角色交替协议
     merge_consecutive_messages(&mut cleaned_req.messages);
 
     clean_cache_control_from_messages(&mut cleaned_req.messages);
-    
+
     // [FIX #564] Pre-sort thinking blocks to be first in assistant messages
     // This handles cases where context compression (kilo) incorrectly reorders blocks
     sort_thinking_blocks_first(&mut cleaned_req.messages);
-    
-    let claude_req = &cleaned_req; // Follow-upUsingafter cleaningRequest
+
+    // [FIX #1747] If thinking is auto-enabled by model default (e.g. Opus) but no
+    // ThinkingConfig was provided by the client, inject a default config with a budget
+    // to prevent 'thinking requires a budget' errors from upstream APIs.
+    if cleaned_req.thinking.is_none() && should_enable_thinking_by_default(&cleaned_req.model) {
+        tracing::info!(
+            "[Thinking-Mode] Injecting default ThinkingConfig (budget=10000) for model: {}",
+            cleaned_req.model
+        );
+        cleaned_req.thinking = Some(ThinkingConfig {
+            type_: "enabled".to_string(),
+            budget_tokens: Some(10000),
+            effort: None,
+        });
+    }
+
+    let claude_req = &cleaned_req; // 后续使用清理后的请求
 
     // [NEW] Generate session ID for signature tracking
     // This enables session-isolated signature storage, preventing cross-conversation pollution
     let session_id = SessionManager::extract_session_id(claude_req);
     tracing::debug!("[Claude-Request] Session ID: {}", session_id);
 
-    // DetectionYesNoHave internet connectionTool (server tool or built-in tool)
+    // 检测是否有联网工具 (server tool or built-in tool)
     let has_web_search_tool = claude_req
         .tools
         .as_ref()
         .map(|tools| {
             tools.iter().any(|t| {
-                t.is_web_search() 
+                t.is_web_search()
                     || t.name.as_deref() == Some("google_search")
+                    || t.name.as_deref() == Some("builtin_web_search")
                     || t.type_.as_deref() == Some("web_search_20250305")
+                    || t.type_.as_deref() == Some("builtin_web_search")
             })
         })
         .unwrap_or(false);
 
-    // for storage tool_use id -> name Mapping
+    // 用于存储 tool_use id -> name 映射
     let mut tool_id_to_name: HashMap<String, String> = HashMap::new();
 
-    // DetectionYesNo有 mcp__ beginningTool
+    // 检测是否有 mcp__ 开头的工具
     let has_mcp_tools = claude_req
         .tools
         .as_ref()
         .map(|tools| {
             tools.iter().any(|t| {
-                t.name.as_deref().map(|n| n.starts_with("mcp__")).unwrap_or(false)
+                t.name
+                    .as_deref()
+                    .map(|n| n.starts_with("mcp__"))
+                    .unwrap_or(false)
             })
         })
         .unwrap_or(false);
 
-    // [New] pre-builtToolName到Raw Schema 的Mapping，for follow-upParameterTypeCorrection
+    // [New] 预先构建工具名称到原始 Schema 的映射，用于后续参数类型修正
     let mut tool_name_to_schema = HashMap::new();
     if let Some(tools) = &claude_req.tools {
         for tool in tools {
@@ -393,61 +420,55 @@ pub fn transform_claude_request_in(
         }
     }
 
-    // 1. System Instruction (injectionDynamicIdentity protection & MCP XML Protocol)
-    let system_instruction = build_system_instruction(&claude_req.system, &claude_req.model, has_mcp_tools);
+    // 1. System Instruction (注入动态身份防护 & MCP XML 协议)
+    let system_instruction =
+        build_system_instruction(&claude_req.system, &claude_req.model, has_mcp_tools);
 
     //  Map model name (Use standard mapping)
-    // [IMPROVED] extract web search Model为Constant，Easy to maintain
+    // [IMPROVED] 提取 web search 模型为常量，便于维护
     const WEB_SEARCH_FALLBACK_MODEL: &str = "gemini-2.5-flash";
 
-    let mapped_model = if has_web_search_tool {
-        tracing::debug!(
-            "[Claude-Request] Web search tool detected, using fallback model: {}",
-            WEB_SEARCH_FALLBACK_MODEL
-        );
-        WEB_SEARCH_FALLBACK_MODEL.to_string()
-    } else {
-        crate::proxy::common::model_mapping::map_claude_model_to_gemini(&claude_req.model)
-    };
-    
-    // 将 Claude Toolconvert to Value Arrayto detect networking
-    let tools_val: Option<Vec<Value>> = claude_req.tools.as_ref().map(|list| {
-        list.iter().map(|t| serde_json::to_value(t).unwrap_or(json!({}))).collect()
-    });
+    let mapped_model = crate::proxy::common::model_mapping::map_claude_model_to_gemini(&claude_req.model);
 
+    // 将 Claude 工具转为 Value 数组以便探测联网
+    let tools_val: Option<Vec<Value>> = claude_req.tools.as_ref().map(|list| {
+        list.iter()
+            .map(|t| serde_json::to_value(t).unwrap_or(json!({})))
+            .collect()
+    });
 
     // Resolve grounding config
     let config = crate::proxy::mappers::common_utils::resolve_request_config(
-        &claude_req.model, 
-        &mapped_model, 
+        &claude_req.model,
+        &mapped_model,
         &tools_val,
-        claude_req.size.as_deref(),      // [NEW] Pass size parameter
-        claude_req.quality.as_deref()    // [NEW] Pass quality parameter
+        claude_req.size.as_deref(),    // [NEW] Pass size parameter
+        claude_req.quality.as_deref(), // [NEW] Pass quality parameter
+        None,                          // [NEW] image_size
+        None,                          // body
     );
-    
+
     // [CRITICAL FIX] Disable dummy thought injection for Vertex AI
     // [CRITICAL FIX] Disable dummy thought injection for Vertex AI
     // Vertex AI rejects thinking blocks without valid signatures
     // Even if thinking is enabled, we should NOT inject dummy blocks for historical messages
     let allow_dummy_thought = false;
-    
+
     // Check if thinking is enabled in the request
-    let mut is_thinking_enabled = claude_req
-        .thinking
-        .as_ref()
-        .map(|t| t.type_ == "enabled")
-        .unwrap_or_else(|| {
-            // [Claude Code v2.0.67+] Default thinking enabled for Opus 4.5
-            // If no thinking config is provided, enable by default for Opus models
-            should_enable_thinking_by_default(&claude_req.model)
-        });
+    let thinking_type = claude_req.thinking.as_ref().map(|t| t.type_.as_str());
+    let mut is_thinking_enabled = thinking_type == Some("enabled") || thinking_type == Some("adaptive") 
+        || (thinking_type.is_none() && should_enable_thinking_by_default(&claude_req.model));
 
     // [NEW FIX] Check if target model supports thinking
     // Only models with "-thinking" suffix or Claude models support thinking
     // Regular Gemini models (gemini-2.5-flash, gemini-2.5-pro) do NOT support thinking
-    let target_model_supports_thinking = mapped_model.contains("-thinking") 
-        || mapped_model.starts_with("claude-");
-    
+    // [FIX #1557] Allow "pro" models (e.g. gemini-3-pro, gemini-2.0-pro) to be recognized as thinking capable
+    let target_model_supports_thinking = mapped_model.contains("-thinking")
+        || mapped_model.starts_with("claude-")
+        || mapped_model.contains("gemini-2.0-pro")
+        || mapped_model.contains("gemini-3-pro")
+        || mapped_model.contains("gemini-3.1-pro");
+
     if is_thinking_enabled && !target_model_supports_thinking {
         tracing::warn!(
             "[Thinking-Mode] Target model '{}' does not support thinking. Force disabling thinking mode.",
@@ -456,31 +477,28 @@ pub fn transform_claude_request_in(
         is_thinking_enabled = false;
     }
 
-    // [New Strategy] intelligentFallback: CheckhistoryMessageYesNo与 Thinking ModeCompatible
-    // Ifin no condition Thinking 的Toolin call chain，MustTemporaryDisable Thinking
-    if is_thinking_enabled {
-        let should_disable = should_disable_thinking_due_to_history(&claude_req.messages);
-        if should_disable {
-             tracing::warn!("[Thinking-Mode] Automatically disabling thinking checks due to incompatible tool-use history (mixed application)");
-             is_thinking_enabled = false;
-        }
-    }
+    // [REMOVED] 智能降级检查 (should_disable_thinking_due_to_history)
+    // 原因: 该检查过于激进，会导致 Claude Code CLI 在历史记录不完美时永久禁用思考模式 (Issue #2006)
+    // 现在的策略是依赖 thinking_utils.rs 中的 Recovery 机制来修复历史，而不是禁用思考。
+
 
     // [FIX #295 & #298] If thinking enabled but no signature available,
     // disable thinking to prevent Gemini 3 Pro rejection
     if is_thinking_enabled {
         let global_sig = get_thought_signature();
-        
+
         // Check if there are any thinking blocks in message history
         let has_thinking_history = claude_req.messages.iter().any(|m| {
             if m.role == "assistant" {
                 if let MessageContent::Array(blocks) = &m.content {
-                    return blocks.iter().any(|b| matches!(b, ContentBlock::Thinking { .. }));
+                    return blocks
+                        .iter()
+                        .any(|b| matches!(b, ContentBlock::Thinking { .. }));
                 }
             }
             false
         });
-        
+
         // Check if there are function calls in the request
         let has_function_calls = claude_req.messages.iter().any(|m| {
             if let MessageContent::Array(blocks) = &m.content {
@@ -496,16 +514,20 @@ pub fn transform_claude_request_in(
         // we use permissive mode and let upstream handle validation.
         // We only enforce strict signature checks when function calls are involved.
         let needs_signature_check = has_function_calls;
-        
+
         if !has_thinking_history && is_thinking_enabled {
-             tracing::info!(
+            tracing::info!(
                 "[Thinking-Mode] First thinking request detected. Using permissive mode - \
                  signature validation will be handled by upstream API."
             );
         }
 
         if needs_signature_check
-            && !has_valid_signature_for_function_calls(&claude_req.messages, &global_sig, &session_id)
+            && !has_valid_signature_for_function_calls(
+                &claude_req.messages,
+                &global_sig,
+                &session_id,
+            )
         {
             tracing::warn!(
                 "[Thinking-Mode] [FIX #295] No valid signature found for function calls. \
@@ -516,7 +538,12 @@ pub fn transform_claude_request_in(
     }
 
     // 4. Generation Config & Thinking (Pass final is_thinking_enabled)
-    let generation_config = build_generation_config(claude_req, has_web_search_tool, is_thinking_enabled);
+    let generation_config = build_generation_config(
+        claude_req,
+        &mapped_model,
+        has_web_search_tool,
+        is_thinking_enabled,
+    );
 
     // 2. Contents (Messages)
     let contents = build_google_contents(
@@ -543,20 +570,18 @@ pub fn transform_claude_request_in(
         "safetySettings": safety_settings,
     });
 
-    // Depthclean up [undefined] string (Cherry Studio 等ClientCommon injections)
-    crate::proxy::mappers::common_utils::deep_clean_undefined(&mut inner_request);
-
     if let Some(sys_inst) = system_instruction {
         inner_request["systemInstruction"] = sys_inst;
     }
 
     if !generation_config.is_null() {
+        println!("DEBUG: Assigning generation_config: {}", generation_config);
         inner_request["generationConfig"] = generation_config;
     }
 
     if let Some(tools_val) = tools {
         inner_request["tools"] = tools_val;
-        // explicitSetToolConfigMode为 VALIDATED
+        // 显式设置工具配置模式为 VALIDATED
         inner_request["toolConfig"] = json!({
             "functionCallingConfig": {
                 "mode": "VALIDATED"
@@ -564,7 +589,11 @@ pub fn transform_claude_request_in(
         });
     }
 
-    // Inject googleSearch tool if needed (and not already done by build_tools)
+
+    // 深度清理 [undefined] 字符串 (Cherry Studio 等客户端常见注入)
+    crate::proxy::mappers::common_utils::deep_clean_undefined(&mut inner_request, 0);
+
+
     if config.inject_google_search && !has_web_search_tool {
         crate::proxy::mappers::common_utils::inject_google_search_tool(&mut inner_request);
     }
@@ -578,10 +607,24 @@ pub fn transform_claude_request_in(
             // 2. Remove systemInstruction (image generation does not support system prompts)
             obj.remove("systemInstruction");
 
-            // 3. Clean generationConfig (remove thinkingConfig, responseMimeType, responseModalities etc.)
+            // 3. Clean generationConfig (remove responseMimeType, responseModalities etc.)
             let gen_config = obj.entry("generationConfig").or_insert_with(|| json!({}));
             if let Some(gen_obj) = gen_config.as_object_mut() {
-                gen_obj.remove("thinkingConfig");
+                // [RESOLVE #1694] Check image thinking mode
+                let image_thinking_mode = crate::proxy::config::get_image_thinking_mode();
+                if image_thinking_mode == "disabled" {
+                    tracing::debug!(
+                        "[Claude-Request] Image thinking mode disabled: enforcing includeThoughts=false for {}",
+                        mapped_model
+                    );
+                    gen_obj.insert(
+                        "thinkingConfig".to_string(),
+                        json!({
+                            "includeThoughts": false
+                        }),
+                    );
+                }
+
                 gen_obj.remove("responseMimeType");
                 gen_obj.remove("responseModalities");
                 gen_obj.insert("imageConfig".to_string(), image_config);
@@ -589,61 +632,42 @@ pub fn transform_claude_request_in(
         }
     }
 
-    // generate requestId
-    let request_id = format!("agent-{}", uuid::Uuid::new_v4());
+    // [ADDED v4.1.24] 注入稳定 sessionId 对齐官方规范
+    if let Some(account_id) = account_id {
+        inner_request["sessionId"] = json!(crate::proxy::common::session::derive_session_id(account_id));
+    }
 
-    // build finalRequest体
+    // 生成 requestId
+    // [CHANGED v4.1.24] Structured requestId to match official format
+    let request_id = format!("agent/antigravity/{}/{}", &session_id[..session_id.len().min(8)], message_count);
+
+    // 构建最终请求体
     let mut body = json!({
         "project": project_id,
         "requestId": request_id,
         "request": inner_request,
         "model": config.final_model,
         "userAgent": "antigravity",
-        "requestType": config.request_type,
+        // [CHANGED v4.1.24] Use "agent" for all non-image requests
+        "requestType": if config.request_type == "image_gen" { "image_gen" } else { "agent" },
     });
 
-    // Ifprovided metadata.user_id，Then reuse as sessionId
+    // 如果提供了 metadata.user_id，则复用为 sessionId
     if let Some(metadata) = &claude_req.metadata {
         if let Some(user_id) = &metadata.user_id {
             body["request"]["sessionId"] = json!(user_id);
         }
     }
 
-    // [FIX #593] Finallya line of defense: recursionDepthclean upAll cache_control Field
-    // make sureSend给 Antigravity 的RequestHit or missPacket含Any cache_control
+    // [FIX #593] 最后一道防线: 递归深度清理所有 cache_control 字段
+    // 确保发送给 Antigravity 的请求中不包含任何 cache_control
     deep_clean_cache_control(&mut body);
     tracing::debug!("[DEBUG-593] Final deep clean complete, request ready to send");
 
     Ok(body)
 }
 
-/// CheckYesNoBecausehistoryMessagereasonNeedDisable Thinking
-/// 
-/// scene: IfFinallyone piece Assistant Messagein Tool Use StreamCheng Zhong，但None Thinking Block，
-/// DescriptionThis isa reason Thinking ModelinitiatedStream程。Forced to open at this time Thinking will lead to:
-/// "final assistant message must start with a thinking block" Error。
-/// We cannot fake legal Thinking (BecauseSignquestion)，UniquesolutionYesThis roundRequesttemporaryDisable Thinking。
-fn should_disable_thinking_due_to_history(messages: &[Message]) -> bool {
-    // Search in reverse orderFinallyone piece Assistant Message
-    for msg in messages.iter().rev() {
-        if msg.role == "assistant" {
-            if let MessageContent::Array(blocks) = &msg.content {
-                let has_tool_use = blocks.iter().any(|b| matches!(b, ContentBlock::ToolUse { .. }));
-                let has_thinking = blocks.iter().any(|b| matches!(b, ContentBlock::Thinking { .. }));
-                
-                // If有Toolcall，但None Thinking Block -> 不Compatible
-                if has_tool_use && !has_thinking {
-                    tracing::info!("[Thinking-Mode] Detected ToolUse without Thinking in history. Requesting disable.");
-                    return true;
-                }
-            }
-            // Just find the nearest one Assistant Message就EndCheck
-            // BecauseValidateruleMainagainstCurrentclosed loopStatus
-            return false;
-        }
-    }
-    false
-}
+
 
 /// Check if thinking mode should be enabled by default for a given model
 ///
@@ -653,10 +677,14 @@ fn should_disable_thinking_due_to_history(messages: &[Message]) -> bool {
 fn should_enable_thinking_by_default(model: &str) -> bool {
     let model_lower = model.to_lowercase();
 
-    // Enable thinking by default for Opus 4.5 variants
-    if model_lower.contains("opus-4-5") || model_lower.contains("opus-4.5") {
+    // Enable thinking by default for Opus 4.5 and 4.6 variants
+    if model_lower.contains("opus-4-5")
+        || model_lower.contains("opus-4.5")
+        || model_lower.contains("opus-4-6")
+        || model_lower.contains("opus-4.6")
+    {
         tracing::debug!(
-            "[Thinking-Mode] Auto-enabling thinking for Opus 4.5 model: {}",
+            "[Thinking-Mode] Auto-enabling thinking for Opus model: {}",
             model
         );
         return true;
@@ -664,6 +692,20 @@ fn should_enable_thinking_by_default(model: &str) -> bool {
 
     // Also enable for explicit thinking model variants
     if model_lower.contains("-thinking") {
+        return true;
+    }
+
+    // [FIX #1557] Enable thinking by default for Gemini Pro models (gemini-3-pro, gemini-2.0-pro)
+    // These models prioritize reasoning but clients might not send thinking config for them
+    // unless they have "-thinking" suffix (which they don't in Antigravity mapping)
+    if model_lower.contains("gemini-2.0-pro")
+        || model_lower.contains("gemini-3-pro")
+        || model_lower.contains("gemini-3.1-pro")
+    {
+        tracing::debug!(
+            "[Thinking-Mode] Auto-enabling thinking for Gemini Pro model: {}",
+            model
+        );
         return true;
     }
 
@@ -675,12 +717,12 @@ const MIN_SIGNATURE_LENGTH: usize = 50;
 
 /// [FIX #295] Check if we have any valid signature available for function calls
 /// This prevents Gemini 3 Pro from rejecting requests due to missing thought_signature
-/// 
+///
 /// [NEW FIX] Now also checks Session Cache to support retry scenarios
 fn has_valid_signature_for_function_calls(
     messages: &[Message],
     global_sig: &Option<String>,
-    session_id: &str,  // NEW: Add session_id parameter
+    session_id: &str, // NEW: Add session_id parameter
 ) -> bool {
     // 1. Check global store (deprecated but kept for compatibility)
     if let Some(sig) = global_sig {
@@ -728,7 +770,7 @@ fn has_valid_signature_for_function_calls(
             }
         }
     }
-    
+
     tracing::warn!(
         "[Signature-Check] No valid signature found (session: {}, checked: global store, session cache, message history)",
         session_id
@@ -736,17 +778,21 @@ fn has_valid_signature_for_function_calls(
     false
 }
 
-/// build System Instruction (SupportDynamicidentityMapping与 Prompt isolation)
-fn build_system_instruction(system: &Option<SystemPrompt>, _model_name: &str, has_mcp_tools: bool) -> Option<Value> {
+/// 构建 System Instruction (支持动态身份映射与 Prompt 隔离)
+fn build_system_instruction(
+    system: &Option<SystemPrompt>,
+    _model_name: &str,
+    has_mcp_tools: bool,
+) -> Option<Value> {
     let mut parts = Vec::new();
 
-    // [NEW] Antigravity Identity command (RawSimplified version)
+    // [NEW] Antigravity 身份指令 (原始简化版)
     let antigravity_identity = "You are Antigravity, a powerful agentic AI coding assistant designed by the Google Deepmind team working on Advanced Agentic Coding.\n\
     You are pair programming with a USER to solve their coding task. The task may require creating a new codebase, modifying or debugging an existing codebase, or simply answering a question.\n\
     **Absolute paths only**\n\
     **Proactiveness**";
-    
-    // [HYBRID] CheckUserYesNoprovided Antigravity identity
+
+    // [HYBRID] 检查用户是否已提供 Antigravity 身份
     let mut user_has_antigravity = false;
     if let Some(sys) = system {
         match sys {
@@ -766,12 +812,18 @@ fn build_system_instruction(system: &Option<SystemPrompt>, _model_name: &str, ha
         }
     }
 
-    // IfUserNonesupply Antigravity identity,then inject
+    // 如果用户没有提供 Antigravity 身份,则注入
     if !user_has_antigravity {
         parts.push(json!({"text": antigravity_identity}));
     }
 
-    // AddUser的SystemHint词
+    // [NEW] 注入全局系统提示词 (紧跟 Antigravity 身份之后)
+    let global_prompt_config = crate::proxy::config::get_global_system_prompt();
+    if global_prompt_config.enabled && !global_prompt_config.content.trim().is_empty() {
+        parts.push(json!({"text": global_prompt_config.content}));
+    }
+
+    // 添加用户的系统提示词
     if let Some(sys) = system {
         match sys {
             SystemPrompt::String(text) => {
@@ -790,20 +842,20 @@ fn build_system_instruction(system: &Option<SystemPrompt>, _model_name: &str, ha
         }
     }
 
-    // [NEW] MCP XML Bridge: Ifexist mcp__ beginningTool，injectionSpecializedcallProtocol
-    // This canValidAvoidance part MCP link in standard tool_use Protocol下Parseunstable problem
+    // [NEW] MCP XML Bridge: 如果存在 mcp__ 开头的工具，注入专用的调用协议
+    // 这能有效规避部分 MCP 链路在标准的 tool_use 协议下解析不稳的问题
     if has_mcp_tools {
         let mcp_xml_prompt = "\n\
-        ==== MCP XML ToolcallProtocol (Workaround) ====\n\
-        When你NeedcallName以 `mcp__` beginning MCP Tool时：\n\
-        1) priorityTrying XML Formatcall：Output `<mcp__tool_name>{\"arg\":\"value\"}</mcp__tool_name>`。\n\
-        2) MustdirectOutput XML Block，No need markdown Packet装，Content为 JSON Formatof ginseng。\n\
-        3) This approach has higher connectivity and fault tolerance，Suitable for largeResultReturnscene。\n\
+        ==== MCP XML 工具调用协议 (Workaround) ====\n\
+        当你需要调用名称以 `mcp__` 开头的 MCP 工具时：\n\
+        1) 优先尝试 XML 格式调用：输出 `<mcp__tool_name>{\"arg\":\"value\"}</mcp__tool_name>`。\n\
+        2) 必须直接输出 XML 块，无需 markdown 包装，内容为 JSON 格式的入参。\n\
+        3) 这种方式具有更高的连通性和容错性，适用于大型结果返回场景。\n\
         ===========================================";
         parts.push(json!({"text": mcp_xml_prompt}));
     }
 
-    // IfUserNonesupplyAnySystemHint词,AddEndmark
+    // 如果用户没有提供任何系统提示词,添加结束标记
     if !user_has_antigravity {
         parts.push(json!({"text": "\n--- [SYSTEM_PROMPT_END] ---"}));
     }
@@ -814,7 +866,7 @@ fn build_system_instruction(system: &Option<SystemPrompt>, _model_name: &str, ha
     }))
 }
 
-/// build Contents (Messages)
+/// 构建 Contents (Messages)
 fn build_contents(
     content: &MessageContent,
     is_assistant: bool,
@@ -843,8 +895,9 @@ fn build_contents(
     match content {
         MessageContent::String(text) => {
             if text != "(no content)" {
-                if !text.trim().is_empty() {
-                    parts.push(json!({"text": text.trim()}));
+                let trimmed = text.trim();
+                if !trimmed.is_empty() {
+                    parts.push(json!({"text": trimmed}));
                 }
             }
         }
@@ -852,13 +905,16 @@ fn build_contents(
             for item in blocks {
                 match item {
                     ContentBlock::Text { text } => {
-                        if text != "(no content)" {
-                            // [NEW] TaskDeduplication logic: IfCurrentYes User Message，and follow closely ToolResult After，
-                            // Checkthe textYesNowith previous roundTaskThe description is exactly the same。
+                        if text != "(no content)" && !text.trim().is_empty() {
+                            // [NEW] 任务去重逻辑: 如果当前是 User 消息，且紧跟在 ToolResult 之后，
+                            // 检查该文本是否与上一轮任务描述完全一致。
                             if !is_assistant && *previous_was_tool_result {
                                 if let Some(last_task) = last_user_task_text_normalized {
-                                    let current_normalized = text.replace(|c: char| c.is_whitespace(), "");
-                                    if !current_normalized.is_empty() && current_normalized == *last_task {
+                                    let current_normalized =
+                                        text.replace(|c: char| c.is_whitespace(), "");
+                                    if !current_normalized.is_empty()
+                                        && current_normalized == *last_task
+                                    {
                                         tracing::info!("[Claude-Request] Dropping duplicated task text echo (len: {})", text.len());
                                         continue;
                                     }
@@ -868,23 +924,31 @@ fn build_contents(
                             parts.push(json!({"text": text}));
                             saw_non_thinking = true;
 
-                            // Recordmost recent User TaskText for subsequent comparison
+                            // 记录最近一次 User 任务文本用于后续比对
                             if !is_assistant {
-                                *last_user_task_text_normalized = Some(text.replace(|c: char| c.is_whitespace(), ""));
+                                *last_user_task_text_normalized =
+                                    Some(text.replace(|c: char| c.is_whitespace(), ""));
                             }
                             *previous_was_tool_result = false;
                         }
                     }
-                    ContentBlock::Thinking { thinking, signature, .. } => {
-                        tracing::debug!("[DEBUG-TRANSFORM] Processing thinking block. Sig: {:?}", signature);
+                    ContentBlock::Thinking {
+                        thinking,
+                        signature,
+                        ..
+                    } => {
+                        tracing::debug!(
+                            "[DEBUG-TRANSFORM] Processing thinking block. Sig: {:?}",
+                            signature
+                        );
 
                         // [HOTFIX] Gemini Protocol Enforcement: Thinking block MUST be the first block.
                         // If we already have content (like Text), we must downgrade this thinking block to Text.
                         if saw_non_thinking || !parts.is_empty() {
                             tracing::warn!("[Claude-Request] Thinking block found at non-zero index (prev parts: {}). Downgrading to Text.", parts.len());
-                            if !thinking.is_empty() {
+                            if !thinking.trim().is_empty() {
                                 parts.push(json!({
-                                    "text": thinking
+                                    "text": thinking.trim()
                                 }));
                                 saw_non_thinking = true;
                             }
@@ -895,10 +959,11 @@ fn build_contents(
                         // to avoid "thinking is disabled but message contains thinking" error
                         if !is_thinking_enabled {
                             tracing::warn!("[Claude-Request] Thinking disabled. Downgrading thinking block to text.");
-                            if !thinking.is_empty() {
+                            if !thinking.trim().is_empty() {
                                 parts.push(json!({
-                                    "text": thinking
+                                    "text": thinking.trim()
                                 }));
+                                saw_non_thinking = true;
                             }
                             continue;
                         }
@@ -926,16 +991,18 @@ fn build_contents(
                                 saw_non_thinking = true;
                                 continue;
                             }
-                            
-                            let cached_family = crate::proxy::SignatureCache::global().get_signature_family(sig);
+
+                            let cached_family =
+                                crate::proxy::SignatureCache::global().get_signature_family(sig);
 
                             match cached_family {
                                 Some(family) => {
                                     // Check compatibility
                                     // [NEW] If is_retry is true, force incompatibility to strip historical signatures
                                     // which likely caused the previous 400 error.
-                                    let compatible = !is_retry && is_model_compatible(&family, mapped_model);
-                                    
+                                    let compatible =
+                                        !is_retry && is_model_compatible(&family, mapped_model);
+
                                     if !compatible {
                                         tracing::warn!(
                                             "[Thinking-Signature] {} signature (Family: {}, Target: {}). Downgrading to text.",
@@ -970,7 +1037,9 @@ fn build_contents(
                                             "thought": true,
                                             "thoughtSignature": sig
                                         });
-                                        crate::proxy::common::json_schema::clean_json_schema(&mut part);
+                                        crate::proxy::common::json_schema::clean_json_schema(
+                                            &mut part,
+                                        );
                                         parts.push(part);
                                     } else {
                                         // Unknown and too short: downgrade to text for safety
@@ -986,13 +1055,15 @@ fn build_contents(
                             }
                         } else {
                             // No signature: downgrade to text
-                            tracing::warn!("[Thinking-Signature] No signature provided. Downgrading to text.");
+                            tracing::warn!(
+                                "[Thinking-Signature] No signature provided. Downgrading to text."
+                            );
                             parts.push(json!({"text": thinking}));
                             saw_non_thinking = true;
                         }
                     }
                     ContentBlock::RedactedThinking { data } => {
-                        // [FIX] 将 RedactedThinking asNormaltextHandle，reserveContext
+                        // [FIX] 将 RedactedThinking 作为普通文本处理，保留上下文
                         tracing::debug!("[Claude-Request] Degrade RedactedThinking to text");
                         parts.push(json!({
                             "text": format!("[Redacted Thinking: {}]", data)
@@ -1022,12 +1093,21 @@ fn build_contents(
                             saw_non_thinking = true;
                         }
                     }
-                    ContentBlock::ToolUse { id, name, input, signature, .. } => {
+                    ContentBlock::ToolUse {
+                        id,
+                        name,
+                        input,
+                        signature,
+                        ..
+                    } => {
                         let mut final_input = input.clone();
-                        
-                        // [New] useGeneralengine modificationsParameterType (replace the previous hardEncode的 shell Toolfix logic)
+
+                        // [New] 利用通用引擎修正参数类型 (替代以前硬编码的 shell 工具修复逻辑)
                         if let Some(original_schema) = tool_name_to_schema.get(name) {
-                            crate::proxy::common::json_schema::fix_tool_call_args(&mut final_input, original_schema);
+                            crate::proxy::common::json_schema::fix_tool_call_args(
+                                &mut final_input,
+                                original_schema,
+                            );
                         }
 
                         let mut part = json!({
@@ -1044,10 +1124,7 @@ fn build_contents(
                             pending_tool_use_ids.push(id.clone());
                         }
 
-                        // [New] recursive cleanupParameter中Mayillegality of existenceValidation field
-                        crate::proxy::common::json_schema::clean_json_schema(&mut part);
-
-                        // storage id -> name Mapping
+                        // 存储 id -> name 映射
                         tool_id_to_name.insert(id.clone(), name.clone());
 
                         // Signature resolution logic
@@ -1155,7 +1232,8 @@ fn build_contents(
                             let is_google_cloud = mapped_model.starts_with("projects/");
                             if is_thinking_enabled && !is_google_cloud {
                                 tracing::debug!("[Tool-Signature] Adding GEMINI_SKIP_SIGNATURE for tool_use: {}", id);
-                                part["thoughtSignature"] = json!("skip_thought_signature_validator");
+                                part["thoughtSignature"] =
+                                    json!("skip_thought_signature_validator");
                             }
                         }
                         parts.push(part);
@@ -1168,14 +1246,14 @@ fn build_contents(
                     } => {
                         // Mark this tool ID as resolved in this turn
                         current_turn_tool_result_ids.insert(tool_use_id.clone());
-                        // priorityUsingBeforeRecord的 name，Else用 tool_use_id
+                        // 优先使用之前记录的 name，否则用 tool_use_id
                         let func_name = tool_id_to_name
                             .get(tool_use_id)
                             .cloned()
                             .unwrap_or_else(|| tool_use_id.clone());
 
-                        // [FIX #593] ToolOutputCompress: HandleExtra largeToolOutput
-                        // UsingintelligentCompressStrategy(Browser snapshot、大FileHint等)
+                        // [FIX #593] 工具输出压缩: 处理超大工具输出
+                        // 使用智能压缩策略(浏览器快照、大文件提示等)
                         let mut compacted_content = content.clone();
                         if let Some(blocks) = compacted_content.as_array_mut() {
                             tool_result_compressor::sanitize_tool_result_blocks(blocks);
@@ -1193,7 +1271,9 @@ fn build_contents(
                                         Some(text.to_string())
                                     } else if block.get("source").is_some() {
                                         // If it's an image/document, replace with placeholder
-                                        if block.get("type").and_then(|v| v.as_str()) == Some("image") {
+                                        if block.get("type").and_then(|v| v.as_str())
+                                            == Some("image")
+                                        {
                                             Some("[image omitted to save context]".to_string())
                                         } else {
                                             None
@@ -1210,13 +1290,20 @@ fn build_contents(
                         // Smart Truncation: max chars limit
                         const MAX_TOOL_RESULT_CHARS: usize = 200_000;
                         if merged_content.len() > MAX_TOOL_RESULT_CHARS {
-                            tracing::warn!("Truncating tool result from {} chars to {}", merged_content.len(), MAX_TOOL_RESULT_CHARS);
-                            let mut truncated = merged_content.chars().take(MAX_TOOL_RESULT_CHARS).collect::<String>();
+                            tracing::warn!(
+                                "Truncating tool result from {} chars to {}",
+                                merged_content.len(),
+                                MAX_TOOL_RESULT_CHARS
+                            );
+                            let mut truncated = merged_content
+                                .chars()
+                                .take(MAX_TOOL_RESULT_CHARS)
+                                .collect::<String>();
                             truncated.push_str("\n...[truncated output]");
                             merged_content = truncated;
                         }
 
-                        // [Optimization] IfResult为Empty，Inject explicitConfirmSignal，preventModelhallucination
+                        // [优化] 如果结果为空，注入显式确认信号，防止模型幻觉
                         if merged_content.trim().is_empty() {
                             if is_error.unwrap_or(false) {
                                 merged_content =
@@ -1234,19 +1321,20 @@ fn build_contents(
                             }
                         }));
 
-                        // [FIX] Tool Result 也NeedbackfillSign（IfContextThere is）
+                        // [FIX] Tool Result 也需要回填签名（如果上下文中有）
                         if let Some(sig) = last_thought_signature.as_ref() {
                             if let Some(last_part) = parts.last_mut() {
                                 last_part["thoughtSignature"] = json!(sig);
                             }
                         }
 
-                        // markStatus，for next item User MessageDeduplication judgment
+                        // 标记状态，用于下一条 User 消息的去重判断
                         *previous_was_tool_result = true;
                     }
                     // ContentBlock::RedactedThinking handled above at line 583
-                    ContentBlock::ServerToolUse { .. } | ContentBlock::WebSearchToolResult { .. } => {
-                        // SearchResult block should not beClientSend back to upstream (Already by tool_result substitute)
+                    ContentBlock::ServerToolUse { .. }
+                    | ContentBlock::WebSearchToolResult { .. } => {
+                        // 搜索结果 block 不应由客户端发回给上游 (已由 tool_result 替代)
                         continue;
                     }
                 }
@@ -1256,14 +1344,16 @@ fn build_contents(
 
     // If this is a User message, check if we need to inject missing tool results
     if !is_assistant && !pending_tool_use_ids.is_empty() {
-        let missing_ids: Vec<_> = pending_tool_use_ids.iter()
+        let missing_ids: Vec<_> = pending_tool_use_ids
+            .iter()
             .filter(|id| !current_turn_tool_result_ids.contains(*id))
             .cloned()
             .collect();
 
         if !missing_ids.is_empty() {
             tracing::warn!("[Elastic-Recovery] Injecting {} missing tool results into User message (IDs: {:?})", missing_ids.len(), missing_ids);
-            for id in missing_ids.iter().rev() { // Insert in reverse order to maintain order at index 0? No, just insert at 0.
+            for id in missing_ids.iter().rev() {
+                // Insert in reverse order to maintain order at index 0? No, just insert at 0.
                 let name = tool_id_to_name.get(id).cloned().unwrap_or(id.clone());
                 let synthetic_part = json!({
                     "functionResponse": {
@@ -1286,13 +1376,11 @@ fn build_contents(
     // [Optimization] Apply this to ALL assistant messages in history, not just the last one.
     // Vertex AI requires every assistant message to start with a thinking block when thinking is enabled.
     if allow_dummy_thought && is_assistant && is_thinking_enabled {
-        let has_thought_part = parts
-            .iter()
-            .any(|p| {
-                p.get("thought").and_then(|v| v.as_bool()).unwrap_or(false)
-                    || p.get("thoughtSignature").is_some()
-                    || p.get("thought").and_then(|v| v.as_str()).is_some() // in some casesMayYes text + thought: true combination
-            });
+        let has_thought_part = parts.iter().any(|p| {
+            p.get("thought").and_then(|v| v.as_bool()).unwrap_or(false)
+                || p.get("thoughtSignature").is_some()
+                || p.get("thought").and_then(|v| v.as_str()).is_some() // 某些情况下可能是 text + thought: true 的组合
+        });
 
         if !has_thought_part {
             // Prepend a dummy thinking block to satisfy Gemini v1internal requirements
@@ -1303,17 +1391,20 @@ fn build_contents(
                     "thought": true
                 }),
             );
-            tracing::debug!("Injected dummy thought block for historical assistant message at index {}", parts.len());
+            tracing::debug!(
+                "Injected dummy thought block for historical assistant message at index {}",
+                parts.len()
+            );
         } else {
-            // [Crucial Check] Even if there is thought Block，也Mustensure it is located parts first place (Index 0)
-            // 且MustPacket含 thought: true mark
+            // [Crucial Check] 即使有 thought 块，也必须保证它位于 parts 的首位 (Index 0)
+            // 且必须包含 thought: true 标记
             let first_is_thought = parts.get(0).map_or(false, |p| {
                 (p.get("thought").is_some() || p.get("thoughtSignature").is_some())
-                    && p.get("text").is_some() // for v1internal，generally text + thought: true 才YesCompliance thinkingBlock
+                    && p.get("text").is_some() // 对于 v1internal，通常 text + thought: true 才是合规的思维块
             });
 
             if !first_is_thought {
-                // IfThe first item does not fit the thinkingBlockfeature，Force one to be added
+                // 如果首项不符合思维块特征，强制补入一个
                 parts.insert(
                     0,
                     json!({
@@ -1323,10 +1414,11 @@ fn build_contents(
                 );
                 tracing::debug!("First part of model message at {} is not a valid thought block. Prepending dummy.", parts.len());
             } else {
-                // Make sure the first itemPacketContained thought: true (preventOnly signature situation)
+                // 确保首项包含了 thought: true (防止只有 signature 的情况)
                 if let Some(p0) = parts.get_mut(0) {
                     if p0.get("thought").is_none() {
-                        p0.as_object_mut().map(|obj| obj.insert("thought".to_string(), json!(true)));
+                        p0.as_object_mut()
+                            .map(|obj| obj.insert("thought".to_string(), json!(true)));
                     }
                 }
             }
@@ -1336,7 +1428,7 @@ fn build_contents(
     Ok(parts)
 }
 
-/// build Contents (Messages)
+/// 构建 Contents (Messages)
 fn build_google_content(
     msg: &Message,
     claude_req: &ClaudeRequest,
@@ -1366,7 +1458,8 @@ fn build_google_content(
     if role == "model" && !pending_tool_use_ids.is_empty() {
         tracing::warn!("[Elastic-Recovery] Detected interrupted tool chain (Assistant -> Assistant). Injecting synthetic User message for IDs: {:?}", pending_tool_use_ids);
 
-        let synthetic_parts: Vec<serde_json::Value> = pending_tool_use_ids.iter()
+        let synthetic_parts: Vec<serde_json::Value> = pending_tool_use_ids
+            .iter()
             .filter(|id| !existing_tool_result_ids.contains(*id)) // [FIX #632] Only inject if ID is truly missing
             .map(|id| {
                 let name = tool_id_to_name.get(id).cloned().unwrap_or(id.clone());
@@ -1379,7 +1472,8 @@ fn build_google_content(
                         "id": id
                     }
                 })
-            }).collect();
+            })
+            .collect();
 
         if !synthetic_parts.is_empty() {
             return Ok(json!({
@@ -1419,7 +1513,7 @@ fn build_google_content(
     }))
 }
 
-/// build Contents (Messages)
+/// 构建 Contents (Messages)
 fn build_google_contents(
     messages: &[Message],
     claude_req: &ClaudeRequest,
@@ -1437,7 +1531,7 @@ fn build_google_contents(
     // Track pending tool_use IDs for recovery
     let mut pending_tool_use_ids: Vec<String> = Vec::new();
 
-    // [NEW] used to identify andFilter Claude Code DuplicateechoedTaskinstruction
+    // [NEW] 用于识别并过滤 Claude Code 重复回显的任务指令
     let mut last_user_task_text_normalized: Option<String> = None;
     let mut previous_was_tool_result = false;
 
@@ -1514,7 +1608,8 @@ fn merge_adjacent_roles(mut contents: Vec<Value>) -> Vec<Value> {
 
         if current_role == next_role {
             // Merge parts
-            if let Some(current_parts) = current_msg.get_mut("parts").and_then(|p| p.as_array_mut()) {
+            if let Some(current_parts) = current_msg.get_mut("parts").and_then(|p| p.as_array_mut())
+            {
                 if let Some(next_parts) = msg.get("parts").and_then(|p| p.as_array()) {
                     current_parts.extend(next_parts.clone());
 
@@ -1533,7 +1628,7 @@ fn merge_adjacent_roles(mut contents: Vec<Value>) -> Vec<Value> {
     merged
 }
 
-/// build Tools
+/// 构建 Tools
 fn build_tools(tools: &Option<Vec<Tool>>, has_web_search: bool) -> Result<Option<Value>, String> {
     if let Some(tools_list) = tools {
         let mut function_declarations: Vec<Value> = Vec::new();
@@ -1555,7 +1650,10 @@ fn build_tools(tools: &Option<Vec<Tool>>, has_web_search: bool) -> Result<Option
 
             // 2. Detect by name
             if let Some(name) = &tool.name {
-                if name == "web_search" || name == "google_search" {
+                if name == "web_search"
+                    || name == "google_search"
+                    || name == "builtin_web_search"
+                {
                     has_google_search = true;
                     continue;
                 }
@@ -1577,14 +1675,17 @@ fn build_tools(tools: &Option<Vec<Tool>>, has_web_search: bool) -> Result<Option
 
         let mut tool_obj = serde_json::Map::new();
 
-        // [repair] solve "Multiple tools are supported only when they are all search tools" 400 Error
-        // principle：Gemini v1internal Interfacevery picky，generallyNot allowedin the sameToolmixed in definition Google Search 和 Function Declarations。
-        // for Claude CLI Waiting to be carried MCP Tool的Client，Mustpriority guarantee Function Declarations working normally。
+        // [修复] 解决 "Multiple tools are supported only when they are all search tools" 400 错误
+        // 原理：Gemini v1internal 接口非常挑剔，通常不允许在同一个工具定义中混用 Google Search 和 Function Declarations。
+        // 对于 Claude CLI 等携带 MCP 工具的客户端，必须优先保证 Function Declarations 正常工作。
         if !function_declarations.is_empty() {
-            // IfThere is localTool，then onlyUsinglocalTool，give up injected Google Search
-            tool_obj.insert("functionDeclarations".to_string(), json!(function_declarations));
+            // 如果有本地工具，则只使用本地工具，放弃注入的 Google Search
+            tool_obj.insert(
+                "functionDeclarations".to_string(),
+                json!(function_declarations),
+            );
 
-            // [IMPROVED] Recordjump over googleSearch Reason for injection
+            // [IMPROVED] 记录跳过 googleSearch 注入的原因
             if has_google_search {
                 tracing::info!(
                     "[Claude-Request] Skipping googleSearch injection due to {} existing function declarations. \
@@ -1593,7 +1694,7 @@ fn build_tools(tools: &Option<Vec<Tool>>, has_web_search: bool) -> Result<Option
                 );
             }
         } else if has_google_search {
-            // Only在NonelocalTool时，only allowed to inject Google Search
+            // 只有在没有本地工具时，才允许注入 Google Search
             tool_obj.insert("googleSearch".to_string(), json!({}));
         }
 
@@ -1605,99 +1706,211 @@ fn build_tools(tools: &Option<Vec<Tool>>, has_web_search: bool) -> Result<Option
     Ok(None)
 }
 
-/// build Generation Config
+/// 构建 Generation Config
 fn build_generation_config(
     claude_req: &ClaudeRequest,
-    has_web_search: bool,
-    is_thinking_enabled: bool
+    mapped_model: &str,
+    _has_web_search: bool,
+    is_thinking_enabled: bool,
 ) -> Value {
     let mut config = json!({});
 
-    // Thinking Config
-    if let Some(thinking) = &claude_req.thinking {
-        // [New Check] Must is_thinking_enabled 为TrueJust generated thinkingConfig
-        if thinking.type_ == "enabled" && is_thinking_enabled {
-            let mut thinking_config = json!({"includeThoughts": true});
+    // Thinking 配置
+    if is_thinking_enabled {
+        let mut thinking_config = json!({"includeThoughts": true});
+        let user_thinking_type = claude_req.thinking.as_ref().map(|t| t.type_.as_str());
+        let user_is_adaptive = user_thinking_type == Some("adaptive");
 
-            if let Some(budget_tokens) = thinking.budget_tokens {
-                let mut budget = budget_tokens;
-                // gemini-2.5-flash upper limit 24576
-                let is_flash_model =
-                    has_web_search || claude_req.model.contains("gemini-2.5-flash");
-                if is_flash_model {
-                    budget = budget.min(24576);
+        let budget_tokens = claude_req
+            .thinking
+            .as_ref()
+            .and_then(|t| t.budget_tokens)
+            .unwrap_or(16000);
+
+        let tb_config = crate::proxy::config::get_thinking_budget_config();
+        let budget = match tb_config.mode {
+            crate::proxy::config::ThinkingBudgetMode::Passthrough => budget_tokens,
+            crate::proxy::config::ThinkingBudgetMode::Custom => {
+                let mut custom_value = tb_config.custom_value;
+                // [FIX #1602] 针对 Gemini 系列模型，在自定义模式下也强制执行 24576 上限
+                let model_lower = mapped_model.to_lowercase();
+                let is_gemini_limited = (model_lower.contains("gemini") && !model_lower.contains("-image"))
+                    || model_lower.contains("flash")
+                    || model_lower.ends_with("-thinking");
+
+                if is_gemini_limited && custom_value > 24576 {
+                    tracing::warn!(
+                        "[Claude-Request] Custom mode: capping thinking_budget from {} to 24576 for Gemini model {}",
+                        custom_value, mapped_model
+                    );
+                    custom_value = 24576;
                 }
+                custom_value
+            }
+            crate::proxy::config::ThinkingBudgetMode::Auto => {
+                // [FIX #1592] Use mapped model for robust detection, same as OpenAI protocol
+                let model_lower = mapped_model.to_lowercase();
+                let is_gemini_limited = (model_lower.contains("gemini") && !model_lower.contains("-image"))
+                    || model_lower.contains("flash")
+                    || model_lower.ends_with("-thinking");
+                if is_gemini_limited && budget_tokens > 24576 {
+                    tracing::info!(
+                        "[Claude-Request] Auto mode: capping thinking_budget from {} to 24576 for Gemini model {}", 
+                        budget_tokens, mapped_model
+                    );
+                    24576
+                } else {
+                    budget_tokens
+                }
+            }
+            crate::proxy::config::ThinkingBudgetMode::Adaptive => budget_tokens, // Adaptive 模式透传原始预算（但不作为限制），用于后续逻辑判断
+        };
+
+        let global_mode_is_adaptive = matches!(tb_config.mode, crate::proxy::config::ThinkingBudgetMode::Adaptive);
+        // 只要用户指定 adaptive 或者全局配置为 adaptive，且是 Claude 模型，就启用自适应
+        let should_use_adaptive = (user_is_adaptive || global_mode_is_adaptive) && mapped_model.to_lowercase().contains("claude");
+
+        let effort = claude_req.output_config.as_ref().and_then(|c| c.effort.as_ref())
+            .or_else(|| claude_req.thinking.as_ref().and_then(|t| t.effort.as_ref()));
+
+        if should_use_adaptive {
+            // [FIX #1825] Claude 4.6+ adaptive 模式下映射为动态预算或分级思维
+            let lower_mapped = mapped_model.to_lowercase();
+            if lower_mapped.contains("gemini-3") {
+                // Gemini 3.x 支持分级指标格式，联动用户选择的强度
+                let mapped_level = match effort.map(|e| e.to_lowercase()).as_deref() {
+                    Some("low") => "low",
+                    Some("medium") => "medium",
+                    Some("high") | Some("max") => "high",
+                    _ => "high",
+                };
+                tracing::debug!("[Claude-Request] Mapping adaptive mode to thinkingLevel: {} for Gemini 3 model", mapped_level);
+                thinking_config["thinkingLevel"] = json!(mapped_level);
+            } else {
+                // [FIX #2007] Cherry Studio / Claude Protocol 400 Error Fix
+                // Gemini 1.5/2.0 models via Vertex AI often reject thinkingBudget: -1 (Adaptive) with 400 Invalid Argument
+                // especially when maxOutputTokens is high.
+                // We align with OpenAI mapper behavior: use 24576 as safe adaptive budget.
+                tracing::debug!("[Claude-Request] Mapping adaptive mode to safe budget (24576) for Gemini model");
+                thinking_config["thinkingBudget"] = json!(24576);
+            }
+            
+            // 针对自适应模式，如果没有显式设置，确保 maxOutputTokens 给足空间
+            // OpenAI mapper uses 57344 (24576 + 32768), we normally use 64k limit.
+            if config.get("maxOutputTokens").is_none() {
+                config["maxOutputTokens"] = json!(64000);
+            }
+        } else {
+            // [FIX #2007] Opus 4.6 Thinking Alignment (OpenAI Protocol Recipe)
+            // Explicitly set fixed budget for Opus 4.6 to match successful OpenAI pattern
+            if mapped_model.to_lowercase().contains("claude-opus-4-6-thinking") {
+                tracing::debug!("[Opus-Alignment] Enforcing fixed thinkingBudget 24576 for Opus 4.6");
+                thinking_config["thinkingBudget"] = json!(24576);
+            } else {
                 thinking_config["thinkingBudget"] = json!(budget);
             }
-
-            config["thinkingConfig"] = thinking_config;
         }
+        
+        config["thinkingConfig"] = thinking_config;
     }
 
-    // otherParameter
+    // 其他参数
     if let Some(temp) = claude_req.temperature {
         config["temperature"] = json!(temp);
     }
     if let Some(top_p) = claude_req.top_p {
         config["topP"] = json!(top_p);
+    } else {
+        config["topP"] = json!(1.0); // [CHANGED v4.1.24] Default topP=1.0 to match official client
     }
     if let Some(top_k) = claude_req.top_k {
         config["topK"] = json!(top_k);
+    } else {
+        config["topK"] = json!(40); // [ADDED v4.1.24] Default topK=40 to match official client
     }
 
-    // Effort level mapping (Claude API v2.0.67+)
-    // Maps Claude's output_config.effort to Gemini's effortLevel
-    if let Some(output_config) = &claude_req.output_config {
-        if let Some(effort) = &output_config.effort {
-            config["effortLevel"] = json!(match effort.to_lowercase().as_str() {
-                "high" => "HIGH",
-                "medium" => "MEDIUM",
-                "low" => "LOW",
-                _ => "HIGH" // Default to HIGH for unknown values
-            });
-            tracing::debug!(
-                "[Generation-Config] Effort level set: {} -> {}",
-                effort,
-                config["effortLevel"]
-            );
-        }
-    }
 
-    // web_search force candidateCount=1
+    // web_search 强制 candidateCount=1
     /*if has_web_search {
         config["candidateCount"] = json!(1);
     }*/
 
-    // max_tokens Mapping为 maxOutputTokens
-    // Respect client-provided max_tokens (aligns with OpenAI mapper behavior)
-    let mut final_max_tokens: i64 = claude_req.max_tokens.map(|t| t as i64).unwrap_or(16384);
+    // max_tokens 映射为 maxOutputTokens
+    // [FIX] 不再默认设置 81920，防止非思维模型 (如 claude-sonnet-4-6) 报 400 Invalid Argument
+    let mut final_max_tokens: Option<i64> = claude_req.max_tokens.map(|t| t as i64);
+
+    // [NEW] 确保 maxOutputTokens 大于 thinkingBudget (API 强约束)
+    // [NEW] 确保 maxOutputTokens 大于 thinkingBudget (API 强约束)
+    let model_lower = mapped_model.to_lowercase();
+    // 重新计算 should_use_adaptive (因为上面定义的作用域仅在其 if 块内有效，或者我们可以假设在这里也需要同样的逻辑)
+    // 但为了简洁和解耦，我们这里重新从 config 读取
+    let tb_config_chk = crate::proxy::config::get_thinking_budget_config();
+    let global_adaptive = matches!(tb_config_chk.mode, crate::proxy::config::ThinkingBudgetMode::Adaptive);
+    let req_adaptive = claude_req.thinking.as_ref().map(|t| t.type_ == "adaptive").unwrap_or(false);
     
-    // [NEW] make sure maxOutputTokens greater than thinkingBudget (API Strong constraints)
+    let is_adaptive_effective = (req_adaptive || global_adaptive) && model_lower.contains("claude");
+    // [FIX] Lower default overhead to keep total under 65536
+    let final_overhead = if is_adaptive_effective { 64000 } else { 32768 };
+
+    // [FIX #2007] Opus 4.6 Thinking Alignment
+    // OpenAI logs show maxOutputTokens = 57344 (24576 + 32768)
+    if model_lower.contains("claude-opus-4-6-thinking") && is_thinking_enabled {
+        final_max_tokens = Some(57344);
+        tracing::debug!("[Opus-Alignment] Enforcing maxOutputTokens 57344 for Opus 4.6");
+    }
+
     if let Some(thinking_config) = config.get("thinkingConfig") {
-        if let Some(budget) = thinking_config.get("thinkingBudget").and_then(|t| t.as_u64()) {
-            if final_max_tokens <= budget as i64 {
-                final_max_tokens = (budget + 8192) as i64;
+        if let Some(budget) = thinking_config
+            .get("thinkingBudget")
+            .and_then(|t| t.as_u64())
+        {
+            let current = final_max_tokens.unwrap_or(0);
+            if current <= budget as i64 {
+                // [FIX #1675] 针对图像模型使用更小的增量 (2048)
+                let overhead = if mapped_model.contains("-image") { 2048 } else { 8192 };
+                final_max_tokens = Some((budget + overhead) as i64);
                 tracing::info!(
                     "[Generation-Config] Bumping maxOutputTokens to {} due to thinking budget of {}", 
-                    final_max_tokens, budget
+                    final_max_tokens.unwrap(), budget
                 );
             }
+        } else if is_adaptive_effective {
+             // [FIX] Adaptive mode (no budget set in thinkingConfig), apply default maxOutputTokens
+             if final_max_tokens.is_none() {
+                  final_max_tokens = Some(final_overhead as i64);
+             }
+        }
+    } else {
+        // No thinkingConfig
+        if final_max_tokens.is_none() && is_adaptive_effective {
+            final_max_tokens = Some(final_overhead as i64);
         }
     }
-    
-    config["maxOutputTokens"] = json!(final_max_tokens);
 
-    // [Optimization] SetGlobalStopSequence,preventModelhallucinateConversationmark
-    // Notice: 不Packet含 "[DONE]" YesBecause:
-    //   1. "[DONE]" Yes SSE ProtocolstandardsEndmark,in code/Documentoften appear in
-    //   2. treat it as stopSequence will lead toModelOutputaccidentally truncated (as explained SSE Protocol时)
-    //   3. Gemini Stream的True正End由 finishReason Fieldcontrol,No dependencies required stopSequence
-    //   4. SSE level "data: [DONE]" Already in mod.rs alone inHandle
-    config["stopSequences"] = json!([
-        "<|user|>",
-        "<|end_of_turn|>",
-        "\n\nHuman:"
-    ]);
+
+    if let Some(val) = final_max_tokens {
+        // [FIX] Cap maxOutputTokens to 65536 to avoid INVALID_ARGUMENT (Cherry Studio sends 128000)
+        // Gemini models typically support max 8192 or 65536 output tokens. 128k is usually invalid.
+        let safe_limit = 65536;
+        if val > safe_limit {
+            tracing::warn!(
+                "[Generation-Config] Capping maxOutputTokens from {} to {} to prevent 400 Invalid Argument",
+                val, safe_limit
+            );
+            config["maxOutputTokens"] = json!(safe_limit);
+        } else {
+            config["maxOutputTokens"] = json!(val);
+        }
+    }
+
+    // [优化] 设置全局停止序列,防止模型幻觉出对话标记
+    // [FIX #2007] Opus 4.6 Thinking Alignment
+    // Successful OpenAI logs show NO stop sequences were sent for Opus 4.6 Thinking.
+    if !(model_lower.contains("claude-opus-4-6-thinking") && is_thinking_enabled) {
+        config["stopSequences"] = json!(["<|user|>", "<|end_of_turn|>", "\n\nHuman:"]);
+    } else {
+        tracing::debug!("[Opus-Alignment] Skipping stopSequences for Opus 4.6 to match OpenAI protocol");
+    }
 
     config
 }
@@ -1722,35 +1935,48 @@ pub fn clean_thinking_fields_recursive(val: &mut Value) {
     }
 }
 
-
 /// Check if two model strings are compatible (same family)
 fn is_model_compatible(cached: &str, target: &str) -> bool {
     // Simple heuristic: check if they share the same base prefix
     // e.g. "gemini-1.5-pro" vs "gemini-1.5-pro-002" -> Compatible
     // "gemini-1.5-pro" vs "gemini-2.0-flash" -> Incompatible
-    
+
     // Normalize
     let c = cached.to_lowercase();
     let t = target.to_lowercase();
-    
-    if c == t { return true; }
-    
+
+    if c == t {
+        return true;
+    }
+
     // Check specific families
     // Vertex AI signatures are very strict. 1.5-pro vs 1.5-flash are NOT cross-compatible.
     // 2.0-flash vs 2.0-pro are also NOT cross-compatible.
-    
+
     // Exact model string match (already handled by c == t)
-    
+
     // Grouped family match (Claude models are more permissive)
-    if c.contains("claude-3-5") && t.contains("claude-3-5") { return true; }
-    if c.contains("claude-3-7") && t.contains("claude-3-7") { return true; }
-    
+    if c.contains("claude-3-5") && t.contains("claude-3-5") {
+        return true;
+    }
+    if c.contains("claude-3-7") && t.contains("claude-3-7") {
+        return true;
+    }
+
     // Gemini models: strict family match required for signatures
-    if c.contains("gemini-1.5-pro") && t.contains("gemini-1.5-pro") { return true; }
-    if c.contains("gemini-1.5-flash") && t.contains("gemini-1.5-flash") { return true; }
-    if c.contains("gemini-2.0-flash") && t.contains("gemini-2.0-flash") { return true; }
-    if c.contains("gemini-2.0-pro") && t.contains("gemini-2.0-pro") { return true; }
-    
+    if c.contains("gemini-1.5-pro") && t.contains("gemini-1.5-pro") {
+        return true;
+    }
+    if c.contains("gemini-1.5-flash") && t.contains("gemini-1.5-flash") {
+        return true;
+    }
+    if c.contains("gemini-2.0-flash") && t.contains("gemini-2.0-flash") {
+        return true;
+    }
+    if c.contains("gemini-2.0-pro") && t.contains("gemini-2.0-pro") {
+        return true;
+    }
+
     // Fallback: strict match required
     false
 }
@@ -1759,7 +1985,7 @@ fn is_model_compatible(cached: &str, target: &str) -> bool {
 mod tests {
     use super::*;
     use crate::proxy::common::json_schema::clean_json_schema;
-
+    use crate::proxy::config::{ThinkingBudgetConfig, update_thinking_budget_config};
 
     #[test]
     fn test_ephemeral_injection_debug() {
@@ -1784,20 +2010,25 @@ mod tests {
         let req: ClaudeRequest = serde_json::from_value(json_with_null).unwrap();
         if let MessageContent::Array(blocks) = &req.messages[0].content {
             if let ContentBlock::Thinking { cache_control, .. } = &blocks[0] {
-                assert!(cache_control.is_none(), "Deserialization should result in None for null cache_control");
+                assert!(
+                    cache_control.is_none(),
+                    "Deserialization should result in None for null cache_control"
+                );
             }
         }
-        
+
         // Now test serialization
         let serialized = serde_json::to_value(&req).unwrap();
         println!("Serialized: {}", serialized);
-        assert!(serialized["messages"][0]["content"][0].get("cache_control").is_none());
+        assert!(serialized["messages"][0]["content"][0]
+            .get("cache_control")
+            .is_none());
     }
 
     #[test]
     fn test_simple_request() {
         let req = ClaudeRequest {
-            model: "claude-sonnet-4-5".to_string(),
+            model: "claude-sonnet-4-6".to_string(),
             messages: vec![Message {
                 role: "user".to_string(),
                 content: MessageContent::String("Hello".to_string()),
@@ -1816,7 +2047,7 @@ mod tests {
             quality: None,
         };
 
-        let result = transform_claude_request_in(&req, "test-project", false);
+        let result = transform_claude_request_in(&req, "test-project", false, None, "test_session");
         assert!(result.is_ok());
 
         let body = result.unwrap();
@@ -1879,15 +2110,13 @@ mod tests {
                 },
                 Message {
                     role: "assistant".to_string(),
-                    content: MessageContent::Array(vec![
-                        ContentBlock::ToolUse {
-                            id: "call_1".to_string(),
-                            name: "run_command".to_string(),
-                            input: json!({"command": "ls"}),
-                            signature: None,
-                            cache_control: None,
-                        }
-                    ]),
+                    content: MessageContent::Array(vec![ContentBlock::ToolUse {
+                        id: "call_1".to_string(),
+                        name: "run_command".to_string(),
+                        input: json!({"command": "ls"}),
+                        signature: None,
+                        cache_control: None,
+                    }]),
                 },
                 Message {
                     role: "user".to_string(),
@@ -1915,7 +2144,7 @@ mod tests {
             quality: None,
         };
 
-        let result = transform_claude_request_in(&req, "test-project", false);
+        let result = transform_claude_request_in(&req, "test-project", false, None, "test_session");
         assert!(result.is_ok());
 
         let body = result.unwrap();
@@ -1938,9 +2167,9 @@ mod tests {
 
     #[test]
     fn test_cache_control_cleanup() {
-        // simulation VS Code PluginSend的Packet含 cache_control historyMessage
+        // 模拟 VS Code 插件发送的包含 cache_control 的历史消息
         let req = ClaudeRequest {
-            model: "claude-sonnet-4-5".to_string(),
+            model: "claude-sonnet-4-6".to_string(),
             messages: vec![
                 Message {
                     role: "user".to_string(),
@@ -1952,7 +2181,7 @@ mod tests {
                         ContentBlock::Thinking {
                             thinking: "Let me think...".to_string(),
                             signature: Some("sig123".to_string()),
-                            cache_control: Some(json!({"type": "ephemeral"})), // thisShouldbe cleared
+                            cache_control: Some(json!({"type": "ephemeral"})), // 这个应该被清理
                         },
                         ContentBlock::Text {
                             text: "Here is my response".to_string(),
@@ -1961,16 +2190,14 @@ mod tests {
                 },
                 Message {
                     role: "user".to_string(),
-                    content: MessageContent::Array(vec![
-                        ContentBlock::Image {
-                            source: ImageSource {
-                                source_type: "base64".to_string(),
-                                media_type: "image/png".to_string(),
-                                data: "iVBORw0KGgo=".to_string(),
-                            },
-                            cache_control: Some(json!({"type": "ephemeral"})), // This tooShouldbe cleared
+                    content: MessageContent::Array(vec![ContentBlock::Image {
+                        source: ImageSource {
+                            source_type: "base64".to_string(),
+                            media_type: "image/png".to_string(),
+                            data: "iVBORw0KGgo=".to_string(),
                         },
-                    ]),
+                        cache_control: Some(json!({"type": "ephemeral"})), // 这个也应该被清理
+                    }]),
                 },
             ],
             system: None,
@@ -1987,30 +2214,30 @@ mod tests {
             quality: None,
         };
 
-        let result = transform_claude_request_in(&req, "test-project", false);
+        let result = transform_claude_request_in(&req, "test-project", false, None, "test_session");
         assert!(result.is_ok());
 
-        // ValidateRequestSuccessConvert
+        // 验证请求成功转换
         let body = result.unwrap();
         assert_eq!(body["project"], "test-project");
-        
-        // Notice: cache_control The cleanup occurs inInside,We cannot directly JSON OutputValidate
-        // 但IfNoneclean up,Follow-upSend到 Anthropic API An error will be reported when
-        // thisTestMainMake sure the cleanup logic doesn't result inConvertFailed
+
+        // 注意: cache_control 的清理发生在内部,我们无法直接从 JSON 输出验证
+        // 但如果没有清理,后续发送到 Anthropic API 时会报错
+        // 这个测试主要确保清理逻辑不会导致转换失败
     }
 
     #[test]
     fn test_thinking_mode_auto_disable_on_tool_use_history() {
-        // [scene] historyMessageone of themToolcall chain，且 Assistant MessageNone Thinking Block
-        // expect: SystemautomaticFallback，Disable Thinking Mode，to avoid 400 Error
+        // [场景] 历史消息中有一个工具调用链，且 Assistant 消息没有 Thinking 块
+        // 期望: 系统自动降级，禁用 Thinking 模式，以避免 400 错误
         let req = ClaudeRequest {
-            model: "claude-sonnet-4-5".to_string(),
+            model: "claude-sonnet-4-6".to_string(),
             messages: vec![
                 Message {
                     role: "user".to_string(),
                     content: MessageContent::String("Check files".to_string()),
                 },
-                // Assistant UsingTool，But in Africa Thinking Mode下
+                // Assistant 使用工具，但在非 Thinking 模式下
                 Message {
                     role: "assistant".to_string(),
                     content: MessageContent::Array(vec![
@@ -2021,34 +2248,30 @@ mod tests {
                             id: "tool_1".to_string(),
                             name: "list_files".to_string(),
                             input: json!({}),
-                            cache_control: None, 
-                            signature: None 
+                            cache_control: None,
+                            signature: None,
                         },
                     ]),
                 },
-                // UserReturnToolResult
+                // 用户返回工具结果
                 Message {
                     role: "user".to_string(),
-                    content: MessageContent::Array(vec![
-                        ContentBlock::ToolResult {
-                            tool_use_id: "tool_1".to_string(),
-                            content: serde_json::Value::String("file1.txt\nfile2.txt".to_string()),
-                            is_error: Some(false),
-                            // cache_control: None, // removed
-                        },
-                    ]),
+                    content: MessageContent::Array(vec![ContentBlock::ToolResult {
+                        tool_use_id: "tool_1".to_string(),
+                        content: serde_json::Value::String("file1.txt\nfile2.txt".to_string()),
+                        is_error: Some(false),
+                        // cache_control: None, // removed
+                    }]),
                 },
             ],
             system: None,
-            tools: Some(vec![
-                Tool {
-                    name: Some("list_files".to_string()),
-                    description: Some("List files".to_string()),
-                    input_schema: Some(json!({"type": "object"})),
-                    type_: None,
-                    // cache_control: None, // removed
-                }
-            ]),
+            tools: Some(vec![Tool {
+                name: Some("list_files".to_string()),
+                description: Some("List files".to_string()),
+                input_schema: Some(json!({"type": "object"})),
+                type_: None,
+                // cache_control: None, // removed
+            }]),
             stream: false,
             max_tokens: None,
             temperature: None,
@@ -2057,6 +2280,7 @@ mod tests {
             thinking: Some(ThinkingConfig {
                 type_: "enabled".to_string(),
                 budget_tokens: Some(1024),
+                effort: None,
             }),
             metadata: None,
             output_config: None,
@@ -2064,29 +2288,30 @@ mod tests {
             quality: None,
         };
 
-        let result = transform_claude_request_in(&req, "test-project", false);
+        let result = transform_claude_request_in(&req, "test-project", false, None, "test_session");
         assert!(result.is_ok());
 
         let body = result.unwrap();
         let request = &body["request"];
 
-        // Validate: generationConfig should not bePacket含 thinkingConfig (Because被Fallback了)
-        // even thoughRequestclear inEnable了 thinking
+        // 验证: generationConfig 中不应包含 thinkingConfig (因为被降级了)
+        // 即使请求中明确启用了 thinking
         if let Some(gen_config) = request.get("generationConfig") {
-             assert!(gen_config.get("thinkingConfig").is_none(), "thinkingConfig should be removed due to downgrade");
+            assert!(
+                gen_config.get("thinkingConfig").is_none(),
+                "thinkingConfig should be removed due to downgrade"
+            );
         }
-        
-        // Validate: can still be generatedValid的Request体
+
+        // 验证: 依然能生成有效的请求体
         assert!(request.get("contents").is_some());
     }
 
-
-
     #[test]
     fn test_thinking_block_not_prepend_when_disabled() {
-        // ValidateWhen thinking 未Enable时,Will not complete thinking Block
+        // 验证当 thinking 未启用时,不会补全 thinking 块
         let req = ClaudeRequest {
-            model: "claude-sonnet-4-5".to_string(),
+            model: "claude-sonnet-4-6".to_string(),
             messages: vec![
                 Message {
                     role: "user".to_string(),
@@ -2094,11 +2319,9 @@ mod tests {
                 },
                 Message {
                     role: "assistant".to_string(),
-                    content: MessageContent::Array(vec![
-                        ContentBlock::Text {
-                            text: "Response".to_string(),
-                        },
-                    ]),
+                    content: MessageContent::Array(vec![ContentBlock::Text {
+                        text: "Response".to_string(),
+                    }]),
                 },
             ],
             system: None,
@@ -2108,14 +2331,14 @@ mod tests {
             temperature: None,
             top_p: None,
             top_k: None,
-            thinking: None, // 未Enable thinking
+            thinking: None, // 未启用 thinking
             metadata: None,
             output_config: None,
             size: None,
             quality: None,
         };
 
-        let result = transform_claude_request_in(&req, "test-project", false);
+        let result = transform_claude_request_in(&req, "test-project", false, None, "test_session");
         assert!(result.is_ok());
 
         let body = result.unwrap();
@@ -2128,31 +2351,31 @@ mod tests {
             .unwrap();
 
         let parts = last_model_msg["parts"].as_array().unwrap();
-        
-        // ValidateNoneComplete thinking Block
+
+        // 验证没有补全 thinking 块
         assert_eq!(parts.len(), 1, "Should only have the original text block");
         assert_eq!(parts[0]["text"], "Response");
     }
 
     #[test]
     fn test_thinking_block_empty_content_fix() {
-        // [scene] ClientSendgot oneContent为Empty的 thinking Block
-        // expect: autofill "..."
+        // [场景] 客户端发送了一个内容为空的 thinking 块
+        // 期望: 自动填充 "..."
         let req = ClaudeRequest {
-            model: "claude-sonnet-4-5".to_string(),
-            messages: vec![
-                Message {
-                    role: "assistant".to_string(),
-                    content: MessageContent::Array(vec![
-                        ContentBlock::Thinking {
-                            thinking: "".to_string(), // EmptyContent
-                            signature: Some("sig".to_string()),
-                            cache_control: None,
-                        },
-                        ContentBlock::Text { text: "Hi".to_string() }
-                    ]),
-                },
-            ],
+            model: "claude-sonnet-4-6".to_string(),
+            messages: vec![Message {
+                role: "assistant".to_string(),
+                content: MessageContent::Array(vec![
+                    ContentBlock::Thinking {
+                        thinking: "".to_string(), // 空内容
+                        signature: Some("sig".to_string()),
+                        cache_control: None,
+                    },
+                    ContentBlock::Text {
+                        text: "Hi".to_string(),
+                    },
+                ]),
+            }],
             system: None,
             tools: None,
             stream: false,
@@ -2163,6 +2386,7 @@ mod tests {
             thinking: Some(ThinkingConfig {
                 type_: "enabled".to_string(),
                 budget_tokens: Some(1024),
+                effort: None,
             }),
             metadata: None,
             output_config: None,
@@ -2170,34 +2394,40 @@ mod tests {
             quality: None,
         };
 
-        let result = transform_claude_request_in(&req, "test-project", false);
+        let result = transform_claude_request_in(&req, "test-project", false, None, "test_session");
         assert!(result.is_ok(), "Transformation failed");
         let body = result.unwrap();
         let contents = body["request"]["contents"].as_array().unwrap();
         let parts = contents[0]["parts"].as_array().unwrap();
-        
-        // Validate thinking Block
-        assert_eq!(parts[0]["text"], "...", "Empty thinking should be filled with ...");
-        assert!(parts[0].get("thought").is_none(), "Empty thinking should be downgraded to text");
+
+        // 验证 thinking 块
+        assert_eq!(
+            parts[0]["text"], "...",
+            "Empty thinking should be filled with ..."
+        );
+        assert!(
+            parts[0].get("thought").is_none(),
+            "Empty thinking should be downgraded to text"
+        );
     }
 
     #[test]
     fn test_redacted_thinking_degradation() {
-        // [scene] ClientPacket含 RedactedThinking
-        // expect: Fallback为Normaltext，Without thought: true
+        // [场景] 客户端包含 RedactedThinking
+        // 期望: 降级为普通文本，不带 thought: true
         let req = ClaudeRequest {
-            model: "claude-sonnet-4-5".to_string(),
-            messages: vec![
-                Message {
-                    role: "assistant".to_string(),
-                    content: MessageContent::Array(vec![
-                        ContentBlock::RedactedThinking {
-                            data: "some data".to_string(),
-                        },
-                         ContentBlock::Text { text: "Hi".to_string() }
-                    ]),
-                },
-            ],
+            model: "claude-sonnet-4-6".to_string(),
+            messages: vec![Message {
+                role: "assistant".to_string(),
+                content: MessageContent::Array(vec![
+                    ContentBlock::RedactedThinking {
+                        data: "some data".to_string(),
+                    },
+                    ContentBlock::Text {
+                        text: "Hi".to_string(),
+                    },
+                ]),
+            }],
             system: None,
             tools: None,
             stream: false,
@@ -2212,15 +2442,18 @@ mod tests {
             quality: None,
         };
 
-        let result = transform_claude_request_in(&req, "test-project", false);
+        let result = transform_claude_request_in(&req, "test-project", false, None, "test_session");
         assert!(result.is_ok());
         let body = result.unwrap();
         let parts = body["request"]["contents"][0]["parts"].as_array().unwrap();
 
-        // Validate RedactedThinking -> Text
+        // 验证 RedactedThinking -> Text
         let text = parts[0]["text"].as_str().unwrap();
         assert!(text.contains("[Redacted Thinking: some data]"));
-        assert!(parts[0].get("thought").is_none(), "Redacted thinking should NOT have thought: true");
+        assert!(
+            parts[0].get("thought").is_none(),
+            "Redacted thinking should NOT have thought: true"
+        );
     }
 
     // ==================================================================================
@@ -2229,32 +2462,45 @@ mod tests {
     #[test]
     fn test_thinking_blocks_sorted_first_after_compression() {
         // Simulate kilo context compression reordering: text BEFORE thinking
-        let mut messages = vec![
-            Message {
-                role: "assistant".to_string(),
-                content: MessageContent::Array(vec![
-                    // Wrong order: Text before Thinking (simulates kilo compression)
-                    ContentBlock::Text { text: "Some regular text".to_string() },
-                    ContentBlock::Thinking { 
-                        thinking: "My thinking process".to_string(),
-                        signature: Some("valid_signature_1234567890_abcdefghij_klmnopqrstuvwxyz_test".to_string()),
-                        cache_control: None,
-                    },
-                    ContentBlock::Text { text: "More text".to_string() },
-                ]),
-            }
-        ];
-        
+        let mut messages = vec![Message {
+            role: "assistant".to_string(),
+            content: MessageContent::Array(vec![
+                // Wrong order: Text before Thinking (simulates kilo compression)
+                ContentBlock::Text {
+                    text: "Some regular text".to_string(),
+                },
+                ContentBlock::Thinking {
+                    thinking: "My thinking process".to_string(),
+                    signature: Some(
+                        "valid_signature_1234567890_abcdefghij_klmnopqrstuvwxyz_test".to_string(),
+                    ),
+                    cache_control: None,
+                },
+                ContentBlock::Text {
+                    text: "More text".to_string(),
+                },
+            ]),
+        }];
+
         // Apply the fix
         sort_thinking_blocks_first(&mut messages);
-        
+
         // Verify thinking is now first
         if let MessageContent::Array(blocks) = &messages[0].content {
             assert_eq!(blocks.len(), 3, "Should still have 3 blocks");
-            assert!(matches!(blocks[0], ContentBlock::Thinking { .. }), "Thinking should be first");
-            assert!(matches!(blocks[1], ContentBlock::Text { .. }), "Text should be second");
-            assert!(matches!(blocks[2], ContentBlock::Text { .. }), "Text should be third");
-            
+            assert!(
+                matches!(blocks[0], ContentBlock::Thinking { .. }),
+                "Thinking should be first"
+            );
+            assert!(
+                matches!(blocks[1], ContentBlock::Text { .. }),
+                "Text should be second"
+            );
+            assert!(
+                matches!(blocks[2], ContentBlock::Text { .. }),
+                "Text should be third"
+            );
+
             // Verify content preserved
             if let ContentBlock::Thinking { thinking, .. } = &blocks[0] {
                 assert_eq!(thinking, "My thinking process");
@@ -2267,27 +2513,33 @@ mod tests {
     #[test]
     fn test_thinking_blocks_no_reorder_when_already_first() {
         // Correct order: Thinking already first - should not trigger reorder
-        let mut messages = vec![
-            Message {
-                role: "assistant".to_string(),
-                content: MessageContent::Array(vec![
-                    ContentBlock::Thinking { 
-                        thinking: "My thinking".to_string(),
-                        signature: Some("sig123".to_string()),
-                        cache_control: None,
-                    },
-                    ContentBlock::Text { text: "Some text".to_string() },
-                ]),
-            }
-        ];
-        
+        let mut messages = vec![Message {
+            role: "assistant".to_string(),
+            content: MessageContent::Array(vec![
+                ContentBlock::Thinking {
+                    thinking: "My thinking".to_string(),
+                    signature: Some("sig123".to_string()),
+                    cache_control: None,
+                },
+                ContentBlock::Text {
+                    text: "Some text".to_string(),
+                },
+            ]),
+        }];
+
         // Apply the fix (should be no-op)
         sort_thinking_blocks_first(&mut messages);
-        
+
         // Verify order unchanged
         if let MessageContent::Array(blocks) = &messages[0].content {
-            assert!(matches!(blocks[0], ContentBlock::Thinking { .. }), "Thinking should still be first");
-            assert!(matches!(blocks[1], ContentBlock::Text { .. }), "Text should still be second");
+            assert!(
+                matches!(blocks[0], ContentBlock::Thinking { .. }),
+                "Thinking should still be first"
+            );
+            assert!(
+                matches!(blocks[1], ContentBlock::Text { .. }),
+                "Text should still be second"
+            );
         }
     }
 
@@ -2300,9 +2552,9 @@ mod tests {
             },
             Message {
                 role: "user".to_string(),
-                content: MessageContent::Array(vec![
-                    ContentBlock::Text { text: "World".to_string() }
-                ]),
+                content: MessageContent::Array(vec![ContentBlock::Text {
+                    text: "World".to_string(),
+                }]),
             },
             Message {
                 role: "assistant".to_string(),
@@ -2310,19 +2562,17 @@ mod tests {
             },
             Message {
                 role: "user".to_string(),
-                content: MessageContent::Array(vec![
-                    ContentBlock::ToolResult {
-                        tool_use_id: "test_id".to_string(),
-                        content: serde_json::json!("result"),
-                        is_error: None,
-                    }
-                ]),
+                content: MessageContent::Array(vec![ContentBlock::ToolResult {
+                    tool_use_id: "test_id".to_string(),
+                    content: serde_json::json!("result"),
+                    is_error: None,
+                }]),
             },
             Message {
                 role: "user".to_string(),
-                content: MessageContent::Array(vec![
-                    ContentBlock::Text { text: "System Reminder".to_string() }
-                ]),
+                content: MessageContent::Array(vec![ContentBlock::Text {
+                    text: "System Reminder".to_string(),
+                }]),
             },
         ];
 
@@ -2361,5 +2611,271 @@ mod tests {
             panic!("Expected array content at index 2");
         }
     }
-}
+    #[test]
+    fn test_default_max_tokens() {
+        let req = ClaudeRequest {
+            model: "claude-3-opus".to_string(),
+            messages: vec![Message {
+                role: "user".to_string(),
+                content: MessageContent::String("Hello".to_string()),
+            }],
+            system: None,
+            tools: None,
+            stream: false,
+            max_tokens: None,
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            thinking: None,
+            metadata: None,
+            output_config: None,
+            size: None,
+            quality: None,
+        };
 
+        let result = transform_claude_request_in(&req, "test-v", false, None, "test_session").unwrap();
+        // [FIX] Since we removed the default 81920, maxOutputTokens should NOT be present
+        // when max_tokens is None and thinking is disabled
+        let gen_config = &result["request"]["generationConfig"];
+        assert!(
+            gen_config.get("maxOutputTokens").is_none(),
+            "maxOutputTokens should not be set when max_tokens is None"
+        );
+    }
+    #[test]
+    fn test_claude_flash_thinking_budget_capping() {
+        // Use full path or ensure import of ThinkingConfig
+        // transform_claude_request and models are needed.
+        // Assuming models are available via super imports, but let's be explicit if needed.
+
+        // Setup request with high budget
+        let req = ClaudeRequest {
+            model: "gemini-2.0-flash-thinking-exp".to_string(), // Contains "flash"
+            messages: vec![],
+            thinking: Some(ThinkingConfig {
+                type_: "enabled".to_string(),
+                budget_tokens: Some(32000),
+                effort: None,
+            }),
+            max_tokens: None,
+            temperature: None,
+            top_p: None,
+            top_k: None, // Added missing field
+            stream: false,
+            system: None,
+            tools: None,
+            metadata: None,
+            output_config: None,
+            size: None,
+            quality: None,
+        };
+
+        // Should cap at 24576
+        let result = transform_claude_request_in(&req, "proj", false, None, "test_session").unwrap();
+
+        let gen_config = &result["request"]["generationConfig"]; // Corrected path
+        let budget = gen_config["thinkingConfig"]["thinkingBudget"]
+            .as_u64()
+            .unwrap();
+        assert_eq!(budget, 24576);
+
+        // Setup request for Pro thinking model (mock name for testing)
+        let req_pro = ClaudeRequest {
+            model: "gemini-2.0-pro-thinking-exp".to_string(), // Contains "thinking" but not "flash"
+            messages: vec![],
+            thinking: Some(ThinkingConfig {
+                type_: "enabled".to_string(),
+                budget_tokens: Some(32000),
+                effort: None,
+            }),
+            max_tokens: None,
+            temperature: None,
+            top_p: None,
+            top_k: None, // Added missing field
+            stream: false,
+            system: None,
+            tools: None,
+            metadata: None,
+            output_config: None,
+            size: None,
+            quality: None,
+        };
+
+        // Should cap
+        let result_pro = transform_claude_request_in(&req_pro, "proj", false, None, "test_session").unwrap();
+        let budget_pro = result_pro["request"]["generationConfig"]["thinkingConfig"]
+            ["thinkingBudget"]
+            .as_u64()
+            .unwrap();
+        // [FIX #1592] Gemini Pro models are now also capped to 24576
+        assert_eq!(budget_pro, 24576);
+    }
+
+    #[test]
+    fn test_gemini_pro_thinking_support() {
+        // Setup request for Gemini Pro (no -thinking suffix)
+        let req = ClaudeRequest {
+            model: "gemini-3-pro-preview".to_string(),
+            messages: vec![Message {
+                role: "user".to_string(),
+                content: MessageContent::String("Hello".to_string()),
+            }],
+            thinking: Some(ThinkingConfig {
+                type_: "enabled".to_string(),
+                budget_tokens: Some(16000),
+                effort: None,
+            }),
+            max_tokens: None,
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            stream: false,
+            system: None,
+            tools: None,
+            metadata: None,
+            output_config: None,
+            size: None,
+            quality: None,
+        };
+
+        // Transform
+        let result = transform_claude_request_in(&req, "proj", false, None, "test_session").unwrap();
+        let gen_config = &result["request"]["generationConfig"];
+
+        // thinkingConfig should be present (not forced disabled)
+        assert!(
+            gen_config.get("thinkingConfig").is_some(),
+            "thinkingConfig should be preserved for gemini-3-pro"
+        );
+
+        let budget = gen_config["thinkingConfig"]["thinkingBudget"]
+            .as_u64()
+            .unwrap();
+        // [FIX #1592] Since it's < 24576, it should be kept as 16000
+        assert_eq!(budget, 16000);
+    }
+
+    #[test]
+    fn test_gemini_pro_default_thinking() {
+        // Setup request for Gemini Pro WITHOUT thinking config
+        let req = ClaudeRequest {
+            model: "gemini-3-pro-preview".to_string(),
+            messages: vec![Message {
+                role: "user".to_string(),
+                content: MessageContent::String("Hello".to_string()),
+            }],
+            thinking: None, // No thinking config provided by client
+            max_tokens: None,
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            stream: false,
+            system: None,
+            tools: None,
+            metadata: None,
+            output_config: None,
+            size: None,
+            quality: None,
+        };
+
+        // Transform
+        let result = transform_claude_request_in(&req, "proj", false, None, "test_session").unwrap();
+        let gen_config = &result["request"]["generationConfig"];
+
+        // thinkingConfig SHOULD be injected because of default-on logic
+        assert!(
+            gen_config.get("thinkingConfig").is_some(),
+            "thinkingConfig should be auto-enabled for gemini-3-pro"
+        );
+    }
+
+    #[test]
+    fn test_claude_image_thinking_mode_disabled() {
+        // 1. Force image thinking mode to "disabled"
+        crate::proxy::config::update_image_thinking_mode(Some("disabled".to_string()));
+
+        // 2. Setup Claude request for an image model (mapped to gemini-3-pro-image)
+        let req = ClaudeRequest {
+            model: "gemini-3-pro-image".to_string(), // Explicitly use recognized image model
+            messages: vec![Message {
+                role: "user".to_string(),
+                content: MessageContent::String("Draw a cat".to_string()),
+            }],
+            thinking: None,
+            max_tokens: None,
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            stream: false,
+            system: None,
+            tools: None,
+            metadata: None,
+            output_config: None,
+            size: Some("1024x1024".to_string()),
+            quality: Some("hd".to_string()),
+        };
+
+        // 3. Transform request
+        let result = transform_claude_request_in(&req, "test-proj", false, None, "test_session").unwrap();
+
+        // 4. Verify thinkingConfig has includeThoughts: false
+        let gen_config = result["request"]["generationConfig"].as_object().expect("Should have generationConfig");
+        let thinking_config = gen_config.get("thinkingConfig").and_then(|t| t.as_object()).expect("Should have thinkingConfig (explicitly disabled)");
+        
+        assert_eq!(thinking_config["includeThoughts"], false);
+        
+        // 5. Reset global mode
+        crate::proxy::config::update_image_thinking_mode(Some("enabled".to_string()));
+    }
+
+    #[test]
+    fn test_claude_adaptive_global_config() {
+        // Set global config to Adaptive + High effort
+        let config = ThinkingBudgetConfig {
+            mode: crate::proxy::config::ThinkingBudgetMode::Adaptive,
+            custom_value: 0,
+            effort: Some("high".to_string()),
+        };
+        crate::proxy::config::update_thinking_budget_config(config);
+
+        let req = ClaudeRequest {
+            model: "claude-3-7-sonnet-thinking".to_string(), // thinking capable
+            messages: vec![Message {
+                role: "user".to_string(),
+                content: MessageContent::String("test".to_string()),
+            }],
+            thinking: None, // No client thinking config
+            stream: false,
+            // ... minimal fields
+            max_tokens: None,
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            system: None,
+            tools: None,
+            metadata: None,
+            output_config: None,
+            size: None,
+            quality: None,
+        };
+
+        // Transform
+        let result = transform_claude_request_in(&req, "test-proj", false, None, "test_session").unwrap();
+        
+        let gen_config = result["request"]["generationConfig"].as_object().unwrap();
+        let thinking_config = gen_config["thinkingConfig"].as_object().unwrap();
+
+        // Check injection
+        assert_eq!(thinking_config["includeThoughts"], true);
+        assert_eq!(thinking_config["thinkingBudget"], -1);
+        assert!(thinking_config.get("thinkingType").is_none());
+        assert!(thinking_config.get("effort").is_none());
+
+        // Check maxOutputTokens default for adaptive
+        let max_output_tokens = gen_config["maxOutputTokens"].as_i64().unwrap();
+        assert_eq!(max_output_tokens, 131072);
+
+        // Reset global config
+        crate::proxy::config::update_thinking_budget_config(ThinkingBudgetConfig::default());
+    }
+}

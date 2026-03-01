@@ -23,7 +23,9 @@
         "warning": "Cảnh báo",
         "info": "Thông tin",
         "details": "Chi tiết",
+        "example": "Example",
         "clear": "Xóa",
+        "clearing": "Đang xóa...",
         "prev_page": "Trang trước",
         "next_page": "Trang sau",
         "pagination_info": "Hiển thị {{start}} đến {{end}} trong tổng số {{total}} mục",
@@ -33,7 +35,14 @@
         "enabled": "Đã bật",
         "disabled": "Đã tắt",
         "tauri_api_not_loaded": "Tauri API chưa được tải, vui lòng khởi động lại ứng dụng",
-        "environment_error": "Lỗi môi trường: {{error}}"
+        "environment_error": "Lỗi môi trường: {{error}}",
+        "submit": "Gửi",
+        "update": "Cập nhật",
+        "load_failed": "Tải thất bại",
+        "create_success": "Tạo thành công",
+        "update_success": "Cập nhật thành công",
+        "delete_success": "Xóa thành công",
+        "copied": "Đã sao chép vào bộ nhớ tạm"
     },
     "nav": {
         "dashboard": "Tổng quan",
@@ -41,6 +50,7 @@
         "proxy": "API Proxy",
         "token_stats": "Thống kê",
         "call_records": "Nhật ký lưu lượng",
+        "security": "Quản lý IP",
         "settings": "Cài đặt",
         "theme_to_dark": "Chuyển sang Chế độ Tối",
         "theme_to_light": "Chuyển sang Chế độ Sáng",
@@ -57,7 +67,16 @@
         "switch_to_russian": "Chuyển sang tiếng Nga",
         "switch_to_russian_short": "RU",
         "switch_to_portuguese": "Chuyển sang tiếng Bồ Đào Nha",
-        "switch_to_portuguese_short": "PT"
+        "switch_to_portuguese_short": "PT",
+        "switch_to_traditional_chinese": "Chuyển sang Tiếng Trung Phồn thể",
+        "switch_to_traditional_chinese_short": "TW",
+        "switch_to_korean": "Chuyển sang Tiếng Hàn",
+        "switch_to_korean_short": "KO",
+        "switch_to_spanish": "Chuyển sang Tiếng Tây Ban Nha",
+        "switch_to_spanish_short": "ES",
+        "switch_to_malay": "Chuyển sang Tiếng Mã Lai",
+        "switch_to_malay_short": "MY",
+        "user_token": "Token người dùng"
     },
     "dashboard": {
         "hello": "Xin chào, Bạn 👋",
@@ -93,6 +112,7 @@
         }
     },
     "accounts": {
+        "account": "Tài khoản",
         "search_placeholder": "Tìm kiếm email...",
         "all": "Tất cả",
         "available": "Khả dụng",
@@ -100,6 +120,9 @@
         "ultra": "ULTRA",
         "pro": "PRO",
         "free": "MIỄN PHÍ",
+        "edit_label": "Chỉnh sửa nhãn",
+        "custom_label_placeholder": "Nhập nhãn tùy chỉnh",
+        "label_updated": "Đã cập nhật nhãn",
         "add_account": "Thêm Tài khoản",
         "refresh_all": "Làm mới Tất cả",
         "refresh_selected": "Làm mới ({{count}})",
@@ -120,13 +143,24 @@
         "forbidden": "403",
         "forbidden_badge": "403",
         "forbidden_tooltip": "API trả về 403 Forbidden, tài khoản không có quyền truy cập Gemini Code Assist",
-        "forbidden_msg": "Bị chặn, bỏ qua tự động làm mới",
+        "forbidden_msg": "Bị cấm, bỏ qua tự động làm mới",
+        "status": {
+            "forbidden": "403 Bị cấm",
+            "disabled": "Tài khoản bị vô hiệu hóa",
+            "proxy_disabled": "Proxy bị vô hiệu hóa"
+        },
+        "error_details": "Chi tiết lỗi",
+        "error_status": "Trạng thái lỗi",
+        "error_time": "Thời gian phát hiện",
+        "view_error": "Xem lý do",
+        "click_to_verify": "Nhấp để xác minh",
         "no_data": "Không có dữ liệu",
         "last_used": "Dùng lần cuối",
         "reset_time": "Thời gian reset",
         "switch_to": "Chuyển sang tài khoản này",
         "actions": "Thao tác",
         "device_fingerprint": "Vân Tay Thiết Bị",
+        "show_all_quotas": "Hiển thị tất cả hạn ngạch",
         "device_fingerprint_dialog": {
             "title": "Vân Tay Thiết Bị",
             "operations": "Các Thao Tác Vân Tay Thiết Bị",
@@ -172,7 +206,9 @@
         "warmup_batch_triggered": "Đã kích hoạt làm nóng cho {{count}} tài khoản",
         "quota_protected": "Được bảo vệ",
         "details": {
-            "title": "Chi tiết Hạn mức"
+            "title": "Chi tiết Hạn mức",
+            "model_quota": "Hạn mức Mô hình",
+            "protected_models": "Mô hình Được Bảo vệ"
         },
         "toast": {
             "proxy_enabled": "Đã bật proxy cho {{count}} tài khoản",
@@ -194,7 +230,15 @@
                 "copy_link": "Sao chép Link xác thực",
                 "copied": "Đã sao chép",
                 "link_label": "URL Xác thực",
-                "link_click_to_copy": "Nhấn để sao chép"
+                "link_click_to_copy": "Nhấn để sao chép",
+                "manual_hint": "Trình duyệt không tự động chuyển hướng? Vui lòng dán liên kết phản hồi hoặc Mã xác thực tại đây:",
+                "manual_placeholder": "Dán liên kết hoặc mã tại đây...",
+                "error_no_flow": "Không tìm thấy luồng xác thực hoạt động. Vui lòng bắt đầu lại OAuth.",
+                "web_hint": "Trang đăng nhập Google sẽ mở trong cửa sổ mới",
+                "error_no_url": "Không thể lấy URL OAuth",
+                "popup_blocked": "Cửa sổ bật lên bị chặn",
+                "manual_submitting": "Đang gửi mã xác thực...",
+                "manual_submitted": "Mã xác thực đã gửi, đang xử lý ngầm..."
             },
             "token": {
                 "label": "Refresh Token",
@@ -265,7 +309,8 @@
             "account": "Tài khoản",
             "proxy": "Cài đặt Proxy",
             "advanced": "Nâng cao",
-            "about": "Giới thiệu"
+            "about": "Giới thiệu",
+            "debug": "Gỡ lỗi"
         },
         "general": {
             "title": "Cài đặt Chung",
@@ -318,6 +363,59 @@
         "proxy": {
             "title": "Cài đặt Proxy"
         },
+        "proxy_pool": {
+            "title": "Proxy Pool",
+            "strategy_priority": "Priority",
+            "strategy_round_robin": "Round Robin",
+            "strategy_random": "Random",
+            "strategy_least_connections": "Least Connections",
+            "test_all": "Test All",
+            "batch_import": "Import",
+            "binding_manager": "Bindings",
+            "add_proxy": "Add Proxy",
+            "edit_proxy": "Edit Proxy",
+            "name": "Name",
+            "url": "Proxy URL",
+            "username": "Username",
+            "password": "Password",
+            "max_accounts": "Max Accounts",
+            "max_accounts_hint": "0 = Unlimited",
+            "priority": "Priority",
+            "priority_hint": "Lower is better",
+            "health_check_url": "Health Check URL",
+            "tags": "Tags",
+            "add_tag_placeholder": "Add tag...",
+            "seconds": "Sec",
+            "test_completed": "Health check completed",
+            "test_failed": "Health check failed",
+            "confirm_delete": "Are you sure you want to delete this proxy?",
+            "empty": "No proxies available",
+            "column_priority": "Priority",
+            "column_status": "Status",
+            "column_details": "Proxy Details",
+            "column_bindings": "Bindings",
+            "import_title": "Batch Import Proxies",
+            "import_label": "Paste Proxy List (One per line)",
+            "import_hint": "Supported formats: protocol://user:pass@host:port, host:port:user:pass",
+            "import_preview": "Preview",
+            "import_confirm": "Import {{count}} Proxies",
+            "no_valid_proxies": "No valid proxies found",
+            "binding": {
+                "title": "Account Proxy Bindings",
+                "load_failed": "Failed to load bindings",
+                "unbind_success": "Unbound successfully",
+                "bind_success": "Bound successfully",
+                "update_failed": "Failed to update binding",
+                "assigned_proxy": "Assigned Proxy",
+                "default_strategy": "Default (Follow Strategy)"
+            },
+            "status": {
+                "inactive": "Inactive",
+                "checking": "Checking",
+                "healthy": "Healthy",
+                "timeout": "Timeout"
+            }
+        },
         "advanced": {
             "title": "Cài đặt Nâng cao",
             "export_path": "Đường dẫn Xuất mặc định",
@@ -348,6 +446,20 @@
             "clear_logs_title": "Xác nhận Dọn dẹp Logs",
             "clear_logs_msg": "Bạn có chắc muốn xóa tất cả file cache logs?",
             "logs_cleared": "Đã dọn dẹp cache logs",
+            "antigravity_cache_title": "Dọn dẹp Cache Antigravity",
+            "antigravity_cache_desc": "Dọn dẹp cache Antigravity có thể khắc phục lỗi đăng nhập, lỗi xác minh phiên bản và lỗi ủy quyền OAuth.",
+            "antigravity_cache_warning": "Vui lòng đảm bảo Antigravity đã đóng hoàn toàn trước khi dọn dẹp cache.",
+            "clear_antigravity_cache": "Dọn dẹp Cache Antigravity",
+            "clear_cache_confirm_title": "Xác nhận Dọn dẹp Cache Antigravity",
+            "clear_cache_confirm_msg": "Các thư mục cache sau sẽ được dọn dẹp:",
+            "cache_cleared_success": "Đã dọn dẹp cache, giải phóng {{size}} MB",
+            "cache_not_found": "Không tìm thấy thư mục cache Antigravity",
+            "debug_logs_title": "Nhật ký gỡ lỗi",
+            "debug_logs_enable_desc": "Khi bật, sẽ ghi lại toàn bộ chuỗi yêu cầu và phản hồi. Khuyến nghị chỉ bật khi khắc phục sự cố.",
+            "debug_logs_desc": "Ghi lại toàn bộ chuỗi: đầu vào gốc, yêu cầu v1internal đã chuyển đổi và phản hồi upstream. Chỉ dùng để khắc phục sự cố, có thể chứa dữ liệu nhạy cảm.",
+            "debug_log_dir": "Thư mục xuất nhật ký gỡ lỗi",
+            "debug_log_dir_hint": "Để trống sẽ sử dụng thư mục mặc định: {{path}}/debug_logs",
+            "debug_log_dir_select": "Chọn thư mục xuất nhật ký gỡ lỗi",
             "http_api_title": "Dịch vụ HTTP API",
             "http_api_desc": "Cung cấp giao diện HTTP cục bộ cho các chương trình bên ngoài (ví dụ: tiện ích mở rộng VS Code).",
             "http_api_enabled": "Bật HTTP API",
@@ -358,6 +470,12 @@
             "http_api_port_invalid": "Số cổng không hợp lệ (phạm vi: 1024-65535)",
             "http_api_settings_saved": "Đã lưu cài đặt HTTP API, cần khởi động lại để áp dụng",
             "http_api_restart_required": "⚠️ Cần khởi động lại ứng dụng để áp dụng"
+        },
+        "menu": {
+            "title": "Cài đặt hiển thị menu",
+            "desc": "Chọn các mục chức năng hiển thị trên thanh menu. Ẩn các menu ít dùng có thể tiết kiệm không gian.",
+            "selected_items_note": "Các mục được chọn sẽ hiển thị trên thanh menu phía trên.",
+            "required": "Bắt buộc"
         },
         "about": {
             "title": "Giới thiệu",
@@ -380,6 +498,41 @@
             "support_alipay": "Alipay",
             "support_wechat": "WeChat Pay",
             "support_buymeacoffee": "Buy Me a Coffee"
+        },
+        "advanced_thinking": {
+            "title": "Tư duy Nâng cao & Cấu hình Toàn cầu",
+            "description": "Quản lý tập trung các khả năng tư duy, chế độ hình ảnh và hướng dẫn toàn cầu."
+        },
+        "thinking_budget": {
+            "title": "Ngân sách Suy nghĩ (Thinking Budget)",
+            "description": "Kiểm soát ngân sách token cho suy nghĩ sâu của AI. Một số mô hình (ví dụ: Flash, mô hình có hậu tố -thinking) bị giới hạn ở mức 24576 bởi API upstream.",
+            "mode_label": "Chế độ Xử lý",
+            "mode": {
+                "auto": "Giới hạn Tự động",
+                "passthrough": "Chuyển tiếp",
+                "custom": "Tùy chỉnh"
+            },
+            "auto_hint": "Chế độ Tự động: Tự động giới hạn ngân sách ở mức 24576 cho các mô hình Flash, mô hình có hậu tố -thinking và yêu cầu tìm kiếm web để tránh lỗi API.",
+            "passthrough_warning": "Chế độ Chuyển tiếp: Sử dụng trực tiếp giá trị gốc của người gọi. Việc thiếu hỗ trợ cho các giá trị cao có thể gây ra lỗi.",
+            "custom_value_hint": "Khuyến nghị: 24576 (Flash) hoặc 51200 (Mở rộng)",
+            "tokens": "tokens"
+        },
+        "image_thinking_mode": {
+            "title": "Chế độ Tư duy Hình ảnh (Image Thinking Mode)",
+            "hint": "Ảnh hưởng đến chất lượng hình ảnh và quy trình tạo",
+            "options": {
+                "enabled": "Đã bật",
+                "disabled": "Đã tắt",
+                "enabled_desc": "Bật: Giữ lại chuỗi tư duy và trả về hai hình ảnh (bản phác thảo + bản cuối).",
+                "disabled_desc": "Tắt: Vô hiệu hóa chuỗi tư duy và tạo một hình ảnh chất lượng cao duy nhất (ưu tiên chất lượng)."
+            }
+        },
+        "global_system_prompt": {
+            "title": "Hướng dẫn Hệ thống Toàn cầu (Global System Prompt)",
+            "hint": "Tự động được chèn vào systemInstruction cho tất cả các yêu cầu",
+            "placeholder": "Nhập hướng dẫn hệ thống toàn cầu...\nVí dụ: Bạn là một nhà phát triển full-stack kỳ cựu chuyên về React và Rust. Trả lời bằng tiếng Việt.",
+            "char_count": "{{count}} ký tự",
+            "long_prompt_warning": "Hướng dẫn quá dài (hơn 2000 ký tự) và có thể tiêu tốn nhiều không gian ngữ cảnh."
         }
     },
     "tray": {
@@ -407,6 +560,12 @@
         },
         "config": {
             "title": "Cấu hình Dịch vụ",
+            "request": {
+                "user_agent": "User-Agent Override",
+                "user_agent_tooltip": "Override the User-Agent header sent to upstream APIs. Leave empty to use default.",
+                "user_agent_hint": "Current Default: antigravity/<version> <os>/<arch>",
+                "user_agent_placeholder": "Enter custom User-Agent string..."
+            },
             "port": "Cổng lắng nghe (Port)",
             "port_tooltip": "Cổng TCP mà API Proxy cục bộ sẽ lắng nghe. Dừng dịch vụ để thay đổi, sau đó khởi động lại để áp dụng.",
             "port_hint": "Mặc định 8045, cần khởi động lại để áp dụng",
@@ -428,6 +587,13 @@
             "warning_key": "Lưu ý: Giữ API key của bạn an toàn. Đừng chia sẻ nó.",
             "api_key_invalid": "Định dạng khóa API không hợp lệ, phải bắt đầu bằng sk- và có ít nhất 10 ký tự",
             "api_key_updated": "Đã cập nhật khóa API",
+            "admin_password": "Mật khẩu quản trị Web UI",
+            "admin_password_tooltip": "Mật khẩu dùng để đăng nhập vào bảng điều khiển quản lý Web. Nếu để trống, API Key sẽ được sử dụng theo mặc định.",
+            "admin_password_default": "(Giống với API Key)",
+            "admin_password_placeholder": "Nhập mật khẩu mới, để trống để dùng API Key",
+            "admin_password_hint": "Mẹo: Trong các kịch bản triển khai Docker/Web, bạn có thể thiết lập mật khẩu đăng nhập riêng để tăng cường tính bảo mật cho API Key.",
+            "admin_password_short": "Mật khẩu quá ngắn (tối thiểu 4 ký tự)",
+            "admin_password_updated": "Mật khẩu đăng nhập Web UI đã được cập nhật",
             "auth": {
                 "title": "Xác thực (Authorization)",
                 "title_tooltip": "Kiểm soát xem request đến có cần xác thực hay không, và route nào được bảo vệ.",
@@ -509,10 +675,12 @@
             "upstream_proxy": {
                 "title": "Proxy Upstream Toàn cầu",
                 "desc": "Khi bật, tất cả request ra ngoài (API Proxy, Refresh Token, Check Hạn mức, Check Update) sẽ đi qua proxy này.",
+                "desc_short": "Proxy toàn cầu được sử dụng như một giải pháp dự phòng khi không tìm thấy tài khoản phù hợp trong nhóm proxy.",
                 "enable": "Bật Upstream Proxy",
                 "url": "URL Proxy",
                 "url_placeholder": "ví dụ: http://127.0.0.1:7890 hoặc socks5://127.0.0.1:7890",
                 "tip": "Hỗ trợ HTTP, HTTPS và SOCKS5.",
+                "socks5h_hint": "Để tránh bị chặn và duy trì việc phân giải DNS từ xa (Remote DNS), hãy thay đổi giao thức thành socks5h:// một cách thủ công.",
                 "validation_error": "URL proxy là bắt buộc khi bật upstream proxy",
                 "restart_hint": "Cài đặt proxy đã lưu. Khởi động lại ứng dụng để áp dụng thay đổi."
             },
@@ -539,7 +707,16 @@
                 "round_robin_set": "Chế độ luân phiên đã bật",
                 "fixed_account_set": "Chế độ tài khoản cố định đã bật",
                 "account_changed": "Tài khoản đã thay đổi thành: {{email}}",
-                "clear_bindings_tooltip": "Ngắt ngay lập tức tất cả các mối quan hệ liên kết giữa phiên và tài khoản, buộc lần yêu cầu tiếp theo phải phân bổ lại tài khoản."
+                "clear_bindings_tooltip": "Ngắt ngay lập tức tất cả các mối quan hệ liên kết giữa phiên và tài khoản, buộc lần yêu cầu tiếp theo phải phân bổ lại tài khoản.",
+                "circuit_breaker": {
+                    "title": "Bộ ngắt mạch thích ứng",
+                    "tooltip": "Tự động tăng thời gian khóa cho các tài khoản liên tục thất bại do cạn kiệt hạn ngạch. Điều này ngăn chặn việc lãng phí các cuộc gọi API trên các tài khoản đã chết trong khi cho phép các lỗi tạm thời phục hồi nhanh chóng.",
+                    "backoff_levels": "Cấp độ lùi (Giây)",
+                    "level": "Cấp {{level}}",
+                    "input_placeholder": "60, 300, 1800, 7200",
+                    "invalid_format": "Định dạng không hợp lệ. Sử dụng các số cách nhau bởi dấu phẩy (ví dụ: 60, 300)",
+                    "clear_records": "Xóa tất cả hồ sơ giới hạn tốc độ"
+                }
             },
             "experimental": {
                 "title": "Cài đặt thử nghiệm",
@@ -651,35 +828,22 @@
             "restore_defaults": "Khôi phục Mặc định",
             "reset_all": "Đặt lại Tất cả"
         },
-        "models": {
-            "flash": "Siêu nhanh",
-            "flash_thinking": "Khả năng Tư duy",
-            "pro_high": "Tư duy Tốt nhất",
-            "pro_low": "Hạn mức Thấp",
-            "sonnet": "Tư duy Code",
-            "sonnet_thinking": "Chuỗi Tư duy",
-            "opus_thinking": "Tư duy Mạnh nhất"
-        },
         "router": {
             "title": "Bộ Định tuyến Model (Router)",
-            "subtitle": "Định tuyến model theo nhóm (Series) hoặc thêm ánh xạ chính xác.\nLưu ý: Các native model Claude (ví dụ: claude-opus-4-5-thinking) mặc định sẽ bỏ qua nhóm series và đi thẳng. Dùng \"Định tuyến Tùy chỉnh Cao cấp\" để ghi đè.",
+            "subtitle": "Định tuyến model theo nhóm (Series) hoặc thêm ánh xạ chính xác.\nLưu ý: Các native model Claude (ví dụ: claude-opus-4-6-thinking) mặc định sẽ bỏ qua nhóm series và đi thẳng. Dùng \"Định tuyến Tùy chỉnh Cao cấp\" để ghi đè.",
             "subtitle_simple": "Tùy chỉnh định tuyến model với ký tự đại diện hoặc ánh xạ chính xác",
-            "background_task_title": "Background Task Model",
-            "background_task_desc": "Model used for Claude CLI background tasks like title generation, summary, etc. (Default: gemini-2.5-flash)",
-            "use_default": "Use System Default",
-            "current_model": "Current Model",
+            "background_task_title": "Mô hình tác vụ nền",
+            "background_task_desc": "Mô hình được sử dụng cho các tác vụ nền của Claude CLI như tạo tiêu đề, tóm tắt, v.v. (Mặc định: gemini-2.5-flash)",
+            "use_default": "Sử dụng mặc định hệ thống",
+            "current_model": "Mô hình hiện tại",
             "apply_presets": "Áp dụng Cài sẵn",
             "presets_applied": "Đã áp dụng cài đặt sẵn thành công",
             "custom_mappings": "Ánh xạ Tùy chỉnh",
             "group_title": "Nhóm Series (Đích đến)",
-            "gemini3_group_label": "Gemini 3 (Khuyên dùng)",
-            "gemini3_option_high": "gemini-3-pro-high (Chất lượng Cao)",
-            "gemini3_option_low": "gemini-3-pro-low (Cân bằng)",
-            "gemini3_option_flash": "gemini-3-flash (Nhanh)",
             "groups": {
                 "claude_45": {
-                    "name": "Dòng Claude 4.5",
-                    "desc": "Opus 4.5, Sonnet 4.5"
+                    "name": "Dòng Claude 4.6 TK",
+                    "desc": "Opus 4.5 TK"
                 },
                 "claude_35": {
                     "name": "Dòng Claude 3.5",
@@ -698,8 +862,10 @@
                     "desc": "GPT-5.1, GPT-5.2 xhigh"
                 }
             },
-            "expert_title": "Định tuyến Tùy chỉnh Cao cấp (Expert)",
+            "expert_title": "Định tuyến Tùy chỉnh Cao cấp",
             "expert_subtitle": "Khớp chính xác bất kỳ Model ID gốc nào.",
+            "custom_mapping_tip": "💡 Hỗ trợ nhập thủ công bất kỳ ID model nào để trải nghiệm các model chưa phát hành (vd: claude-opus-4-6).",
+            "custom_mapping_warning": "Lưu ý: Không phải tất cả tài khoản đều hỗ trợ các model chưa phát hành.",
             "money_saving_tip": "💰 Mẹo tiết kiệm:",
             "haiku_optimization_tip": "Claude CLI dùng {{model}} cho các tác vụ nền. Ánh xạ nó sang Flash model rẻ hơn có thể tiết kiệm ~95% chi phí.",
             "haiku_optimization_btn": "Tối ưu Nhanh",
@@ -850,8 +1016,24 @@
     },
     "update_notification": {
         "title": "Có phiên bản mới",
-        "message": "Có phiên bản mới với nhiều tối ưu và cải tiến. Hiện tại: v{{current}}",
-        "action": "Cập nhật ngay"
+        "message": "Một phiên bản mới đã sẵn sàng với các tối ưu hóa và cải tiến. Hiện tại: v{{current}}",
+        "ready": "Cập nhật đã sẵn sàng",
+        "downloading": "Đang tải bản cập nhật...",
+        "restarting": "Đang khởi động lại ứng dụng...",
+        "auto_update": "Cập nhật tự động",
+        "toast": {
+            "not_ready": "Gói cập nhật tự động chưa sẵn sàng, đang chuyển hướng bạn đến trang tải xuống...",
+            "failed": "Cập nhật tự động thất bại, đang chuyển hướng bạn đến trang tải xuống..."
+        }
+    },
+    "login": {
+        "title": "Kiểm soát truy cập an toàn",
+        "desc": "Hiện đang chạy ở chế độ Web. Vui lòng nhập mật khẩu quản trị hoặc API Key để truy cập.",
+        "placeholder": "Nhập mật khẩu quản trị hoặc API Key",
+        "btn_login": "Xác minh và Vào",
+        "note": "Lưu ý: Nếu đã thiết lập mật khẩu quản trị riêng, vui lòng nhập mật khẩu đó; nếu không, hãy nhập API_KEY.",
+        "lookup_hint": "Nếu quên, hãy chạy lệnh docker logs antigravity-manager để tìm API Key hiện tại hoặc Mật khẩu Web UI.",
+        "config_hint": "Hoặc chạy lệnh grep -E '\"api_key\"|\"admin_password\"' ~/.antigravity_tools/gui_config.json để xem."
     },
     "token_stats": {
         "title": "Thống kê Token",
@@ -879,5 +1061,133 @@
         "total": "Tổng",
         "percentage": "Tỷ lệ",
         "no_data": "Không có dữ liệu"
+    },
+    "security": {
+        "title": "Giám sát An ninh",
+        "refresh_data": "Làm mới Dữ liệu",
+        "refresh": "Làm mới",
+        "tab_logs": "Nhật ký Truy cập",
+        "tab_stats": "Phân tích Thống kê",
+        "tab_blacklist": "Danh sách Đen",
+        "tab_whitelist": "Danh sách Trắng",
+        "tab_config": "Cấu hình Bảo mật",
+        "stats": {
+            "total_requests": "Tổng Yêu cầu",
+            "total_requests_desc": "Tất cả các yêu cầu đã ghi nhận",
+            "unique_ips": "IP Duy nhất",
+            "unique_ips_desc": "Các địa chỉ IP máy khách khác nhau",
+            "blocked_requests": "Yêu cầu bị Chặn",
+            "blocked_requests_desc": "Các yêu cầu bị từ chối bởi quy tắc",
+            "ip_activity_token_usage": "Hoạt động IP & Tiêu thụ Token",
+            "hour": "Giờ",
+            "day": "Ngày",
+            "week": "Tuần",
+            "month": "Tháng",
+            "rank": "Hạng",
+            "ip_address": "Địa chỉ IP",
+            "activity_reqs": "Hoạt động (Yêu cầu)",
+            "total_token": "Tổng Token",
+            "prompt": "Lời nhắc",
+            "completion": "Hoàn thành",
+            "no_data": "Không có dữ liệu"
+        },
+        "logs": {
+            "search_placeholder": "Tìm kiếm IP, Đường dẫn, User Agent...",
+            "show_blocked_only": "Chỉ hiện bị chặn",
+            "status": "Trạng thái",
+            "ip_address": "Địa chỉ IP",
+            "method": "Phương thức",
+            "path": "Đường dẫn",
+            "duration": "Thời gian",
+            "time": "Thời điểm",
+            "reason": "Lý do",
+            "blocked": "Đã chặn",
+            "no_logs": "Không có nhật ký",
+            "total_records": "Tổng {{total}} bản ghi",
+            "prev_page": "Trước",
+            "next_page": "Sau",
+            "page_num": "Trang {{page}}",
+            "per_page_suffix": "/trang"
+        },
+        "blacklist": {
+            "add_ip": "Thêm IP",
+            "search_placeholder": "Tìm kiếm...",
+            "added_at": "Thêm lúc",
+            "expires_at": "Hết hạn lúc",
+            "no_data": "Không có dữ liệu danh sách đen",
+            "add_title": "Thêm vào Danh sách Đen",
+            "ip_cidr_label": "Địa chỉ IP hoặc CIDR",
+            "ip_cidr_placeholder": "ví dụ 192.168.1.1 hoặc 10.0.0.0/24",
+            "reason_label": "Lý do (Tùy chọn)",
+            "reason_placeholder": "ví dụ: Quét độc hại",
+            "expires_label": "Hết hạn trong (Giờ, Tùy chọn)",
+            "expires_placeholder": "Để trống nếu vĩnh viễn",
+            "cancel": "Hủy",
+            "confirm": "Thêm",
+            "add_btn": "Thêm"
+        },
+        "whitelist": {
+            "add_ip": "Thêm IP Tin cậy",
+            "no_data": "Không có dữ liệu danh sách trắng",
+            "add_title": "Thêm vào Danh sách Trắng",
+            "description_label": "Mô tả (Tùy chọn)",
+            "description_placeholder": "ví dụ: Máy chủ Nội bộ",
+            "cancel": "Hủy",
+            "confirm": "Thêm",
+            "add_btn": "Thêm"
+        },
+        "config": {
+            "title": "Cài đặt An ninh",
+            "save": "Lưu Thay đổi",
+            "saving": "Đang lưu...",
+            "blacklist_title": "Danh sách Đen IP",
+            "blacklist_desc": "Quản lý các địa chỉ IP bị chặn và quy tắc.",
+            "enable_blacklist": "Bật Bảo vệ Danh sách Đen",
+            "block_msg_label": "Thông báo Chặn Tùy chỉnh",
+            "block_msg_desc": "Nội dung phản hồi trả về cho máy khách bị chặn.",
+            "whitelist_title": "Danh sách Trắng IP",
+            "whitelist_desc": "Quản lý các địa chỉ IP tin cậy.",
+            "enable_whitelist": "Bật Chế độ Danh sách Trắng",
+            "whitelist_warning": "Cảnh báo: Bật chế độ danh sách trắng sẽ chặn TẤT CẢ các yêu cầu từ các IP không nằm trong danh sách trắng. Nếu bạn đang truy cập qua proxy, hãy cẩn thận để không tự chặn mình.",
+            "whitelist_priority": "Ưu tiên Danh sách Trắng (Ghi đè Danh sách Đen)",
+            "whitelist_priority_desc": "Nếu bật, các IP trong danh sách trắng sẽ được phép ngay cả khi chúng khớp với quy tắc danh sách đen.",
+            "load_error": "Không thể tải cấu hình",
+            "save_success": "Đã lưu cấu hình",
+            "save_error": "Không thể lưu cấu hình"
+        }
+    },
+    "user_token": {
+        "title": "Quản lý Token Người dùng",
+        "total_users": "Tổng số Người dùng",
+        "active_tokens": "Token Đang hoạt động",
+        "total_created": "Tổng số đã tạo",
+        "create": "Tạo Token",
+        "username": "Tên người dùng",
+        "token": "Token",
+        "expires": "Hết hạn",
+        "usage": "Sử dụng",
+        "ip_limit": "Giới hạn IP",
+        "created": "Đã tạo lúc",
+        "today_requests": "Yêu cầu Hôm nay",
+        "never": "Không bao giờ",
+        "renew": "Gia hạn",
+        "renew_button": "Gia hạn",
+        "unlimited": "Không giới hạn",
+        "create_title": "Tạo Token Mới",
+        "description": "Mô tả",
+        "curfew": "Giờ giới nghiêm (Thời gian không khả dụng)",
+        "edit_title": "Chỉnh sửa Token",
+        "username_required": "Yêu cầu tên người dùng",
+        "renew_success": "Gia hạn thành công",
+        "expires_day": "1 Ngày",
+        "expires_week": "1 Tuần",
+        "expires_month": "1 Tháng",
+        "expires_never": "Không bao giờ",
+        "no_data": "Không tìm thấy token",
+        "placeholder_username": "vd: user1",
+        "placeholder_desc": "Ghi chú tùy chọn",
+        "placeholder_max_ips": "0 = Không giới hạn",
+        "hint_max_ips": "0 nghĩa là không giới hạn",
+        "hint_curfew": "Để trống để tắt. Dựa trên giờ máy chủ."
     }
 }

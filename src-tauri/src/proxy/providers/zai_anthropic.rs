@@ -55,7 +55,8 @@ fn build_client(
 
     if let Some(config) = upstream_proxy {
         if config.enabled && !config.url.is_empty() {
-            let proxy = reqwest::Proxy::all(&config.url)
+            let url = crate::proxy::config::normalize_proxy_url(&config.url);
+            let proxy = reqwest::Proxy::all(&url)
                 .map_err(|e| format!("Invalid upstream proxy url: {}", e))?;
             builder = builder.proxy(proxy);
         }
@@ -136,6 +137,7 @@ pub async fn forward_anthropic_json(
     path: &str,
     incoming_headers: &HeaderMap,
     mut body: Value,
+    message_count: usize, // [NEW v4.0.0] Pass message count for rewind detection
 ) -> Response {
     let zai = state.zai.read().await.clone();
     if !zai.enabled || zai.dispatch_mode == crate::proxy::ZaiDispatchMode::Off {
@@ -148,7 +150,17 @@ pub async fn forward_anthropic_json(
 
     if let Some(model) = body.get("model").and_then(|v| v.as_str()) {
         let mapped = map_model_for_zai(model, &zai);
-        body["model"] = Value::String(mapped);
+        body["model"] = Value::String(mapped.clone());
+
+        // [FIX] Caching for z.ai (to support thinking-filter)
+        if let Some(sig) = body.get("thinking").and_then(|t| t.get("signature")).and_then(|s| s.as_str()) {
+            crate::proxy::SignatureCache::global().cache_session_signature(
+                "zai-session", 
+                sig.to_string(), 
+                message_count
+            );
+            crate::proxy::SignatureCache::global().cache_thinking_family(sig.to_string(), mapped);
+        }
     }
 
     let url = match join_base_url(&zai.base_url, path) {

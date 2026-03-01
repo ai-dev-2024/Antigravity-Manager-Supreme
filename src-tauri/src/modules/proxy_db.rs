@@ -49,6 +49,8 @@ pub fn init_db() -> Result<(), String> {
     let _ = conn.execute("ALTER TABLE request_logs ADD COLUMN account_email TEXT", []);
     let _ = conn.execute("ALTER TABLE request_logs ADD COLUMN mapped_model TEXT", []);
     let _ = conn.execute("ALTER TABLE request_logs ADD COLUMN protocol TEXT", []);
+    let _ = conn.execute("ALTER TABLE request_logs ADD COLUMN client_ip TEXT", []);
+    let _ = conn.execute("ALTER TABLE request_logs ADD COLUMN username TEXT", []);
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_timestamp ON request_logs (timestamp DESC)",
@@ -68,8 +70,8 @@ pub fn save_log(log: &ProxyRequestLog) -> Result<(), String> {
     let conn = connect_db()?;
 
     conn.execute(
-        "INSERT INTO request_logs (id, timestamp, method, url, status, duration, model, error, request_body, response_body, input_tokens, output_tokens, account_email, mapped_model, protocol)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+        "INSERT INTO request_logs (id, timestamp, method, url, status, duration, model, error, request_body, response_body, input_tokens, output_tokens, account_email, mapped_model, protocol, client_ip, username)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
         params![
             log.id,
             log.timestamp,
@@ -86,6 +88,8 @@ pub fn save_log(log: &ProxyRequestLog) -> Result<(), String> {
             log.account_email,
             log.mapped_model,
             log.protocol,
+            log.client_ip,
+            log.username,
         ],
     ).map_err(|e| e.to_string())?;
 
@@ -99,7 +103,7 @@ pub fn get_logs_summary(limit: usize, offset: usize) -> Result<Vec<ProxyRequestL
     let mut stmt = conn.prepare(
         "SELECT id, timestamp, method, url, status, duration, model, error, 
                 NULL as request_body, NULL as response_body,
-                input_tokens, output_tokens, account_email, mapped_model, protocol
+                input_tokens, output_tokens, account_email, mapped_model, protocol, client_ip
          FROM request_logs 
          ORDER BY timestamp DESC 
          LIMIT ?1 OFFSET ?2"
@@ -122,7 +126,10 @@ pub fn get_logs_summary(limit: usize, offset: usize) -> Result<Vec<ProxyRequestL
             input_tokens: row.get(10).unwrap_or(None),
             output_tokens: row.get(11).unwrap_or(None),
             protocol: row.get(14).unwrap_or(None),
+            client_ip: row.get(15).unwrap_or(None),
+            username: row.get(16).unwrap_or(None),
         })
+
     }).map_err(|e| e.to_string())?;
 
     let mut logs = Vec::new();
@@ -141,11 +148,12 @@ pub fn get_stats() -> Result<crate::proxy::monitor::ProxyStats, String> {
     let conn = connect_db()?;
 
     // Optimized: Use single query instead of three separate queries
+    // Use COALESCE to handle NULL values when table is empty (SUM returns NULL for empty set)
     let (total_requests, success_count, error_count): (u64, u64, u64) = conn.query_row(
         "SELECT 
             COUNT(*) as total,
-            SUM(CASE WHEN status >= 200 AND status < 400 THEN 1 ELSE 0 END) as success,
-            SUM(CASE WHEN status < 200 OR status >= 400 THEN 1 ELSE 0 END) as error
+            COALESCE(SUM(CASE WHEN status >= 200 AND status < 400 THEN 1 ELSE 0 END), 0) as success,
+            COALESCE(SUM(CASE WHEN status < 200 OR status >= 400 THEN 1 ELSE 0 END), 0) as error
          FROM request_logs",
         [],
         |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
@@ -163,10 +171,10 @@ pub fn get_log_detail(log_id: &str) -> Result<ProxyRequestLog, String> {
     let conn = connect_db()?;
 
     let mut stmt = conn.prepare(
-        "SELECT id, timestamp, method, url, status, duration, model, error, 
-                request_body, response_body, input_tokens, output_tokens, 
-                account_email, mapped_model, protocol
-         FROM request_logs 
+        "SELECT id, timestamp, method, url, status, duration, model, error,
+                request_body, response_body, input_tokens, output_tokens,
+                account_email, mapped_model, protocol, client_ip, username
+         FROM request_logs
          WHERE id = ?1"
     ).map_err(|e| e.to_string())?;
 
@@ -187,6 +195,8 @@ pub fn get_log_detail(log_id: &str) -> Result<ProxyRequestLog, String> {
             input_tokens: row.get(10).unwrap_or(None),
             output_tokens: row.get(11).unwrap_or(None),
             protocol: row.get(14).unwrap_or(None),
+            client_ip: row.get(15).unwrap_or(None),
+            username: row.get(16).unwrap_or(None),
         })
     }).map_err(|e| e.to_string())
 }
@@ -281,27 +291,27 @@ pub fn get_logs_filtered(filter: &str, errors_only: bool, limit: usize, offset: 
     let filter_pattern = format!("%{}%", filter);
     
     let sql = if errors_only {
-        "SELECT id, timestamp, method, url, status, duration, model, error, 
+        "SELECT id, timestamp, method, url, status, duration, model, error,
                 NULL as request_body, NULL as response_body,
-                input_tokens, output_tokens, account_email, mapped_model, protocol
-         FROM request_logs 
+                input_tokens, output_tokens, account_email, mapped_model, protocol, client_ip, username
+         FROM request_logs
          WHERE (status < 200 OR status >= 400)
-         ORDER BY timestamp DESC 
+         ORDER BY timestamp DESC
          LIMIT ?1 OFFSET ?2"
     } else if filter.is_empty() {
-        "SELECT id, timestamp, method, url, status, duration, model, error, 
+        "SELECT id, timestamp, method, url, status, duration, model, error,
                 NULL as request_body, NULL as response_body,
-                input_tokens, output_tokens, account_email, mapped_model, protocol
-         FROM request_logs 
-         ORDER BY timestamp DESC 
+                input_tokens, output_tokens, account_email, mapped_model, protocol, client_ip, username
+         FROM request_logs
+         ORDER BY timestamp DESC
          LIMIT ?1 OFFSET ?2"
     } else {
-        "SELECT id, timestamp, method, url, status, duration, model, error, 
+        "SELECT id, timestamp, method, url, status, duration, model, error,
                 NULL as request_body, NULL as response_body,
-                input_tokens, output_tokens, account_email, mapped_model, protocol
-         FROM request_logs 
-         WHERE (url LIKE ?3 OR method LIKE ?3 OR model LIKE ?3 OR CAST(status AS TEXT) LIKE ?3 OR account_email LIKE ?3)
-         ORDER BY timestamp DESC 
+                input_tokens, output_tokens, account_email, mapped_model, protocol, client_ip, username
+         FROM request_logs
+         WHERE (url LIKE ?3 OR method LIKE ?3 OR model LIKE ?3 OR CAST(status AS TEXT) LIKE ?3 OR account_email LIKE ?3 OR client_ip LIKE ?3)
+         ORDER BY timestamp DESC
          LIMIT ?1 OFFSET ?2"
     };
 
@@ -324,7 +334,10 @@ pub fn get_logs_filtered(filter: &str, errors_only: bool, limit: usize, offset: 
                 input_tokens: row.get(10).unwrap_or(None),
                 output_tokens: row.get(11).unwrap_or(None),
                 protocol: row.get(14).unwrap_or(None),
+                client_ip: row.get(15).unwrap_or(None),
+                username: row.get(16).unwrap_or(None),
             })
+
         }).map_err(|e| e.to_string())?;
         logs_iter.filter_map(|r| r.ok()).collect()
     } else if errors_only {
@@ -346,7 +359,10 @@ pub fn get_logs_filtered(filter: &str, errors_only: bool, limit: usize, offset: 
                 input_tokens: row.get(10).unwrap_or(None),
                 output_tokens: row.get(11).unwrap_or(None),
                 protocol: row.get(14).unwrap_or(None),
+                client_ip: row.get(15).unwrap_or(None),
+                username: row.get(16).unwrap_or(None),
             })
+
         }).map_err(|e| e.to_string())?;
         logs_iter.filter_map(|r| r.ok()).collect()
     } else {
@@ -368,7 +384,10 @@ pub fn get_logs_filtered(filter: &str, errors_only: bool, limit: usize, offset: 
                 input_tokens: row.get(10).unwrap_or(None),
                 output_tokens: row.get(11).unwrap_or(None),
                 protocol: row.get(14).unwrap_or(None),
+                client_ip: row.get(15).unwrap_or(None),
+                username: row.get(16).unwrap_or(None),
             })
+
         }).map_err(|e| e.to_string())?;
         logs_iter.filter_map(|r| r.ok()).collect()
     };
@@ -381,10 +400,10 @@ pub fn get_all_logs_for_export() -> Result<Vec<ProxyRequestLog>, String> {
     let conn = connect_db()?;
 
     let mut stmt = conn.prepare(
-        "SELECT id, timestamp, method, url, status, duration, model, error, 
-                request_body, response_body, input_tokens, output_tokens, 
-                account_email, mapped_model, protocol
-         FROM request_logs 
+        "SELECT id, timestamp, method, url, status, duration, model, error,
+                request_body, response_body, input_tokens, output_tokens,
+                account_email, mapped_model, protocol, client_ip, username
+         FROM request_logs
          ORDER BY timestamp DESC"
     ).map_err(|e| e.to_string())?;
 
@@ -405,7 +424,10 @@ pub fn get_all_logs_for_export() -> Result<Vec<ProxyRequestLog>, String> {
             input_tokens: row.get(10).unwrap_or(None),
             output_tokens: row.get(11).unwrap_or(None),
             protocol: row.get(14).unwrap_or(None),
+            client_ip: row.get(15).unwrap_or(None),
+            username: row.get(16).unwrap_or(None),
         })
+
     }).map_err(|e| e.to_string())?;
 
     let mut logs = Vec::new();
@@ -415,55 +437,70 @@ pub fn get_all_logs_for_export() -> Result<Vec<ProxyRequestLog>, String> {
     Ok(logs)
 }
 
-/// Get logs by ID list with full details for export
-#[allow(dead_code)]
-pub fn get_logs_by_ids(ids: &[String]) -> Result<Vec<ProxyRequestLog>, String> {
-    if ids.is_empty() {
-        return Ok(Vec::new());
-    }
-    
+// ... existing code ...
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct IpTokenStats {
+    pub client_ip: String,
+    pub total_tokens: i64,
+    pub input_tokens: i64,
+    pub output_tokens: i64,
+    pub request_count: i64,
+    pub username: Option<String>,
+}
+
+/// Get token usage grouped by IP
+pub fn get_token_usage_by_ip(limit: usize, hours: i64) -> Result<Vec<IpTokenStats>, String> {
     let conn = connect_db()?;
-    
-    // Build placeholders for IN clause
-    let placeholders: Vec<String> = ids.iter().enumerate().map(|(i, _)| format!("?{}", i + 1)).collect();
-    let sql = format!(
-        "SELECT id, timestamp, method, url, status, duration, model, error, 
-                request_body, response_body, input_tokens, output_tokens, 
-                account_email, mapped_model, protocol
-         FROM request_logs 
-         WHERE id IN ({})
-         ORDER BY timestamp DESC",
-        placeholders.join(", ")
-    );
 
-    let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
-    
-    // Convert ids to params
-    let params: Vec<&dyn rusqlite::ToSql> = ids.iter().map(|s| s as &dyn rusqlite::ToSql).collect();
-    
-    let logs_iter = stmt.query_map(params.as_slice(), |row| {
-        Ok(ProxyRequestLog {
-            id: row.get(0)?,
-            timestamp: row.get(1)?,
-            method: row.get(2)?,
-            url: row.get(3)?,
-            status: row.get(4)?,
-            duration: row.get(5)?,
-            model: row.get(6)?,
-            mapped_model: row.get(13).unwrap_or(None),
-            account_email: row.get(12).unwrap_or(None),
-            error: row.get(7)?,
-            request_body: row.get(8).unwrap_or(None),
-            response_body: row.get(9).unwrap_or(None),
-            input_tokens: row.get(10).unwrap_or(None),
-            output_tokens: row.get(11).unwrap_or(None),
-            protocol: row.get(14).unwrap_or(None),
-        })
+    // Fix: Database stores timestamp in milliseconds, but we were calculating 'since' in seconds
+    // Convert 'hours' to milliseconds
+    let since = chrono::Utc::now().timestamp_millis() - (hours * 3600 * 1000);
+
+    // [FIX] 不再从 request_logs 表获取 username，因为该字段可能为空
+    // 先获取 IP 统计数据，然后再单独查询每个 IP 的用户名
+    let mut stmt = conn.prepare(
+        "SELECT
+            client_ip,
+            COALESCE(SUM(input_tokens), 0) + COALESCE(SUM(output_tokens), 0) as total,
+            COALESCE(SUM(input_tokens), 0) as input,
+            COALESCE(SUM(output_tokens), 0) as output,
+            COUNT(*) as cnt
+         FROM request_logs
+         WHERE timestamp >= ?1 AND client_ip IS NOT NULL AND client_ip != ''
+         GROUP BY client_ip
+         ORDER BY total DESC
+         LIMIT ?2"
+    ).map_err(|e| e.to_string())?;
+
+    let rows = stmt.query_map(params![since, limit], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, i64>(1)?,
+            row.get::<_, i64>(2)?,
+            row.get::<_, i64>(3)?,
+            row.get::<_, i64>(4)?,
+        ))
     }).map_err(|e| e.to_string())?;
 
-    let mut logs = Vec::new();
-    for log in logs_iter {
-        logs.push(log.map_err(|e| e.to_string())?);
+    let mut stats = Vec::new();
+    for row in rows {
+        let (client_ip, total_tokens, input_tokens, output_tokens, request_count) = row.map_err(|e| e.to_string())?;
+        
+        // 从 user_token_db 获取该 IP 关联的用户名
+        // 这比从 request_logs 获取更可靠，因为 token_ip_bindings 表在每次 User Token 使用时都会更新
+        let username = crate::modules::user_token_db::get_username_for_ip(&client_ip).unwrap_or(None);
+        
+        stats.push(IpTokenStats {
+            client_ip,
+            total_tokens,
+            input_tokens,
+            output_tokens,
+            request_count,
+            username,
+        });
     }
-    Ok(logs)
+
+    Ok(stats)
 }
+

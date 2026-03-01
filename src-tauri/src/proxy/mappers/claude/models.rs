@@ -1,9 +1,9 @@
-// Claude DataModel
-// Claude ProtocolRelatedDataModel
+// Claude 数据模型
+// Claude 协议相关数据模型
 
 use serde::{Deserialize, Serialize};
 
-/// Claude API Request
+/// Claude API 请求
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClaudeRequest {
     pub model: String,
@@ -17,9 +17,9 @@ pub struct ClaudeRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_tokens: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub temperature: Option<f32>,
+    pub temperature: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub top_p: Option<f32>,
+    pub top_p: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub top_k: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -36,14 +36,17 @@ pub struct ClaudeRequest {
     pub quality: Option<String>,
 }
 
-/// Thinking Config
+/// Thinking 配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ThinkingConfig {
     #[serde(rename = "type")]
-    pub type_: String, // "enabled"
+    pub type_: String, // "enabled" or "adaptive"
     #[serde(skip_serializing_if = "Option::is_none")]
     pub budget_tokens: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub effort: Option<String>, // "low", "high", or "max"
 }
+
 
 /// System Prompt
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -105,9 +108,7 @@ pub enum ContentBlock {
     },
 
     #[serde(rename = "redacted_thinking")]
-    RedactedThinking {
-        data: String,
-    },
+    RedactedThinking { data: String },
 
     #[serde(rename = "tool_use")]
     ToolUse {
@@ -154,8 +155,8 @@ pub struct ImageSource {
 pub struct DocumentSource {
     #[serde(rename = "type")]
     pub source_type: String, // "base64"
-    pub media_type: String,  // e.g. "application/pdf"
-    pub data: String,        // base64 data
+    pub media_type: String, // e.g. "application/pdf"
+    pub data: String,       // base64 data
 }
 
 /// Tool - supports both client tools (with input_schema) and server tools (like web_search)
@@ -224,7 +225,7 @@ pub struct OutputConfig {
     pub effort: Option<String>,
 }
 
-/// Claude API Response
+/// Claude API 响应
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClaudeResponse {
     pub id: String,
@@ -252,7 +253,7 @@ pub struct Usage {
     pub server_tool_use: Option<serde_json::Value>,
 }
 
-// ========== Gemini DataModel ==========
+// ========== Gemini 数据模型 ==========
 
 /// Gemini Content
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -311,7 +312,7 @@ pub struct InlineData {
     pub data: String,
 }
 
-/// Gemini wholeResponse
+/// Gemini 完整响应
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GeminiResponse {
     #[serde(skip_serializing_if = "Option::is_none")]

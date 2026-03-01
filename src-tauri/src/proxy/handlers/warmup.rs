@@ -1,9 +1,9 @@
-// preheatHandler - Insidepreheat API
+// 预热处理器 - 内部预热 API
 //
-// supply /internal/warmup endpoint，Support：
-// - SpecifyAccount（pass email）
-// - SpecifyModel（Don't do itMapping，directUsingRawModelName）
-// - ReuseProxy的Allinfrastructure（UpstreamClient、TokenManager）
+// 提供 /internal/warmup 端点，支持：
+// - 指定账号（通过 email）
+// - 指定模型（不做映射，直接使用原始模型名称）
+// - 复用代理的所有基础设施（UpstreamClient、TokenManager）
 
 use axum::{
     extract::State,
@@ -15,22 +15,23 @@ use serde_json::{json, Value};
 use tracing::{info, warn};
 
 use crate::proxy::mappers::gemini::wrapper::wrap_request;
+use crate::proxy::monitor::ProxyRequestLog;
 use crate::proxy::server::AppState;
 
-/// preheatRequest体
+/// 预热请求体
 #[derive(Debug, Deserialize)]
 pub struct WarmupRequest {
-    /// AccountMail
+    /// 账号邮箱
     pub email: String,
-    /// ModelName（RawName，Don't do itMapping）
+    /// 模型名称（原始名称，不做映射）
     pub model: String,
-    /// Optional：Provide directly Access Token（used for absence TokenManager inAccount）
+    /// 可选：直接提供 Access Token（用于不在 TokenManager 中的账号）
     pub access_token: Option<String>,
-    /// Optional：Provide directly Project ID
+    /// 可选：直接提供 Project ID
     pub project_id: Option<String>,
 }
 
-/// preheatResponse
+/// 预热响应
 #[derive(Debug, Serialize)]
 pub struct WarmupResponse {
     pub success: bool,
@@ -39,47 +40,72 @@ pub struct WarmupResponse {
     pub error: Option<String>,
 }
 
-/// HandlepreheatRequest
+/// 处理预热请求
 pub async fn handle_warmup(
     State(state): State<AppState>,
     Json(req): Json<WarmupRequest>,
 ) -> Response {
+    let start_time = std::time::Instant::now();
+
+    // ===== 前置检查：跳过 gemini-2.5-* 家族模型 =====
+    let model_lower = req.model.to_lowercase();
+    if model_lower.contains("2.5-") || model_lower.contains("2-5-") {
+        info!(
+            "[Warmup-API] SKIP: gemini-2.5-* model not supported for warmup: {} / {}",
+            req.email, req.model
+        );
+        return (
+            StatusCode::OK,
+            Json(WarmupResponse {
+                success: true,
+                message: format!(
+                    "Skipped warmup for {} (2.5 models not supported)",
+                    req.model
+                ),
+                error: None,
+            }),
+        )
+            .into_response();
+    }
+
     info!(
         "[Warmup-API] ========== START: email={}, model={} ==========",
         req.email, req.model
     );
 
-    // ===== step 1: Get Token =====
-    let (access_token, project_id) = if let (Some(at), Some(pid)) = (&req.access_token, &req.project_id) {
-        (at.clone(), pid.clone())
-    } else {
-        match state.token_manager.get_token_by_email(&req.email).await {
-            Ok((at, pid, _)) => (at, pid),
-            Err(e) => {
-                warn!(
-                    "[Warmup-API] Step 1 FAILED: Token error for {}: {}",
-                    req.email, e
-                );
-                return (
-                    StatusCode::BAD_REQUEST,
-                    Json(WarmupResponse {
-                        success: false,
-                        message: format!("Failed to get token for {}", req.email),
-                        error: Some(e),
-                    }),
-                )
-                    .into_response();
+    // ===== 步骤 1: 获取 Token =====
+    let (access_token, project_id, account_id) =
+        if let (Some(at), Some(pid)) = (&req.access_token, &req.project_id) {
+            (at.clone(), pid.clone(), String::new())
+        } else {
+            match state.token_manager.get_token_by_email(&req.email).await {
+                Ok((at, pid, _, acc_id, _wait_ms)) => (at, pid, acc_id),
+                Err(e) => {
+                    warn!(
+                        "[Warmup-API] Step 1 FAILED: Token error for {}: {}",
+                        req.email, e
+                    );
+                    return (
+                        StatusCode::BAD_REQUEST,
+                        Json(WarmupResponse {
+                            success: false,
+                            message: format!("Failed to get token for {}", req.email),
+                            error: Some(e),
+                        }),
+                    )
+                        .into_response();
+                }
             }
-        }
-    };
+        };
 
-    // ===== step 2: according toModelTypebuildRequest体 =====
+    // ===== 步骤 2: 根据模型类型构建请求体 =====
     let is_claude = req.model.to_lowercase().contains("claude");
     let is_image = req.model.to_lowercase().contains("image");
 
     let body: Value = if is_claude {
-        // Claude Model：Using transform_claude_request_in Convert
-        let session_id = format!("warmup_{}_{}", 
+        // Claude 模型：使用 transform_claude_request_in 转换
+        let session_id = format!(
+            "warmup_{}_{}",
             chrono::Utc::now().timestamp_millis(),
             &uuid::Uuid::new_v4().to_string()[..8]
         );
@@ -111,6 +137,8 @@ pub async fn handle_warmup(
             &claude_request,
             &project_id,
             false,
+            None,
+            "warmup",
         ) {
             Ok(transformed) => transformed,
             Err(e) => {
@@ -127,8 +155,9 @@ pub async fn handle_warmup(
             }
         }
     } else {
-        // Gemini Model：Using wrap_request
-        let session_id = format!("warmup_{}_{}", 
+        // Gemini 模型：使用 wrap_request
+        let session_id = format!(
+            "warmup_{}_{}",
             chrono::Utc::now().timestamp_millis(),
             &uuid::Uuid::new_v4().to_string()[..8]
         );
@@ -155,10 +184,10 @@ pub async fn handle_warmup(
             })
         };
 
-        wrap_request(&base_request, &project_id, &req.model, Some(&session_id))
+        wrap_request(&base_request, &project_id, &req.model, None, Some(&session_id), None)
     };
 
-    // ===== step 3: call UpstreamClient =====
+    // ===== 步骤 3: 调用 UpstreamClient =====
     let model_lower = req.model.to_lowercase();
     let prefer_non_stream = model_lower.contains("flash-lite") || model_lower.contains("2.5-pro");
 
@@ -170,25 +199,71 @@ pub async fn handle_warmup(
 
     let mut result = state
         .upstream
-        .call_v1_internal(method, &access_token, body.clone(), query)
+        .call_v1_internal(
+            method,
+            &access_token,
+            body.clone(),
+            query,
+            Some(account_id.as_str()),
+        )
         .await;
 
-    // IfStream式RequestFailed，Trying非Stream式Request
+    // 如果流式请求失败，尝试非流式请求
     if result.is_err() && !prefer_non_stream {
         result = state
             .upstream
-            .call_v1_internal("generateContent", &access_token, body, None)
+            .call_v1_internal(
+                "generateContent",
+                &access_token,
+                body,
+                None,
+                Some(account_id.as_str()),
+            )
             .await;
     }
 
-    // ===== step 4: HandleResponse =====
+    let duration = start_time.elapsed().as_millis() as u64;
+
+    // ===== 步骤 4: 处理响应并记录流量日志 =====
     match result {
-        Ok(response) => {
+        Ok(call_result) => {
+            let response = call_result.response;
             let status = response.status();
+            let status_code = status.as_u16();
+
+            // 记录预热请求到流量日志
+            let log = ProxyRequestLog {
+                id: uuid::Uuid::new_v4().to_string(),
+                timestamp: chrono::Utc::now().timestamp_millis(),
+                method: "POST".to_string(),
+                url: format!("/internal/warmup -> {}", req.model),
+                status: status_code,
+                duration,
+                model: Some(req.model.clone()),
+                mapped_model: Some(req.model.clone()),
+                account_email: Some(req.email.clone()),
+                client_ip: Some("127.0.0.1".to_string()),
+                error: if status.is_success() {
+                    None
+                } else {
+                    Some(format!("HTTP {}", status_code))
+                },
+                request_body: Some(format!(
+                    "{{\"type\": \"warmup\", \"model\": \"{}\"}}",
+                    req.model
+                )),
+                response_body: None,
+                input_tokens: Some(0),
+                output_tokens: Some(0),
+                protocol: Some("warmup".to_string()),
+                username: None,
+            };
+            state.monitor.log_request(log).await;
+
             let mut response = if status.is_success() {
                 info!(
-                    "[Warmup-API] ========== SUCCESS: {} / {} ==========",
-                    req.email, req.model
+                    "[Warmup-API] ========== SUCCESS: {} / {} ({}ms) ==========",
+                    req.email, req.model, duration
                 );
                 (
                     StatusCode::OK,
@@ -200,8 +275,33 @@ pub async fn handle_warmup(
                 )
                     .into_response()
             } else {
-                let status_code = status.as_u16();
                 let error_text = response.text().await.unwrap_or_default();
+
+                // [FIX] 预热阶段检测到 403 时，标记账号为 forbidden，避免无效账号继续参与轮询
+                // 如果 account_id 为空（直接传入 access_token 的场景），通过 email 从索引中找到 ID
+                if status_code == 403 {
+                    let resolved_account_id = if !account_id.is_empty() {
+                        account_id.clone()
+                    } else {
+                        // 尝试通过 email 查找账号 ID
+                        crate::modules::account::find_account_id_by_email(&req.email)
+                            .unwrap_or_default()
+                    };
+
+                    if !resolved_account_id.is_empty() {
+                        warn!(
+                            "[Warmup-API] 403 Forbidden detected for {}, marking account as forbidden",
+                            req.email
+                        );
+                        let _ = crate::modules::account::mark_account_forbidden(&resolved_account_id, &error_text);
+                    } else {
+                        warn!(
+                            "[Warmup-API] 403 Forbidden detected for {} but could not resolve account_id, skipping mark",
+                            req.email
+                        );
+                    }
+                }
+
                 (
                     StatusCode::from_u16(status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
                     Json(WarmupResponse {
@@ -213,22 +313,47 @@ pub async fn handle_warmup(
                     .into_response()
             };
 
-            // AddResponse头，let monitorMiddlewarecaptureAccountInfo
+            // 添加响应头，让监控中间件捕获账号信息
             if let Ok(email_val) = axum::http::HeaderValue::from_str(&req.email) {
                 response.headers_mut().insert("X-Account-Email", email_val);
             }
             if let Ok(model_val) = axum::http::HeaderValue::from_str(&req.model) {
                 response.headers_mut().insert("X-Mapped-Model", model_val);
             }
-            
+
             response
         }
         Err(e) => {
             warn!(
-                "[Warmup-API] ========== ERROR: {} / {} - {} ==========",
-                req.email, req.model, e
+                "[Warmup-API] ========== ERROR: {} / {} - {} ({}ms) ==========",
+                req.email, req.model, e, duration
             );
-            
+
+            // 记录失败的预热请求到流量日志
+            let log = ProxyRequestLog {
+                id: uuid::Uuid::new_v4().to_string(),
+                timestamp: chrono::Utc::now().timestamp_millis(),
+                method: "POST".to_string(),
+                url: format!("/internal/warmup -> {}", req.model),
+                status: 500,
+                duration,
+                model: Some(req.model.clone()),
+                mapped_model: Some(req.model.clone()),
+                account_email: Some(req.email.clone()),
+                client_ip: Some("127.0.0.1".to_string()),
+                error: Some(e.clone()),
+                request_body: Some(format!(
+                    "{{\"type\": \"warmup\", \"model\": \"{}\"}}",
+                    req.model
+                )),
+                response_body: None,
+                input_tokens: None,
+                output_tokens: None,
+                protocol: Some("warmup".to_string()),
+                username: None,
+            };
+            state.monitor.log_request(log).await;
+
             let mut response = (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(WarmupResponse {
@@ -236,16 +361,17 @@ pub async fn handle_warmup(
                     message: "Warmup request failed".to_string(),
                     error: Some(e),
                 }),
-            ).into_response();
+            )
+                .into_response();
 
-            // even thoughFailed也AddResponse头，for monitoring
+            // 即使失败也添加响应头，以便监控
             if let Ok(email_val) = axum::http::HeaderValue::from_str(&req.email) {
                 response.headers_mut().insert("X-Account-Email", email_val);
             }
             if let Ok(model_val) = axum::http::HeaderValue::from_str(&req.model) {
                 response.headers_mut().insert("X-Mapped-Model", model_val);
             }
-            
+
             response
         }
     }

@@ -1,11 +1,12 @@
-// Claude Streaming responseConvert (Gemini SSE → Claude SSE)
-// correspond StreamingState + PartProcessor
+// Claude 流式响应转换 (Gemini SSE → Claude SSE)
+// 对应 StreamingState + PartProcessor
 
 use super::models::*;
 use super::utils::to_claude_usage;
 use crate::proxy::mappers::estimation_calibrator::get_calibrator;
 // use crate::proxy::mappers::signature_store::store_thought_signature; // Deprecated
 use crate::proxy::SignatureCache;
+use crate::proxy::common::client_adapter::{ClientAdapter, SignatureBufferStrategy}; // [NEW]
 use bytes::Bytes;
 use serde_json::{json, Value};
 
@@ -17,8 +18,8 @@ pub fn remap_function_call_args(name: &str, args: &mut Value) {
         tracing::debug!("[Streaming] Tool Call: '{}' Args: {:?}", name, obj);
     }
 
-    // [IMPORTANT] Claude Code CLI 的 EnterPlanMode ToolProhibitedAnyParameter
-    // Proxylayer injected reason Parameterwill lead to InputValidationError
+    // [IMPORTANT] Claude Code CLI 的 EnterPlanMode 工具禁止携带任何参数
+    // 代理层注入的 reason 参数会导致 InputValidationError
     if name == "EnterPlanMode" {
         if let Some(obj) = args.as_object_mut() {
             obj.clear();
@@ -163,7 +164,7 @@ pub fn remap_function_call_args(name: &str, args: &mut Value) {
     }
 }
 
-/// BlockTypeEnum
+/// 块类型枚举
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BlockType {
     None,
@@ -172,7 +173,7 @@ pub enum BlockType {
     Function,
 }
 
-/// SignManager
+/// 签名管理器
 pub struct SignatureManager {
     pending: Option<String>,
 }
@@ -197,7 +198,7 @@ impl SignatureManager {
     }
 }
 
-/// Stream式Status机
+/// 流式状态机
 pub struct StreamingState {
     block_type: BlockType,
     pub block_index: usize,
@@ -208,7 +209,7 @@ pub struct StreamingState {
     trailing_signature: Option<String>,
     pub web_search_query: Option<String>,
     pub grounding_chunks: Option<Vec<serde_json::Value>>,
-    // [IMPROVED] Error recovery Statustrack (prepared for future use)
+    // [IMPROVED] Error recovery 状态追踪 (prepared for future use)
     #[allow(dead_code)]
     parse_error_count: usize,
     #[allow(dead_code)]
@@ -221,7 +222,7 @@ pub struct StreamingState {
     pub scaling_enabled: bool,
     // [NEW] Context limit for smart threshold recovery (default to 1M)
     pub context_limit: u32,
-    // [NEW] MCP XML Bridge Buffer
+    // [NEW] MCP XML Bridge 缓冲区
     pub mcp_xml_buffer: String,
     pub in_mcp_xml: bool,
     // [FIX] Estimated prompt tokens for calibrator learning
@@ -229,6 +230,10 @@ pub struct StreamingState {
     // [FIX #859] Post-thinking interruption tracking
     pub has_thinking: bool,
     pub has_content: bool,
+    pub message_count: usize, // [NEW v4.0.0] Message count for rewind detection
+    pub client_adapter: Option<std::sync::Arc<dyn ClientAdapter>>, // [FIX] Remove Box, use Arc<dyn> directly
+    // [FIX #MCP] Registered tool names for fuzzy matching
+    pub registered_tool_names: Vec<String>,
 }
 
 impl StreamingState {
@@ -243,7 +248,7 @@ impl StreamingState {
             trailing_signature: None,
             web_search_query: None,
             grounding_chunks: None,
-            // [IMPROVED] Initialize error recovery Field
+            // [IMPROVED] 初始化 error recovery 字段
             parse_error_count: 0,
             last_valid_state: None,
             model_name: None,
@@ -255,10 +260,23 @@ impl StreamingState {
             estimated_prompt_tokens: None,
             has_thinking: false,
             has_content: false,
+            message_count: 0,
+            client_adapter: None,
+            registered_tool_names: Vec::new(),
         }
     }
 
-    /// Send SSE Event
+    // [NEW] Set client adapter
+    pub fn set_client_adapter(&mut self, adapter: Option<std::sync::Arc<dyn ClientAdapter>>) {
+        self.client_adapter = adapter;
+    }
+
+    // [FIX #MCP] Set registered tool names for fuzzy matching
+    pub fn set_registered_tool_names(&mut self, names: Vec<String>) {
+        self.registered_tool_names = names;
+    }
+
+    /// 发送 SSE 事件
     pub fn emit(&self, event_type: &str, data: serde_json::Value) -> Bytes {
         let sse = format!(
             "event: {}\ndata: {}\n\n",
@@ -268,7 +286,7 @@ impl StreamingState {
         Bytes::from(sse)
     }
 
-    /// Send message_start Event
+    /// 发送 message_start 事件
     pub fn emit_message_start(&mut self, raw_json: &serde_json::Value) -> Bytes {
         if self.message_start_sent {
             return Bytes::new();
@@ -314,7 +332,7 @@ impl StreamingState {
         result
     }
 
-    /// BeginNewContentBlock
+    /// 开始新的内容块
     pub fn start_block(
         &mut self,
         block_type: BlockType,
@@ -338,7 +356,7 @@ impl StreamingState {
         chunks
     }
 
-    /// EndCurrentContentBlock
+    /// 结束当前内容块
     pub fn end_block(&mut self) -> Vec<Bytes> {
         if self.block_type == BlockType::None {
             return vec![];
@@ -346,7 +364,7 @@ impl StreamingState {
 
         let mut chunks = Vec::new();
 
-        // Thinking BlockEnd时SendtemporarySign
+        // Thinking 块结束时发送暂存的签名
         if self.block_type == BlockType::Thinking && self.signatures.has_pending() {
             if let Some(signature) = self.signatures.consume() {
                 chunks.push(self.emit_delta("signature_delta", json!({ "signature": signature })));
@@ -367,7 +385,7 @@ impl StreamingState {
         chunks
     }
 
-    /// Send delta Event
+    /// 发送 delta 事件
     pub fn emit_delta(&self, delta_type: &str, delta_content: serde_json::Value) -> Bytes {
         let mut delta = json!({ "type": delta_type });
         if let serde_json::Value::Object(map) = delta_content {
@@ -386,7 +404,7 @@ impl StreamingState {
         )
     }
 
-    /// SendEndEvent
+    /// 发送结束事件
     pub fn emit_finish(
         &mut self,
         finish_reason: Option<&str>,
@@ -394,36 +412,36 @@ impl StreamingState {
     ) -> Vec<Bytes> {
         let mut chunks = Vec::new();
 
-        // CloseFinallyoneBlock
+        // 关闭最后一个块
         chunks.extend(self.end_block());
 
-        // Handle trailingSignature (B4/C3 scene)
-        // [FIX] OnlyWhen还NoneSend过AnyBlock时, Only in order to thinking BlockEnd(asMessagethe beginning of)
-        // actually, for Claude Protocol, IfAlreadySend过 Text, You cannot add it here Thinking。
-        // HeresolutionYes: only storeSign, no longerSendillegal end Thinking Block。
-        // Signwill pass SignatureCache in next roundRequestautomatic recovery。
+        // 处理 trailingSignature (B4/C3 场景)
+        // [FIX] 只有当还没有发送过任何块时, 才能以 thinking 块结束(作为消息的开头)
+        // 实际上, 对于 Claude 协议, 如果已经发送过 Text, 就不能在此追加 Thinking。
+        // 这里的解决方案是: 只存储签名, 不再发送非法的末尾 Thinking 块。
+        // 签名会通过 SignatureCache 在下一轮请求中自动恢复。
         if let Some(signature) = self.trailing_signature.take() {
             tracing::info!(
                 "[Streaming] Captured trailing signature (len: {}), caching for session.",
                 signature.len()
             );
             self.signatures.store(Some(signature));
-            // No more appending chunks.push(self.emit("content_block_start", ...))
+            // 不再追加 chunks.push(self.emit("content_block_start", ...))
         }
 
-        // Handle grounding(web search) -> Convert为 Markdown textBlock
+        // 处理 grounding(web search) -> 转换为 Markdown 文本块
         if self.web_search_query.is_some() || self.grounding_chunks.is_some() {
             let mut grounding_text = String::new();
 
-            // 1. HandleSearch词
+            // 1. 处理搜索词
             if let Some(query) = &self.web_search_query {
                 if !query.is_empty() {
-                    grounding_text.push_str("\n\n---\n**🔍 Already for youSearch：** ");
+                    grounding_text.push_str("\n\n---\n**🔍 已为您搜索：** ");
                     grounding_text.push_str(query);
                 }
             }
 
-            // 2. Handle来SourceLink
+            // 2. 处理来源链接
             if let Some(chunks) = &self.grounding_chunks {
                 let mut links = Vec::new();
                 for (i, chunk) in chunks.iter().enumerate() {
@@ -431,20 +449,21 @@ impl StreamingState {
                         let title = web
                             .get("title")
                             .and_then(|v| v.as_str())
-                            .unwrap_or("The web page comesSource");
+                            .unwrap_or("网页来源");
                         let uri = web.get("uri").and_then(|v| v.as_str()).unwrap_or("#");
                         links.push(format!("[{}] [{}]({})", i + 1, title, uri));
                     }
                 }
 
                 if !links.is_empty() {
-                    grounding_text.push_str("\n\n**🌐 来Sourcecitation：**\n");
+                    grounding_text.push_str("\n\n**🌐 来源引文：**\n");
                     grounding_text.push_str(&links.join("\n"));
                 }
             }
 
-            if !grounding_text.is_empty() {
-                // SendoneNew text Block
+            let trimmed_grounding = grounding_text.trim();
+            if !trimmed_grounding.is_empty() {
+                // 发送一个新的 text 块
                 chunks.push(self.emit(
                     "content_block_start",
                     json!({
@@ -453,7 +472,7 @@ impl StreamingState {
                         "content_block": { "type": "text", "text": "" }
                     }),
                 ));
-                chunks.push(self.emit_delta("text_delta", json!({ "text": grounding_text })));
+                chunks.push(self.emit_delta("text_delta", json!({ "text": trimmed_grounding })));
                 chunks.push(self.emit(
                     "content_block_stop",
                     json!({ "type": "content_block_stop", "index": self.block_index }),
@@ -462,7 +481,7 @@ impl StreamingState {
             }
         }
 
-        // Sure stop_reason
+        // 确定 stop_reason
         let stop_reason = if self.used_tool {
             "tool_use"
         } else if finish_reason == Some("MAX_TOKENS") {
@@ -517,42 +536,42 @@ impl StreamingState {
         chunks
     }
 
-    /// markUsing了Tool
+    /// 标记使用了工具
     pub fn mark_tool_used(&mut self) {
         self.used_tool = true;
     }
 
-    /// GetCurrentBlockType
+    /// 获取当前块类型
     pub fn current_block_type(&self) -> BlockType {
         self.block_type
     }
 
-    /// GetCurrentBlockIndex
+    /// 获取当前块索引
     pub fn current_block_index(&self) -> usize {
         self.block_index
     }
 
-    /// storageSign
+    /// 存储签名
     pub fn store_signature(&mut self, signature: Option<String>) {
         self.signatures.store(signature);
     }
 
-    /// Set trailing signature
+    /// 设置 trailing signature
     pub fn set_trailing_signature(&mut self, signature: Option<String>) {
         self.trailing_signature = signature;
     }
 
-    /// Get trailing signature (only forCheck)
+    /// 获取 trailing signature (仅用于检查)
     pub fn has_trailing_signature(&self) -> bool {
         self.trailing_signature.is_some()
     }
 
-    /// Handle SSE ParseError，achieve eleganceFallback
+    /// 处理 SSE 解析错误，实现优雅降级
     ///
-    /// When SSE stream occurs inParseError时:
-    /// 1. SafetyCloseCurrent block
-    /// 2. IncrementErrorcounter
-    /// 3. 在 debug Mode下OutputErrorInfo
+    /// 当 SSE stream 中发生解析错误时:
+    /// 1. 安全关闭当前 block
+    /// 2. 递增错误计数器
+    /// 3. 在 debug 模式下输出错误信息
     #[allow(dead_code)] // Prepared for future error recovery implementation
     pub fn handle_parse_error(&mut self, raw_data: &str) -> Vec<Bytes> {
         let mut chunks = Vec::new();
@@ -565,13 +584,13 @@ impl StreamingState {
             raw_data.len()
         );
 
-        // SafetyCloseCurrent block
+        // 安全关闭当前 block
         if self.block_type != BlockType::None {
             self.last_valid_state = Some(self.block_type);
             chunks.extend(self.end_block());
         }
 
-        // Debug Mode下OutputdetailedErrorInfo
+        // Debug 模式下输出详细错误信息
         #[cfg(debug_assertions)]
         {
             let preview = if raw_data.len() > 100 {
@@ -582,28 +601,24 @@ impl StreamingState {
             tracing::debug!("[SSE-Parser] Failed chunk preview: {}", preview);
         }
 
-        // ErrorIssued when the rate is too highWarning并TryingSendErrorSignal
+        // 错误率过高时发出警告并尝试发送错误信号
         if self.parse_error_count > 3 {
-            // reduceThreshold,earlierNotificationUser
+            // 降低阈值,更早通知用户
             tracing::error!(
                 "[SSE-Parser] High error rate detected ({} errors). Stream may be corrupted.",
                 self.parse_error_count
             );
 
             // [FIX] Explicitly signal error to client to prevent UI freeze
-            // Using "network_error" type to suggest network/proxy issues
+            // using standard SSE error event format
+            // data: {"type": "error", "error": {...}}
             chunks.push(self.emit(
                 "error",
                 json!({
                     "type": "error",
                     "error": {
-                        "type": "network_error",
-                        "message": "networkConnectUnstable,请Checkyournetwork或ProxySet。",
-                        "code": "stream_decode_error",
-                        "details": {
-                            "error_count": self.parse_error_count,
-                            "suggestion": "请Trying: 1) ChecknetworkConnect 2) replaceProxyNode 3) laterRetry"
-                        }
+                        "type": "overloaded_error", // Use standard type
+                        "message": "网络连接不稳定，请检查您的网络或代理设置。",
                     }
                 }),
             ));
@@ -612,21 +627,21 @@ impl StreamingState {
         chunks
     }
 
-    /// ResetErrorStatus (recovery call after)
+    /// 重置错误状态 (recovery 后调用)
     #[allow(dead_code)]
     pub fn reset_error_state(&mut self) {
         self.parse_error_count = 0;
         self.last_valid_state = None;
     }
 
-    /// GetErrorcount (for monitoring)
+    /// 获取错误计数 (用于监控)
     #[allow(dead_code)]
     pub fn get_error_count(&self) -> usize {
         self.parse_error_count
     }
 }
 
-/// Part Handler
+/// Part 处理器
 pub struct PartProcessor<'a> {
     state: &'a mut StreamingState,
 }
@@ -636,7 +651,7 @@ impl<'a> PartProcessor<'a> {
         Self { state }
     }
 
-    /// Handlesingle part
+    /// 处理单个 part
     pub fn process(&mut self, part: &GeminiPart) -> Vec<Bytes> {
         let mut chunks = Vec::new();
         // [FIX #545] Decode Base64 signature if present (Gemini sends Base64, Claude expects Raw)
@@ -661,9 +676,9 @@ impl<'a> PartProcessor<'a> {
             }
         });
 
-        // 1. FunctionCall Handle
+        // 1. FunctionCall 处理
         if let Some(fc) = &part.function_call {
-            // 先Handle trailingSignature (B4/C3 scene)
+            // 先处理 trailingSignature (B4/C3 场景)
             if self.state.has_trailing_signature() {
                 chunks.extend(self.state.end_block());
                 if let Some(trailing_sig) = self.state.trailing_signature.take() {
@@ -693,18 +708,18 @@ impl<'a> PartProcessor<'a> {
             return chunks;
         }
 
-        // 2. Text Handle
+        // 2. Text 处理
         if let Some(text) = &part.text {
             if part.thought.unwrap_or(false) {
                 // Thinking
                 chunks.extend(self.process_thinking(text, signature));
             } else {
-                // Normal Text
+                // 普通 Text
                 chunks.extend(self.process_text(text, signature));
             }
         }
 
-        // 3. InlineData (Image) Handle
+        // 3. InlineData (Image) 处理
         if let Some(img) = &part.inline_data {
             let mime_type = &img.mime_type;
             let data = &img.data;
@@ -717,11 +732,11 @@ impl<'a> PartProcessor<'a> {
         chunks
     }
 
-    /// Handle Thinking
+    /// 处理 Thinking
     fn process_thinking(&mut self, text: &str, signature: Option<String>) -> Vec<Bytes> {
         let mut chunks = Vec::new();
 
-        // HandleBefore的 trailingSignature
+        // 处理之前的 trailingSignature
         if self.state.has_trailing_signature() {
             chunks.extend(self.state.end_block());
             if let Some(trailing_sig) = self.state.trailing_signature.take() {
@@ -745,7 +760,7 @@ impl<'a> PartProcessor<'a> {
             }
         }
 
-        // Beginor continue thinking Block
+        // 开始或继续 thinking 块
         if self.state.current_block_type() != BlockType::Thinking {
             chunks.extend(self.state.start_block(
                 BlockType::Thinking,
@@ -763,6 +778,11 @@ impl<'a> PartProcessor<'a> {
             );
         }
 
+        // [NEW] Apply Client Adapter Strategy
+        let use_fifo = self.state.client_adapter.as_ref()
+            .map(|a| a.signature_buffer_strategy() == SignatureBufferStrategy::Fifo)
+            .unwrap_or(false);
+
         // [IMPROVED] Store signature to global cache
         if let Some(ref sig) = signature {
             // 1. Cache family if we know the model
@@ -772,11 +792,21 @@ impl<'a> PartProcessor<'a> {
 
             // 2. [NEW v3.3.17] Cache to session-based storage for tool loop recovery
             if let Some(session_id) = &self.state.session_id {
-                SignatureCache::global().cache_session_signature(session_id, sig.clone());
+                // If FIFO strategy is enabled, use a unique index for each signature (e.g. timestamp or counter)
+                // However, our cache implementation currently keys by session_id.
+                // For FIFO, we might just rely on the fact that we are processing in order.
+                // But specifically for opencode, it might be calling tools in parallel or sequence.
+                
+                SignatureCache::global().cache_session_signature(
+                    session_id, 
+                    sig.clone(), 
+                    self.state.message_count
+                );
                 tracing::debug!(
-                    "[Claude-SSE] Cached signature to session {} (length: {})",
+                    "[Claude-SSE] Cached signature to session {} (length: {}) [FIFO: {}]",
                     session_id,
-                    sig.len()
+                    sig.len(),
+                    use_fifo
                 );
             }
 
@@ -786,17 +816,20 @@ impl<'a> PartProcessor<'a> {
             );
         }
 
-        // temporary storageSign (for local block handling)
+        // 暂存签名 (for local block handling)
+        // If FIFO, we strictly follow the sequence. The default logic is effectively LIFO for a single turn 
+        // (store latest, consume at end). 
+        // For opencode, we just want to ensure we capture IT.
         self.state.store_signature(signature);
 
         chunks
     }
 
-    /// HandleNormal Text
+    /// 处理普通 Text
     fn process_text(&mut self, text: &str, signature: Option<String>) -> Vec<Bytes> {
         let mut chunks = Vec::new();
 
-        // Empty text 带Sign - temporary storage
+        // 空 text 带签名 - 暂存
         if text.is_empty() {
             if signature.is_some() {
                 self.state.set_trailing_signature(signature);
@@ -807,7 +840,7 @@ impl<'a> PartProcessor<'a> {
         // [FIX #859] Mark that we have received actual content (text)
         self.state.has_content = true;
 
-        // HandleBefore的 trailingSignature
+        // 处理之前的 trailingSignature
         if self.state.has_trailing_signature() {
             chunks.extend(self.state.end_block());
             if let Some(trailing_sig) = self.state.trailing_signature.take() {
@@ -831,11 +864,11 @@ impl<'a> PartProcessor<'a> {
             }
         }
 
-        // NonEmpty text 带Sign - immediatelyHandle
+        // 非空 text 带签名 - 立即处理
         if signature.is_some() {
-            // [FIX] for protectionSign, Signwhere Text BlockdirectSend
-            // Notice: Not allowed to be opened here thinking Block, BecauseBeforeMayAlready not thinking Content。
-            // In this case, We just need to confirmCache在Status中。
+            // [FIX] 为保护签名, 签名所在的 Text 块直接发送
+            // 注意: 不得在此开启 thinking 块, 因为之前可能已有非 thinking 内容。
+            // 这种情况下, 我们只需确签被缓存在状态中。
             self.state.store_signature(signature);
 
             chunks.extend(
@@ -872,7 +905,7 @@ impl<'a> PartProcessor<'a> {
                                 serde_json::from_str(input_str.trim())
                                     .unwrap_or_else(|_| json!({ "input": input_str.trim() }));
 
-                            // Construct and mergeSend tool_use
+                            // 构造并发送 tool_use
                             let fc = FunctionCall {
                                 name: tool_name.to_string(),
                                 args: Some(input_json),
@@ -881,14 +914,14 @@ impl<'a> PartProcessor<'a> {
 
                             let tool_chunks = self.process_function_call(&fc, None);
 
-                            // clean upBuffer并ResetStatus
+                            // 清理缓冲区并重置状态
                             self.state.mcp_xml_buffer.clear();
                             self.state.in_mcp_xml = false;
 
-                            // HandleTabBeforeMayThe non-existence XML text
+                            // 处理标签之前可能存在的非 XML 文本
                             if start_idx > 0 {
                                 let prefix_text = &buffer[..start_idx];
-                                // HereCannot recurse。direct emit Before的 text Block。
+                                // 这里不能递归。直接 emit 之前的 text 块。
                                 if self.state.current_block_type() != BlockType::Text {
                                     chunks.extend(self.state.start_block(
                                         BlockType::Text,
@@ -903,10 +936,10 @@ impl<'a> PartProcessor<'a> {
 
                             chunks.extend(tool_chunks);
 
-                            // HandleTabAfterMayThe non-existence XML text
+                            // 处理标签之后可能存在的非 XML 文本
                             let suffix = &buffer[close_idx + end_tag.len()..];
                             if !suffix.is_empty() {
-                                // Recursive processingSuffixContent
+                                // 递归处理后缀内容
                                 chunks.extend(self.process_text(suffix, None));
                             }
 
@@ -955,12 +988,33 @@ impl<'a> PartProcessor<'a> {
             tracing::debug!("[Streaming] Normalizing tool name: Search → grep");
         }
 
-        // 1. Send content_block_start (input 为EmptyObject)
+        // [FIX #MCP] MCP tool name fuzzy matching
+        // Gemini often hallucinates incorrect MCP tool names, e.g.:
+        //   "mcp__puppeteer_navigate" instead of "mcp__puppeteer__puppeteer_navigate"
+        // We attempt to find the closest registered tool name.
+        if tool_name.starts_with("mcp__") && !self.state.registered_tool_names.is_empty() {
+            if !self.state.registered_tool_names.contains(&tool_name) {
+                if let Some(matched) = fuzzy_match_mcp_tool(&tool_name, &self.state.registered_tool_names) {
+                    tracing::warn!(
+                        "[FIX #MCP] Corrected MCP tool name: '{}' → '{}'",
+                        tool_name, matched
+                    );
+                    tool_name = matched;
+                } else {
+                    tracing::warn!(
+                        "[FIX #MCP] No fuzzy match found for MCP tool '{}'. Passing as-is.",
+                        tool_name
+                    );
+                }
+            }
+        }
+
+        // 1. 发送 content_block_start (input 为空对象)
         let mut tool_use = json!({
             "type": "tool_use",
             "id": tool_id,
             "name": tool_name,
-            "input": {} // Must为Empty，Parameterpass delta Send
+            "input": {} // 必须为空，参数通过 delta 发送
         });
 
         if let Some(ref sig) = signature {
@@ -971,7 +1025,11 @@ impl<'a> PartProcessor<'a> {
 
             // 3. [NEW v3.3.17] Cache to session-based storage
             if let Some(session_id) = &self.state.session_id {
-                SignatureCache::global().cache_session_signature(session_id, sig.clone());
+                SignatureCache::global().cache_session_signature(
+                    session_id, 
+                    sig.clone(),
+                    self.state.message_count
+                );
             }
 
             tracing::debug!(
@@ -982,7 +1040,7 @@ impl<'a> PartProcessor<'a> {
 
         chunks.extend(self.state.start_block(BlockType::Function, tool_use));
 
-        // 2. Send input_json_delta (completeParameter JSON string)
+        // 2. 发送 input_json_delta (完整的参数 JSON 字符串)
         // [FIX] Remap args before serialization for Gemini → Claude compatibility
         if let Some(args) = &fc.args {
             let mut remapped_args = args.clone();
@@ -1005,10 +1063,119 @@ impl<'a> PartProcessor<'a> {
             );
         }
 
-        // 3. EndBlock
+        // 3. 结束块
         chunks.extend(self.state.end_block());
 
         chunks
+    }
+}
+
+/// [FIX #MCP] Fuzzy match an incorrect MCP tool name against registered tool names.
+///
+/// MCP tool naming convention: `mcp__<server_name>__<tool_name>`
+/// Gemini often hallucinates by:
+///   1. Dropping the server prefix: `mcp__navigate` → should be `mcp__puppeteer__puppeteer_navigate`
+///   2. Merging server+tool: `mcp__puppeteer_navigate` → should be `mcp__puppeteer__puppeteer_navigate`
+///   3. Partial name: `mcp__pup_navigate` → should be `mcp__puppeteer__puppeteer_navigate`
+///
+/// Strategy (in priority order):
+///   1. Exact suffix match: if the hallucinated name's suffix exactly matches a registered tool's suffix
+///   2. Suffix contained: if the hallucinated name (without `mcp__`) is contained in a registered tool name
+///   3. Longest common subsequence scoring: picks the registered tool with the best LCS ratio
+fn fuzzy_match_mcp_tool(hallucinated: &str, registered: &[String]) -> Option<String> {
+    let mcp_tools: Vec<&String> = registered.iter()
+        .filter(|name| name.starts_with("mcp__"))
+        .collect();
+
+    if mcp_tools.is_empty() {
+        return None;
+    }
+
+    // Extract the part after "mcp__" for the hallucinated name
+    let hallucinated_suffix = &hallucinated[5..]; // skip "mcp__"
+
+    // Strategy 1: Exact suffix match
+    // e.g., hallucinated = "mcp__puppeteer_navigate", registered = "mcp__puppeteer__puppeteer_navigate"
+    // Check if any registered tool ends with the hallucinated suffix after `__`
+    for tool in &mcp_tools {
+        // For registered tool "mcp__server__tool_name", extract "tool_name"
+        if let Some(last_sep) = tool.rfind("__") {
+            let tool_suffix = &tool[last_sep + 2..];
+            if hallucinated_suffix == tool_suffix {
+                return Some(tool.to_string());
+            }
+        }
+    }
+
+    // Strategy 2: Suffix contained match
+    // e.g., hallucinated = "mcp__puppeteer_navigate", check if "puppeteer_navigate" is a substring
+    // of any registered tool's full name
+    let mut contained_matches: Vec<(&String, usize)> = Vec::new();
+    for tool in &mcp_tools {
+        let tool_lower = tool.to_lowercase();
+        let hall_lower = hallucinated_suffix.to_lowercase();
+        if tool_lower.contains(&hall_lower) {
+            contained_matches.push((tool, tool.len()));
+        }
+    }
+    // Pick the shortest match (most specific)
+    if !contained_matches.is_empty() {
+        contained_matches.sort_by_key(|(_, len)| *len);
+        return Some(contained_matches[0].0.to_string());
+    }
+
+    // Strategy 3: Normalized token overlap scoring
+    // Split both names into tokens by '_' and '__', compute overlap ratio  
+    let hall_tokens: Vec<&str> = hallucinated_suffix
+        .split(|c: char| c == '_')
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    if hall_tokens.is_empty() {
+        return None;
+    }
+
+    let mut best_match: Option<String> = None;
+    let mut best_score: f64 = 0.0;
+    let threshold = 0.4; // Minimum overlap ratio to consider a match
+
+    for tool in &mcp_tools {
+        let tool_after_mcp = &tool[5..]; // skip "mcp__"
+        let tool_tokens: Vec<&str> = tool_after_mcp
+            .split(|c: char| c == '_')
+            .filter(|s| !s.is_empty())
+            .collect();
+
+        if tool_tokens.is_empty() {
+            continue;
+        }
+
+        // Count matching tokens
+        let mut matches = 0;
+        for ht in &hall_tokens {
+            if tool_tokens.iter().any(|tt| tt.eq_ignore_ascii_case(ht)) {
+                matches += 1;
+            }
+        }
+
+        // Score = matching tokens / max(hall_tokens, tool_tokens)
+        let max_len = hall_tokens.len().max(tool_tokens.len()) as f64;
+        let score = matches as f64 / max_len;
+
+        if score > best_score {
+            best_score = score;
+            best_match = Some(tool.to_string());
+        }
+    }
+
+    if best_score >= threshold {
+        tracing::debug!(
+            "[FIX #MCP] Fuzzy match score for '{}': {:.2} -> {:?}",
+            hallucinated, best_score, best_match
+        );
+        best_match
+    } else {
+        None
     }
 }
 
@@ -1081,5 +1248,92 @@ mod tests {
 
         // 3. content_block_stop
         assert!(output.contains(r#""type":"content_block_stop""#));
+    }
+
+    #[test]
+    fn test_fuzzy_match_mcp_tool_exact_suffix() {
+        let registered = vec![
+            "mcp__puppeteer__puppeteer_navigate".to_string(),
+            "mcp__puppeteer__puppeteer_screenshot".to_string(),
+            "mcp__filesystem__read_file".to_string(),
+        ];
+
+        // Gemini drops server prefix, produces: mcp__puppeteer_navigate
+        // Should match mcp__puppeteer__puppeteer_navigate via suffix "puppeteer_navigate"
+        let result = fuzzy_match_mcp_tool("mcp__puppeteer_navigate", &registered);
+        assert_eq!(result, Some("mcp__puppeteer__puppeteer_navigate".to_string()));
+    }
+
+    #[test]
+    fn test_fuzzy_match_mcp_tool_exact_match_no_correction() {
+        let registered = vec![
+            "mcp__puppeteer__puppeteer_navigate".to_string(),
+        ];
+
+        // Already correct - should not be called (the caller checks contains first)
+        // But if called, should find it
+        let result = fuzzy_match_mcp_tool("mcp__puppeteer__puppeteer_navigate", &registered);
+        // It will match via suffix strategy
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_fuzzy_match_mcp_tool_suffix_contained() {
+        let registered = vec![
+            "mcp__puppeteer__puppeteer_navigate".to_string(),
+            "mcp__puppeteer__puppeteer_click".to_string(),
+        ];
+
+        // Gemini produces a partial-but-contained name
+        let result = fuzzy_match_mcp_tool("mcp__navigate", &registered);
+        assert_eq!(result, Some("mcp__puppeteer__puppeteer_navigate".to_string()));
+    }
+
+    #[test]
+    fn test_fuzzy_match_mcp_tool_token_overlap() {
+        let registered = vec![
+            "mcp__filesystem__read_file".to_string(),
+            "mcp__filesystem__write_file".to_string(),
+            "mcp__filesystem__list_directory".to_string(),
+        ];
+
+        // Gemini produces: mcp__read_file → should match mcp__filesystem__read_file
+        let result = fuzzy_match_mcp_tool("mcp__read_file", &registered);
+        assert_eq!(result, Some("mcp__filesystem__read_file".to_string()));
+    }
+
+    #[test]
+    fn test_fuzzy_match_mcp_tool_no_match() {
+        let registered = vec![
+            "mcp__puppeteer__puppeteer_navigate".to_string(),
+        ];
+
+        // Completely unrelated name
+        let result = fuzzy_match_mcp_tool("mcp__totally_unrelated_xyz", &registered);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_fuzzy_match_mcp_tool_no_mcp_tools() {
+        let registered = vec![
+            "regular_tool".to_string(),
+            "another_tool".to_string(),
+        ];
+
+        // No MCP tools in registry
+        let result = fuzzy_match_mcp_tool("mcp__puppeteer_navigate", &registered);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_fuzzy_match_mcp_tool_screenshot() {
+        let registered = vec![
+            "mcp__puppeteer__puppeteer_navigate".to_string(),
+            "mcp__puppeteer__puppeteer_screenshot".to_string(),
+            "mcp__puppeteer__puppeteer_click".to_string(),
+        ];
+
+        let result = fuzzy_match_mcp_tool("mcp__puppeteer_screenshot", &registered);
+        assert_eq!(result, Some("mcp__puppeteer__puppeteer_screenshot".to_string()));
     }
 }

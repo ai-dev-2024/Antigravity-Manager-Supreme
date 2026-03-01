@@ -1,13 +1,13 @@
 use serde::{Deserialize, Serialize};
 
-/// SchedulingModeEnum
+/// 调度模式枚举
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum SchedulingMode {
-    /// Cachepriority (Cache-first): 尽MayLocksameAccount，Rate Limit时priorityWait，Great improvement Prompt Caching hit rate
+    /// 缓存优先 (Cache-first): 尽可能锁定同一账号，限流时优先等待，极大提升 Prompt Caching 命中率
     CacheFirst,
-    /// balanceMode (Balance): LocksameAccount，Rate LimitImmediately switch to the alternativeAccount，take into accountSuccessRate andPerformance
+    /// 平衡模式 (Balance): 锁定同一账号，限流时立即切换到备选账号，兼顾成功率和性能
     Balance,
-    /// Performancepriority (Performance-first): 纯Round RobinMode (Round-robin)，AccountPayloadmost balanced，but don't useCache
+    /// 性能优先 (Performance-first): 纯轮询模式 (Round-robin)，账号负载最均衡，但不利用缓存
     PerformanceFirst,
 }
 
@@ -17,13 +17,13 @@ impl Default for SchedulingMode {
     }
 }
 
-/// viscositySessionConfig
+/// 粘性会话配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct StickySessionConfig {
-    /// CurrentSchedulingMode
+    /// 当前调度模式
     pub mode: SchedulingMode,
-    /// CachepriorityModedownMaximumWaitTime (秒)
+    /// 缓存优先模式下的最大等待时间 (秒)
     pub max_wait_seconds: u64,
 }
 

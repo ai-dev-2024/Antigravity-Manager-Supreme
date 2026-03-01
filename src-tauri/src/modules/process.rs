@@ -829,7 +829,9 @@ pub fn start_antigravity() -> Result<(), String> {
                     path_str
                 ));
                 
+                use crate::utils::command::CommandExtWrapper;
                 let mut cmd = Command::new(&path_str);
+                cmd.creation_flags_windows();
                 if let Some(ref args) = args {
                     for arg in args {
                         cmd.arg(arg);
@@ -841,7 +843,9 @@ pub fn start_antigravity() -> Result<(), String> {
                 return Err("Startup arguments configured but cannot find Antigravity executable path. Please set the executable path manually in Settings.".to_string());
             }
         } else {
+            use crate::utils::command::CommandExtWrapper;
             let mut cmd = Command::new("cmd");
+            cmd.creation_flags_windows();
             cmd.args(["/C", "start", "antigravity://"]);
             
             let result = cmd.spawn();

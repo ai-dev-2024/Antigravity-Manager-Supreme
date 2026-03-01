@@ -40,6 +40,7 @@ fn estimate_tokens_from_str(s: &str) -> u32 {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PurificationStrategy {
     /// Soft purification: Retains recent thinking blocks (~2 turns), removes older ones
+    #[allow(dead_code)]
     Soft,
     /// Aggressive purification: Removes ALL thinking blocks to save maximum tokens
     Aggressive,

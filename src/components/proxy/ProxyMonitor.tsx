@@ -8,6 +8,8 @@ import { Trash2, Search, X, Copy, CheckCircle, ChevronLeft, ChevronRight, Refres
 import { AppConfig } from '../../types/config';
 import { formatCompactNumber } from '../../utils/format';
 import { useAccountStore } from '../../stores/useAccountStore';
+import { isTauri } from '../../utils/env';
+import { copyToClipboard } from '../../utils/clipboard';
 
 
 interface ProxyRequestLog {
@@ -91,8 +93,8 @@ const LogTable: React.FC<LogTableProps> = ({
                             <td style={{ width: '70px' }}>
                                 {log.protocol && (
                                     <span className={`badge badge-xs text-white border-none ${log.protocol === 'openai' ? 'bg-green-500' :
-                                            log.protocol === 'anthropic' ? 'bg-orange-500' :
-                                                log.protocol === 'gemini' ? 'bg-blue-500' : 'bg-gray-400'
+                                        log.protocol === 'anthropic' ? 'bg-orange-500' :
+                                            log.protocol === 'gemini' ? 'bg-blue-500' : 'bg-gray-400'
                                         }`}>
                                         {log.protocol === 'openai' ? 'OpenAI' :
                                             log.protocol === 'anthropic' ? 'Claude' :
@@ -121,7 +123,7 @@ const LogTable: React.FC<LogTableProps> = ({
             {loading && (
                 <div className="flex items-center justify-center p-4 bg-white dark:bg-base-100">
                     <div className="loading loading-spinner loading-md"></div>
-                    <span className="ml-3 text-sm text-gray-500">{t('common.loading') || 'Loading...'}</span>
+                    <span className="ml-3 text-sm text-gray-500">{t('common.loading')}</span>
                 </div>
             )}
 
@@ -142,6 +144,10 @@ export const ProxyMonitor: React.FC<ProxyMonitorProps> = ({ className }) => {
     const [stats, setStats] = useState<ProxyStats>({ total_requests: 0, success_count: 0, error_count: 0 });
     const [filter, setFilter] = useState('');
     const [accountFilter, setAccountFilter] = useState('');
+    // [FIX] 使用 ref 存储最新的筛选条件，避免 setInterval 闭包问题
+    const filterRef = useRef(filter);
+    const accountFilterRef = useRef(accountFilter);
+    const currentPageRef = useRef(1);
     const [selectedLog, setSelectedLog] = useState<ProxyRequestLog | null>(null);
     const [isLoggingEnabled, setIsLoggingEnabled] = useState(false);
     const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
@@ -242,10 +248,13 @@ export const ProxyMonitor: React.FC<ProxyMonitorProps> = ({ className }) => {
     };
 
     const totalPages = Math.ceil(totalCount / pageSize);
+    const pageStart = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+    const pageEnd = totalCount === 0 ? 0 : Math.min(currentPage * pageSize, totalCount);
 
     const goToPage = (page: number) => {
         if (page >= 1 && page <= totalPages && page !== currentPage) {
             setCurrentPage(page);
+            currentPageRef.current = page; // [FIX] 同步 ref
             loadData(page, filter, accountFilter);
         }
     };
@@ -275,9 +284,10 @@ export const ProxyMonitor: React.FC<ProxyMonitorProps> = ({ className }) => {
         fetchAccounts();
 
         let unlistenFn: (() => void) | null = null;
-        let updateTimeout: ReturnType<typeof setTimeout> | null = null;
+        let updateTimeout: number | null = null;
 
         const setupListener = async () => {
+            if (!isTauri()) return;
             // Prevent duplicate listener registration (React 18 StrictMode)
             if (listenerSetupRef.current) {
                 console.debug('[ProxyMonitor] Listener already set up, skipping...');
@@ -345,11 +355,24 @@ export const ProxyMonitor: React.FC<ProxyMonitorProps> = ({ className }) => {
         };
         setupListener();
 
+        // Web 模式補強：如果不是 Tauri 環境，則啟用定時輪詢
+        let pollInterval: number | null = null;
+        if (!isTauri()) {
+            console.debug('[ProxyMonitor] Web mode detected, starting auto-poll (10s)');
+            pollInterval = window.setInterval(() => {
+                if (isMountedRef.current && !loading) {
+                    // [FIX] 使用 ref.current 获取最新的筛选条件
+                    loadData(currentPageRef.current, filterRef.current, accountFilterRef.current);
+                }
+            }, 10000);
+        }
+
         return () => {
             isMountedRef.current = false;
             listenerSetupRef.current = false;
             if (unlistenFn) unlistenFn();
             if (updateTimeout) clearTimeout(updateTimeout);
+            if (pollInterval) clearInterval(pollInterval);
         };
     }, []);
 
@@ -367,6 +390,10 @@ export const ProxyMonitor: React.FC<ProxyMonitorProps> = ({ className }) => {
     useEffect(() => {
         setCurrentPage(1);
         loadData(1, filter, accountFilter);
+        // [FIX] 同步 ref 值，供 setInterval 使用
+        filterRef.current = filter;
+        accountFilterRef.current = accountFilter;
+        currentPageRef.current = 1;
     }, [filter, accountFilter]);
 
     // Logs are already filtered and sorted by backend
@@ -420,21 +447,9 @@ export const ProxyMonitor: React.FC<ProxyMonitorProps> = ({ className }) => {
         }
     };
 
-    const handleCopyRequest = async () => {
-        if (!selectedLog?.request_body) return;
-        try {
-            await navigator.clipboard.writeText(getCopyPayload(selectedLog.request_body));
-            setCopiedRequestId(selectedLog.id);
-            setTimeout(() => {
-                setCopiedRequestId((current) => (current === selectedLog.id ? null : current));
-            }, 2000);
-        } catch (e) {
-            console.error('Failed to copy request payload', e);
-        }
-    };
 
     return (
-        <div className={`flex flex-col bg-white dark:bg-base-100 rounded-xl shadow-sm border border-gray-100 dark:border-base-200 overflow-hidden ${className || 'h-[400px]'}`}>
+        <div className={`flex flex-col bg-white dark:bg-base-100 rounded-xl shadow-sm border border-gray-100 dark:border-base-200 overflow-hidden ${className || 'flex-1'}`}>
             <div className="p-3 border-b border-gray-100 dark:border-base-200 space-y-3 bg-gray-50/30 dark:bg-base-200/30">
                 <div className="flex items-center gap-4">
                     <button
@@ -477,12 +492,12 @@ export const ProxyMonitor: React.FC<ProxyMonitorProps> = ({ className }) => {
                     </div>
 
                     <div className="hidden lg:flex gap-4 text-[10px] font-bold uppercase">
-                        <span className="text-blue-500">{formatCompactNumber(stats.total_requests)} REQS</span>
-                        <span className="text-green-500">{formatCompactNumber(stats.success_count)} OK</span>
-                        <span className="text-red-500">{formatCompactNumber(stats.error_count)} ERR</span>
+                        <span className="text-blue-500">{formatCompactNumber(stats.total_requests)} {t('monitor.stats.total')}</span>
+                        <span className="text-green-500">{formatCompactNumber(stats.success_count)} {t('monitor.stats.ok')}</span>
+                        <span className="text-red-500">{formatCompactNumber(stats.error_count)} {t('monitor.stats.err')}</span>
                     </div>
 
-                    <button onClick={() => loadData(currentPage, filter)} className="btn btn-sm btn-ghost text-gray-400" title={t('common.refresh') || 'Refresh'}>
+                    <button onClick={() => loadData(currentPage, filter)} className="btn btn-sm btn-ghost text-gray-400" title={t('common.refresh')}>
                         <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
                     </button>
                     <button onClick={clearLogs} className="btn btn-sm btn-ghost text-gray-400">
@@ -522,7 +537,7 @@ export const ProxyMonitor: React.FC<ProxyMonitorProps> = ({ className }) => {
             {/* Pagination Controls */}
             <div className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-base-200 border-t border-gray-200 dark:border-base-300 text-xs">
                 <div className="flex items-center gap-2 whitespace-nowrap">
-                    <span className="text-gray-500">Per page</span>
+                    <span className="text-gray-500">{t('common.per_page')}</span>
                     <select
                         value={pageSize}
                         onChange={(e) => setPageSize(Number(e.target.value))}
@@ -555,7 +570,7 @@ export const ProxyMonitor: React.FC<ProxyMonitorProps> = ({ className }) => {
                 </div>
 
                 <div className="text-gray-500">
-                    Total {totalCount} records
+                    {t('common.pagination_info', { start: pageStart, end: pageEnd, total: totalCount })}
                 </div>
             </div>
 
@@ -563,67 +578,67 @@ export const ProxyMonitor: React.FC<ProxyMonitorProps> = ({ className }) => {
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setSelectedLog(null)}>
                     <div className="bg-white dark:bg-base-100 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-200 dark:border-base-300" onClick={e => e.stopPropagation()}>
                         {/* Modal Header */}
-                        <div className="px-4 py-3 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between bg-gray-50 dark:bg-slate-900">
+                        <div className="px-4 py-3 border-b border-gray-100 dark:border-base-300 flex items-center justify-between bg-gray-50 dark:bg-base-200">
                             <div className="flex items-center gap-3">
                                 {loadingDetail && <div className="loading loading-spinner loading-sm"></div>}
                                 <span className={`badge badge-sm text-white border-none ${selectedLog.status >= 200 && selectedLog.status < 400 ? 'badge-success' : 'badge-error'}`}>{selectedLog.status}</span>
-                                <span className="font-mono font-bold text-gray-900 dark:text-white text-sm">{selectedLog.method}</span>
-                                <span className="text-xs text-gray-500 dark:text-slate-400 font-mono truncate max-w-md hidden sm:inline">{selectedLog.url}</span>
+                                <span className="font-mono font-bold text-gray-900 dark:text-base-content text-sm">{selectedLog.method}</span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400 font-mono truncate max-w-md hidden sm:inline">{selectedLog.url}</span>
                             </div>
-                            <button onClick={() => setSelectedLog(null)} className="btn btn-ghost btn-sm btn-circle text-gray-500 dark:text-slate-400 hover:dark:bg-slate-800"><X size={18} /></button>
+                            <button onClick={() => setSelectedLog(null)} className="btn btn-ghost btn-sm btn-circle text-gray-500 dark:text-gray-400 hover:dark:bg-base-300"><X size={18} /></button>
                         </div>
 
                         {/* Modal Content */}
-                        <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-white dark:bg-slate-900">
+                        <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-white dark:bg-base-100">
                             {/* Metadata Section */}
-                            <div className="bg-gray-50 dark:bg-slate-800 p-5 rounded-xl border border-gray-200 dark:border-slate-700 shadow-inner">
+                            <div className="bg-gray-50 dark:bg-base-200 p-5 rounded-xl border border-gray-200 dark:border-base-300 shadow-inner">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-5 gap-x-10">
                                     <div className="space-y-1.5">
-                                        <span className="block text-gray-500 dark:text-slate-400 uppercase font-black text-[10px] tracking-widest">{t('monitor.details.time')}</span>
-                                        <span className="font-mono font-semibold text-gray-900 dark:text-white text-xs">{new Date(selectedLog.timestamp).toLocaleString()}</span>
+                                        <span className="block text-gray-500 dark:text-gray-400 uppercase font-black text-[10px] tracking-widest">{t('monitor.details.time')}</span>
+                                        <span className="font-mono font-semibold text-gray-900 dark:text-base-content text-xs">{new Date(selectedLog.timestamp).toLocaleString()}</span>
                                     </div>
                                     <div className="space-y-1.5">
-                                        <span className="block text-gray-500 dark:text-slate-400 uppercase font-black text-[10px] tracking-widest">{t('monitor.details.duration')}</span>
-                                        <span className="font-mono font-semibold text-gray-900 dark:text-white text-xs">{selectedLog.duration}ms</span>
+                                        <span className="block text-gray-500 dark:text-gray-400 uppercase font-black text-[10px] tracking-widest">{t('monitor.details.duration')}</span>
+                                        <span className="font-mono font-semibold text-gray-900 dark:text-base-content text-xs">{selectedLog.duration}ms</span>
                                     </div>
                                     <div className="space-y-1.5">
-                                        <span className="block text-gray-500 dark:text-slate-400 uppercase font-black text-[10px] tracking-widest">{t('monitor.details.tokens')}</span>
+                                        <span className="block text-gray-500 dark:text-gray-400 uppercase font-black text-[10px] tracking-widest">{t('monitor.details.tokens')}</span>
                                         <div className="font-mono text-[11px] flex gap-2">
                                             <span className="text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/40 px-2.5 py-1 rounded-md border border-blue-200 dark:border-blue-800/50 font-bold">In: {formatCompactNumber(selectedLog.input_tokens ?? 0)}</span>
                                             <span className="text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/40 px-2.5 py-1 rounded-md border border-green-200 dark:border-green-800/50 font-bold">Out: {formatCompactNumber(selectedLog.output_tokens ?? 0)}</span>
                                         </div>
                                     </div>
                                 </div>
-                                <div className="mt-5 pt-5 border-t border-gray-200 dark:border-slate-700">
+                                <div className="mt-5 pt-5 border-t border-gray-200 dark:border-base-300">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                                         {selectedLog.protocol && (
                                             <div className="space-y-1.5">
-                                                <span className="block text-gray-500 dark:text-slate-400 uppercase font-black text-[10px] tracking-widest">{t('monitor.details.protocol')}</span>
+                                                <span className="block text-gray-500 dark:text-gray-400 uppercase font-black text-[10px] tracking-widest">{t('monitor.details.protocol')}</span>
                                                 <span className={`inline-block px-2.5 py-1 rounded-md font-mono font-black text-xs uppercase ${selectedLog.protocol === 'openai' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50' :
-                                                        selectedLog.protocol === 'anthropic' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50' :
-                                                            selectedLog.protocol === 'gemini' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50' :
-                                                                'bg-gray-100 text-gray-700 dark:bg-gray-900/40 dark:text-gray-400'
+                                                    selectedLog.protocol === 'anthropic' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50' :
+                                                        selectedLog.protocol === 'gemini' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50' :
+                                                            'bg-gray-100 text-gray-700 dark:bg-gray-900/40 dark:text-gray-400'
                                                     }`}>
                                                     {selectedLog.protocol}
                                                 </span>
                                             </div>
                                         )}
                                         <div className="space-y-1.5">
-                                            <span className="block text-gray-500 dark:text-slate-400 uppercase font-black text-[10px] tracking-widest">{t('monitor.details.model')}</span>
+                                            <span className="block text-gray-500 dark:text-gray-400 uppercase font-black text-[10px] tracking-widest">{t('monitor.details.model')}</span>
                                             <span className="font-mono font-black text-blue-600 dark:text-blue-400 break-all text-sm">{selectedLog.model || '-'}</span>
                                         </div>
                                         {selectedLog.mapped_model && selectedLog.model !== selectedLog.mapped_model && (
                                             <div className="space-y-1.5">
-                                                <span className="block text-gray-500 dark:text-slate-400 uppercase font-black text-[10px] tracking-widest">{t('monitor.details.mapped_model')}</span>
+                                                <span className="block text-gray-500 dark:text-gray-400 uppercase font-black text-[10px] tracking-widest">{t('monitor.details.mapped_model')}</span>
                                                 <span className="font-mono font-black text-green-600 dark:text-green-400 break-all text-sm">{selectedLog.mapped_model}</span>
                                             </div>
                                         )}
                                     </div>
                                 </div>
                                 {selectedLog.account_email && (
-                                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-slate-700">
-                                        <span className="block text-gray-500 dark:text-slate-400 uppercase font-black text-[10px] tracking-widest mb-2">{t('monitor.details.account_used')}</span>
-                                        <span className="font-mono font-semibold text-gray-900 dark:text-white text-xs">{selectedLog.account_email}</span>
+                                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-base-300">
+                                        <span className="block text-gray-500 dark:text-gray-400 uppercase font-black text-[10px] tracking-widest mb-2">{t('monitor.details.account_used')}</span>
+                                        <span className="font-mono font-semibold text-gray-900 dark:text-base-content text-xs">{selectedLog.account_email}</span>
                                     </div>
                                 )}
                             </div>
@@ -636,7 +651,16 @@ export const ProxyMonitor: React.FC<ProxyMonitorProps> = ({ className }) => {
                                         <button
                                             type="button"
                                             className="btn btn-ghost btn-xs gap-1"
-                                            onClick={handleCopyRequest}
+                                            onClick={async () => {
+                                                if (!selectedLog.request_body) return;
+                                                const success = await copyToClipboard(getCopyPayload(selectedLog.request_body));
+                                                if (success) {
+                                                    setCopiedRequestId(selectedLog.id);
+                                                    setTimeout(() => {
+                                                        setCopiedRequestId((current) => (current === selectedLog.id ? null : current));
+                                                    }, 2000);
+                                                }
+                                            }}
                                             disabled={!selectedLog.request_body}
                                             title={copiedRequestId === selectedLog.id ? t('proxy.config.btn_copied') : t('proxy.config.btn_copy')}
                                             aria-label={t('proxy.config.btn_copy')}
@@ -661,16 +685,14 @@ export const ProxyMonitor: React.FC<ProxyMonitorProps> = ({ className }) => {
                                             className="btn btn-ghost btn-xs gap-1"
                                             onClick={async () => {
                                                 if (!selectedLog.response_body) return;
-                                                try {
-                                                    await navigator.clipboard.writeText(getCopyPayload(selectedLog.response_body));
+                                                const success = await copyToClipboard(getCopyPayload(selectedLog.response_body));
+                                                if (success) {
                                                     setCopiedRequestId(selectedLog.id ? `${selectedLog.id}-response` : null);
                                                     setTimeout(() => {
                                                         setCopiedRequestId((current) =>
                                                             current === `${selectedLog.id}-response` ? null : current
                                                         );
                                                     }, 2000);
-                                                } catch (e) {
-                                                    console.error('Failed to copy response payload', e);
                                                 }
                                             }}
                                             disabled={!selectedLog.response_body}

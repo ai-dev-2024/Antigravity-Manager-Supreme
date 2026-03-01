@@ -1,5 +1,5 @@
-// Claude mapper Module
-// Responsible Claude ↔ Gemini ProtocolConvert
+// Claude mapper 模块
+// 负责 Claude ↔ Gemini 协议转换
 
 pub mod models;
 pub mod request;
@@ -15,21 +15,29 @@ pub use response::transform_response;
 pub use streaming::{PartProcessor, StreamingState};
 pub use thinking_utils::{close_tool_loop_for_thinking, filter_invalid_thinking_blocks_with_family};
 pub use collector::collect_stream_to_json;
+use crate::proxy::common::client_adapter::ClientAdapter; // [NEW]
 
 use bytes::Bytes;
 use futures::Stream;
 use std::pin::Pin;
 
-/// Create从 Gemini SSE Stream到 Claude SSE Stream的Convert
-pub fn create_claude_sse_stream(
-    mut gemini_stream: Pin<Box<dyn Stream<Item = Result<Bytes, reqwest::Error>> + Send>>,
+/// 创建从 Gemini SSE 流到 Claude SSE 流的转换
+pub fn create_claude_sse_stream<S, E>(
+    mut gemini_stream: Pin<Box<S>>,
     trace_id: String,
     email: String,
     session_id: Option<String>, // [NEW v3.3.17] Session ID for signature caching
     scaling_enabled: bool, // [NEW] Flag for context usage scaling
     context_limit: u32,
     estimated_prompt_tokens: Option<u32>, // [FIX] Estimated tokens for calibrator learning
-) -> Pin<Box<dyn Stream<Item = Result<Bytes, String>> + Send>> {
+    message_count: usize, // [NEW v4.0.0] Message count for rewind detection
+    client_adapter: Option<std::sync::Arc<dyn ClientAdapter>>, // [NEW] Adapter reference
+    registered_tool_names: Vec<String>, // [FIX #MCP] Tool names for fuzzy matching
+) -> Pin<Box<dyn Stream<Item = Result<Bytes, String>> + Send>> 
+where
+    S: Stream<Item = Result<Bytes, E>> + Send + ?Sized + 'static,
+    E: std::fmt::Display + Send + 'static,
+{
     use async_stream::stream;
     use bytes::BytesMut;
     use futures::StreamExt;
@@ -37,15 +45,18 @@ pub fn create_claude_sse_stream(
     Box::pin(stream! {
         let mut state = StreamingState::new();
         state.session_id = session_id; // Set session ID for signature caching
+        state.message_count = message_count; // [NEW v4.0.0] Set message count
         state.scaling_enabled = scaling_enabled; // Set scaling enabled flag
         state.context_limit = context_limit;
         state.estimated_prompt_tokens = estimated_prompt_tokens; // [FIX] Pass estimated tokens
+        state.set_client_adapter(client_adapter); // [NEW] Set adapter
+        state.set_registered_tool_names(registered_tool_names); // [FIX #MCP] Set tool names
         let mut buffer = BytesMut::new();
 
         loop {
-            // [NEW] 30秒Heartbeatkeep alive: extendTimeoutTime以Compatible长DelayModel
+            // [NEW] 60秒心跳保活: 延长超时时间以增加网络抖动容错
             let next_chunk = tokio::time::timeout(
-                std::time::Duration::from_secs(30),
+                std::time::Duration::from_secs(60),
                 gemini_stream.next()
             ).await;
 
@@ -76,12 +87,29 @@ pub fn create_claude_sse_stream(
                         }
                     }
                 }
-                Ok(None) => break, // Stream normalEnd
+                Ok(None) => break, // Stream 正常结束
                 Err(_) => {
-                    // Timeout，SendHeartbeatPacket (SSE Comment Format)
+                    // 超时，发送心跳包 (SSE Comment 格式)
                     yield Ok(Bytes::from(": ping\n\n"));
                 }
             }
+        }
+        
+        // [FIX #1732] Mandatory Flush remaining buffer on stream termination
+        // Prevents hangs when the last SSE chunk doesn't end with a newline (network fragmentation)
+        if !buffer.is_empty() {
+             if let Ok(line_str) = std::str::from_utf8(&buffer) {
+                 let line = line_str.trim();
+                 if !line.is_empty() {
+                     tracing::debug!("[{}] SSE Termination: Flushing remaining {} bytes in buffer", trace_id, buffer.len());
+                     if let Some(sse_chunks) = process_sse_line(line, &mut state, &trace_id, &email) {
+                         for sse_chunk in sse_chunks {
+                             yield Ok(sse_chunk);
+                         }
+                     }
+                 }
+             }
+             buffer.clear();
         }
 
         // [FIX #859] Post-thinking interruption recovery
@@ -139,7 +167,7 @@ pub fn create_claude_sse_stream(
     })
 }
 
-/// Handle单Line SSE Data
+/// 处理单行 SSE 数据
 fn process_sse_line(line: &str, state: &mut StreamingState, trace_id: &str, email: &str) -> Option<Vec<Bytes>> {
     if !line.starts_with("data: ") {
         return None;
@@ -158,7 +186,7 @@ fn process_sse_line(line: &str, state: &mut StreamingState, trace_id: &str, emai
         return Some(chunks);
     }
 
-    // Parse JSON
+    // 解析 JSON
     let json_value: serde_json::Value = match serde_json::from_str(data_str) {
         Ok(v) => v,
         Err(_) => return None,
@@ -166,18 +194,18 @@ fn process_sse_line(line: &str, state: &mut StreamingState, trace_id: &str, emai
 
     let mut chunks = Vec::new();
 
-    // 解Packet response Field (Ifexist)
+    // 解包 response 字段 (如果存在)
     let raw_json = json_value.get("response").unwrap_or(&json_value);
 
-    // Send message_start
+    // 发送 message_start
     if !state.message_start_sent {
         chunks.push(state.emit_message_start(raw_json));
     }
 
-    // capture groundingMetadata (Web Search)
+    // 捕获 groundingMetadata (Web Search)
     if let Some(candidate) = raw_json.get("candidates").and_then(|c| c.get(0)) {
         if let Some(grounding) = candidate.get("groundingMetadata") {
-            // extractSearch词
+            // 提取搜索词
             if let Some(query) = grounding.get("webSearchQueries")
                 .and_then(|v| v.as_array())
                 .and_then(|arr| arr.get(0))
@@ -186,7 +214,7 @@ fn process_sse_line(line: &str, state: &mut StreamingState, trace_id: &str, emai
                 state.web_search_query = Some(query.to_string());
             }
 
-            // extractResultBlock
+            // 提取结果块
             if let Some(chunks_arr) = grounding.get("groundingChunks").and_then(|v| v.as_array()) {
                 state.grounding_chunks = Some(chunks_arr.clone());
             } else if let Some(chunks_arr) = grounding.get("grounding_metadata").and_then(|m| m.get("groundingChunks")).and_then(|v| v.as_array()) {
@@ -195,7 +223,7 @@ fn process_sse_line(line: &str, state: &mut StreamingState, trace_id: &str, emai
         }
     }
 
-    // HandleAll parts
+    // 处理所有 parts
     if let Some(parts) = raw_json
         .get("candidates")
         .and_then(|c| c.get(0))
@@ -228,7 +256,7 @@ fn process_sse_line(line: &str, state: &mut StreamingState, trace_id: &str, emai
     }
     */
 
-    // CheckYesNoEnd
+    // 检查是否结束
     if let Some(finish_reason) = raw_json
         .get("candidates")
         .and_then(|c| c.get(0))
@@ -267,7 +295,7 @@ fn process_sse_line(line: &str, state: &mut StreamingState, trace_id: &str, emai
     }
 }
 
-/// SendforceEndEvent
+/// 发送强制结束事件
 pub fn emit_force_stop(state: &mut StreamingState) -> Vec<Bytes> {
     if !state.message_stop_sent {
         let mut chunks = state.emit_finish(None, None);
@@ -435,7 +463,7 @@ mod tests {
         let chunks = result.unwrap();
         assert!(!chunks.is_empty());
 
-        // ShouldPacket含 message_start 和 text delta
+        // 应该包含 message_start 和 text delta
         let all_text: String = chunks
             .iter()
             .map(|b| String::from_utf8(b.to_vec()).unwrap_or_default())
@@ -450,9 +478,9 @@ mod tests {
     async fn test_thinking_only_interruption_recovery() {
         use futures::StreamExt;
         
-        // 1. Simulate aSend Thinking Then就End的Stream
+        // 1. 模拟一个只发送 Thinking 然后就结束的流
         let mock_stream = async_stream::stream! {
-            // Send Thinking Block
+            // 发送 Thinking 块
             let thinking_json = serde_json::json!({
                 "candidates": [{
                     "content": {
@@ -462,12 +490,12 @@ mod tests {
                 "modelVersion": "gemini-2.0-flash-thinking",
                 "responseId": "msg_interrupted"
             });
-            yield Ok(bytes::Bytes::from(format!("data: {}\n\n", thinking_json)));
+            yield Ok::<_, String>(bytes::Bytes::from(format!("data: {}\n\n", thinking_json)));
             
-            // ThenSuddenEnd (None Text, None Usage, direct None)
+            // 然后突然结束 (没有 Text, 没有 Usage, 直接 None)
         };
 
-        // 2. CreateConvertlaterStream
+        // 2. 创建转换后的流
         let mut claude_stream = create_claude_sse_stream(
             Box::pin(mock_stream),
             "trace_test".to_string(),
@@ -475,10 +503,13 @@ mod tests {
             None,
             false,
             1_000,
-            None
+            None,
+            1, // message_count
+            None, // client_adapter
+            Vec::new(), // registered_tool_names
         );
 
-        // 3. collectOutput
+        // 3. 收集输出
         let mut all_chunks = Vec::new();
         while let Some(result) = claude_stream.next().await {
             if let Ok(bytes) = result {
@@ -487,14 +518,14 @@ mod tests {
         }
         let output = all_chunks.join("");
 
-        // 4. Validaterecovery logic
-        // MustPacket含 Thinking
+        // 4. 验证恢复逻辑
+        // 必须包含 Thinking
         assert!(output.contains("Thinking..."));
         
-        // MustPacketincluding recoverySystemHint
+        // 必须包含恢复的系统提示
         assert!(output.contains("Recovered by Antigravity"));
         
-        // MustPacketContains simulated Usage
+        // 必须包含模拟的 Usage
         assert!(output.contains("\"usage\":"));
         assert!(output.contains("\"output_tokens\":100")); // Should contain the recovery usage
     }

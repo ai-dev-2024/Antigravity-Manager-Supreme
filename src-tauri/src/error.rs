@@ -7,7 +7,7 @@ pub enum AppError {
     Database(#[from] rusqlite::Error),
 
     #[error("Network error: {0}")]
-    Network(#[from] reqwest::Error),
+    Network(String, Option<u16>),
 
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
@@ -26,6 +26,20 @@ pub enum AppError {
 
     #[error("Unknown error: {0}")]
     Unknown(String),
+}
+
+impl From<reqwest::Error> for AppError {
+    fn from(err: reqwest::Error) -> Self {
+        let status = err.status().map(|s| s.as_u16());
+        AppError::Network(err.to_string(), status)
+    }
+}
+
+impl From<rquest::Error> for AppError {
+    fn from(err: rquest::Error) -> Self {
+        let status = err.status().map(|s| s.as_u16());
+        AppError::Network(err.to_string(), status)
+    }
 }
 
 // Implement Serialize so it can be used as a return value for Tauri commands

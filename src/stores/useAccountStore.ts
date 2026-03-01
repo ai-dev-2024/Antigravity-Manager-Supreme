@@ -30,6 +30,7 @@ interface AccountState {
     toggleProxyStatus: (accountId: string, enable: boolean, reason?: string) => Promise<void>;
     warmUpAccounts: () => Promise<string>;
     warmUpAccount: (accountId: string) => Promise<string>;
+    updateAccountLabel: (accountId: string, label: string) => Promise<void>;
 }
 
 export const useAccountStore = create<AccountState>((set, get) => ({
@@ -273,12 +274,13 @@ export const useAccountStore = create<AccountState>((set, get) => ({
         set({ loading: true, error: null });
         try {
             const result = await accountService.warmUpAllAccounts();
-            await get().fetchAccounts();
             set({ loading: false });
             return result;
         } catch (error) {
             set({ error: String(error), loading: false });
             throw error;
+        } finally {
+            await get().fetchAccounts();
         }
     },
 
@@ -286,11 +288,27 @@ export const useAccountStore = create<AccountState>((set, get) => ({
         set({ loading: true, error: null });
         try {
             const result = await accountService.warmUpAccount(accountId);
-            await get().fetchAccounts();
             set({ loading: false });
             return result;
         } catch (error) {
             set({ error: String(error), loading: false });
+            throw error;
+        } finally {
+            await get().fetchAccounts();
+        }
+    },
+
+    updateAccountLabel: async (accountId: string, label: string) => {
+        try {
+            await accountService.updateAccountLabel(accountId, label);
+            // 乐观更新本地状态
+            const { accounts } = get();
+            const updatedAccounts = accounts.map(acc =>
+                acc.id === accountId ? { ...acc, custom_label: label || undefined } : acc
+            );
+            set({ accounts: updatedAccounts });
+        } catch (error) {
+            console.error('[AccountStore] Update label failed:', error);
             throw error;
         }
     },

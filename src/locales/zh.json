@@ -22,7 +22,9 @@
         "warning": "警告",
         "info": "提示",
         "details": "详情",
+        "example": "示例",
         "clear": "清除",
+        "clearing": "清理中...",
         "prev_page": "上一页",
         "next_page": "下一页",
         "pagination_info": "显示第 {{start}} 到 {{end}} 条，共 {{total}} 条",
@@ -32,7 +34,17 @@
         "enabled": "已启用",
         "disabled": "已禁用",
         "tauri_api_not_loaded": "Tauri API 未正确加载,请重启应用",
-        "environment_error": "环境错误: {{error}}"
+        "environment_error": "环境错误: {{error}}",
+        "submit": "提交",
+        "update": "更新",
+        "load_failed": "加载失败",
+        "create_success": "创建成功",
+        "update_success": "更新成功",
+        "delete_success": "删除成功",
+        "copied": "已复制到剪贴板",
+        "reason": "原因",
+        "show_raw": "显示原始报文",
+        "show_parsed": "显示解析后"
     },
     "nav": {
         "dashboard": "仪表盘",
@@ -40,6 +52,8 @@
         "proxy": "API 反代",
         "call_records": "流量日志",
         "token_stats": "Token 统计",
+        "security": "IP 管理",
+        "security_logs": "IP 日志",
         "settings": "设置",
         "theme_to_dark": "切换到深色模式",
         "theme_to_light": "切换到浅色模式",
@@ -60,7 +74,13 @@
         "switch_to_portuguese": "切换到葡萄牙文",
         "switch_to_portuguese_short": "PT",
         "switch_to_korean": "切换到韩语",
-        "switch_to_korean_short": "KO"
+        "switch_to_korean_short": "KO",
+        "switch_to_spanish": "切换到西班牙语",
+        "switch_to_spanish_short": "ES",
+        "switch_to_malay": "切换到马来语",
+        "switch_to_malay_short": "MY",
+        "user_token": "用户 Token",
+        "logout": "登出"
     },
     "dashboard": {
         "hello": "你好, 用户 👋",
@@ -96,6 +116,7 @@
         }
     },
     "accounts": {
+        "account": "账号",
         "search_placeholder": "搜索邮箱...",
         "all": "全部",
         "available": "可用",
@@ -103,6 +124,9 @@
         "ultra": "ULTRA",
         "pro": "PRO",
         "free": "FREE",
+        "edit_label": "编辑标签",
+        "custom_label_placeholder": "输入自定义标签",
+        "label_updated": "标签已更新",
         "add_account": "添加账号",
         "refresh_all": "刷新所有",
         "refresh_selected": "刷新 ({{count}})",
@@ -129,12 +153,43 @@
         "forbidden_badge": "403",
         "forbidden_tooltip": "API 返回 403 Forbidden，账号无权使用 Gemini Code Assist",
         "forbidden_msg": "账号无权限，已跳过自动刷新",
+        "status": {
+            "forbidden": "403 Forbidden",
+            "disabled": "账号已禁用",
+            "proxy_disabled": "反代已禁用",
+            "validation_required": "账号需验证",
+            "violation_blocked": "由于违规被禁用"
+        },
+        "error_details": "错误详情",
+        "error_status": "错误状态",
+        "error_time": "检测时间",
+        "view_error": "查看原因",
+        "click_to_verify": "点击去验证",
+        "copy_validation_url": "复制验证链接",
+        "validation_url_copied": "验证链接已复制到剪贴板",
+        "fix_guide": {
+            "title": "终端一键自救指南 (解决部分 403 拦截)",
+            "step1_title": "🚀 终极杀招（最快方案）",
+            "step1_desc": "打开终端（Terminal），执行以下命令告诉 Google \"是我本人\"，可解决部分 403 拦截：",
+            "step1_li1": "按回车执行，提示继续时输入 <1>Y</1>。",
+            "step1_li2": "浏览器自动打开，选择账号并“允许”。",
+            "step1_li3": "看到 <1>You are now authenticated</1> 即大功告成！",
+            "step2_title": "🧹 如果无效（清除缓存重来）",
+            "step2_li1_prefix": "先执行清除命令退出旧认证：",
+            "step2_li2_prefix": "再执行登录：",
+            "tips_title": "💡 常见建议",
+            "tip1": "若仍 403，尝试先在终端执行 <1>unset GOOGLE_APPLICATION_CREDENTIALS</1> 重置环境变量。",
+            "tip2": "生产环境强烈建议改用 <1>服务账户 (Service Account)</1> 的 JSON 密钥，更稳定且免交互。",
+            "tip3": "若操作失败，请前往 <1>Google Cloud Console</1> 中的 Generative Language API 查看是否被冻结权限。若是，说明账号触发了风控，建议让账号冷却 72 小时后再次尝试。",
+            "tip4": "你也可以尝试执行 <1>npm install -g @google/gemini-cli</1>，只要不弹出错误，大概率在软件内删除账号重新授权即可。"
+        },
         "no_data": "无数据",
         "last_used": "最后使用",
         "reset_time": "重置时间",
         "switch_to": "切换到此账号",
         "actions": "操作",
         "device_fingerprint": "设备指纹",
+        "show_all_quotas": "显示所有配额",
         "device_fingerprint_dialog": {
             "title": "设备指纹",
             "operations": "设备指纹操作",
@@ -179,7 +234,9 @@
         "warmup_batch_triggered": "已成功为 {{count}} 个账号触发预热任务",
         "quota_protected": "受保护",
         "details": {
-            "title": "配额详情"
+            "title": "配额详情",
+            "model_quota": "模型配额",
+            "protected_models": "受保护模型"
         },
         "toast": {
             "proxy_enabled": "成功启用 {{count}} 个账号的反代功能",
@@ -201,7 +258,15 @@
                 "copy_link": "复制授权链接",
                 "copied": "已复制",
                 "link_label": "授权链接",
-                "link_click_to_copy": "点击复制"
+                "link_click_to_copy": "点击复制",
+                "manual_hint": "浏览器没有自动跳转？请在此处粘贴回调链接或 Authorization Code：",
+                "manual_placeholder": "粘贴回调链接或 Code...",
+                "error_no_flow": "请先点击“开始 OAuth 授权”",
+                "web_hint": "将在新窗口中打开 Google 登录页",
+                "error_no_url": "无法获取 OAuth URL",
+                "popup_blocked": "弹窗被拦截，请允许弹出窗口",
+                "manual_submitting": "正在提交认证码...",
+                "manual_submitted": "认证码已提交，后台处理中..."
             },
             "token": {
                 "label": "Refresh Token",
@@ -272,6 +337,7 @@
             "account": "账号",
             "proxy": "代理设置",
             "advanced": "高级",
+            "debug": "调试",
             "about": "关于"
         },
         "general": {
@@ -301,7 +367,7 @@
             "refresh_interval": "刷新间隔（分钟）",
             "auto_sync": "自动获取当前账号",
             "auto_sync_desc": "定期自动刷新当前活动账号的信息",
-            "sync_interval": "同步间隔（秒）"
+            "sync_interval": "同步间隔（分钟）"
         },
         "warmup": {
             "title": "智能预热",
@@ -324,6 +390,60 @@
         },
         "proxy": {
             "title": "代理设置"
+        },
+        "proxy_pool": {
+            "title": "代理池",
+            "strategy_priority": "按权重随机",
+            "strategy_round_robin": "顺序循环",
+            "strategy_random": "随机",
+            "strategy_least_connections": "最少连接",
+            "test_all": "全量检测",
+            "batch_import": "导入",
+            "binding_manager": "绑定",
+            "add_proxy": "添加代理",
+            "edit_proxy": "编辑代理",
+            "name": "名称",
+            "url": "代理地址",
+            "username": "用户名",
+            "password": "密码",
+            "max_accounts": "最大账号数",
+            "max_accounts_hint": "0 = 不限制",
+            "priority": "优先级",
+            "priority_hint": "越小越优先",
+            "health_check_url": "健康检查地址",
+            "tags": "标签",
+            "add_tag_placeholder": "添加标签...",
+            "seconds": "秒",
+            "interval_tooltip": "健康检查间隔 (秒)",
+            "test_completed": "健康检查已完成",
+            "test_failed": "健康检查失败",
+            "confirm_delete": "确定要删除此代理吗？",
+            "empty": "暂无代理",
+            "column_priority": "权重",
+            "column_status": "状态",
+            "column_details": "代理详情",
+            "column_bindings": "绑定",
+            "import_title": "批量导入代理",
+            "import_label": "粘贴代理列表 (每行一个)",
+            "import_hint": "支持格式: protocol://user:pass@host:port, host:port:user:pass",
+            "import_preview": "预览",
+            "import_confirm": "导入 {{count}} 个代理",
+            "no_valid_proxies": "未找到有效代理",
+            "binding": {
+                "title": "账号代理绑定",
+                "load_failed": "加载绑定失败",
+                "unbind_success": "解绑成功",
+                "bind_success": "绑定成功",
+                "update_failed": "更新绑定失败",
+                "assigned_proxy": "已分配代理",
+                "default_strategy": "默认 (跟随策略)"
+            },
+            "status": {
+                "inactive": "未启用",
+                "checking": "正在检测",
+                "healthy": "正常",
+                "timeout": "已超时"
+            }
         },
         "advanced": {
             "title": "高级设置",
@@ -355,6 +475,20 @@
             "clear_logs_title": "清理日志确认",
             "clear_logs_msg": "确定要清理所有日志缓存文件吗？",
             "logs_cleared": "日志缓存已清理",
+            "antigravity_cache_title": "Antigravity 缓存清理",
+            "antigravity_cache_desc": "清理 Antigravity 应用的缓存可以解决登录失败、版本验证错误、OAuth 授权失败等问题。",
+            "antigravity_cache_warning": "请确保 Antigravity 应用已完全退出后再执行清理操作。",
+            "clear_antigravity_cache": "清理 Antigravity 缓存",
+            "clear_cache_confirm_title": "确认清理 Antigravity 缓存",
+            "clear_cache_confirm_msg": "将清理以下缓存目录：",
+            "cache_cleared_success": "缓存清理完成，释放 {{size}} MB 空间",
+            "cache_not_found": "未找到 Antigravity 缓存目录",
+            "debug_logs_title": "调试日志",
+            "debug_logs_enable_desc": "启用后会记录完整请求与响应链路，建议仅在排查问题时开启。",
+            "debug_logs_desc": "记录完整链路：原始输入、转换后的 v1internal 请求、以及上游响应。仅用于问题排查，可能包含敏感数据。",
+            "debug_log_dir": "调试日志输出目录",
+            "debug_log_dir_hint": "不填写则使用默认目录：{{path}}/debug_logs",
+            "debug_log_dir_select": "选择调试日志输出目录",
             "http_api_title": "HTTP API 服务",
             "http_api_desc": "为外部程序（如 VS Code 插件）提供本地 HTTP 接口。",
             "http_api_enabled": "启用 HTTP API",
@@ -366,12 +500,33 @@
             "http_api_settings_saved": "HTTP API 设置已保存，重启应用后生效",
             "http_api_restart_required": "⚠️ 需要重启应用后生效"
         },
+        "debug": {
+            "title": "调试控制台",
+            "desc": "实时查看应用日志，用于调试和问题排查",
+            "enabled": "已启用",
+            "disabled": "已禁用",
+            "disabled_hint": "调试控制台已关闭",
+            "disabled_desc": "开启后将实时记录应用日志",
+            "console_title": "调试控制台",
+            "console_desc": "查看实时应用日志，用于排查问题。",
+            "enable_desc": "开启后将捕获并显示后端日志。",
+            "open_btn": "打开控制台",
+            "debug_logging": "调试日志",
+            "debug_logging_desc": "启用后会记录完整请求与响应链路，建议仅在排查问题时开启。"
+        },
+        "menu": {
+            "title": "菜单显示设置",
+            "desc": "选择要在菜单栏中显示的功能项。隐藏不常用的菜单可以节省空间。",
+            "selected_items_note": "被选中的项目将显示在顶部菜单栏中。",
+            "required": "必选"
+        },
         "about": {
             "title": "关于",
             "version": "应用版本",
             "tech_stack": "技术栈",
             "author": "作者",
             "wechat": "微信公众号",
+            "telegram": "Telegram 频道",
             "github": "开源地址",
             "view_code": "查看代码",
             "copyright": "Copyright © 2025-2026 Antigravity. All rights reserved.",
@@ -380,6 +535,22 @@
             "latest_version": "已是最新版本",
             "new_version_available": "发现新版本 {{version}}",
             "download_update": "前往下载",
+            "brew_upgrade": "通过 Homebrew 更新",
+            "brew_upgrading": "更新中...",
+            "brew_confirm_title": "通过 Homebrew 更新",
+            "brew_confirm_desc": "即将执行以下命令更新应用，更新完成后需要重启应用。",
+            "brew_quarantine_hint": "如更新后遇到「应用已损坏」提示，请在终端运行：",
+            "brew_confirm_btn": "开始更新",
+            "brew_success_title": "升级完成",
+            "brew_upgrade_success": "Homebrew 升级成功，请重启应用以加载新版本。",
+            "brew_restart_btn": "立即重启",
+            "brew_restart_failed": "自动重启失败，请手动关闭并重新打开应用",
+            "brew_upgrade_failed": "Homebrew 升级失败，请尝试在终端手动执行：brew upgrade --cask antigravity-tools",
+            "brew_error_brew_not_found": "未找到 Homebrew，请确认已安装 brew",
+            "brew_error_brew_exec_failed": "执行 brew 命令失败，请尝试在终端手动执行",
+            "brew_error_brew_timeout": "Homebrew 升级超时（3分钟），请在终端手动执行：brew upgrade --cask antigravity-tools",
+            "brew_error_brew_already_latest": "已是最新版本，无需升级",
+            "brew_error_brew_not_supported": "当前系统不支持 Homebrew 更新",
             "update_check_failed": "检测更新失败",
             "support_btn": "支持作者",
             "support_title": "赞助支持",
@@ -387,6 +558,49 @@
             "support_alipay": "支付宝",
             "support_wechat": "微信支付",
             "support_buymeacoffee": "Buy Me a Coffee"
+        },
+        "advanced_thinking": {
+            "title": "高级思维与全局配置",
+            "description": "集中管理思考能力、图像模式及全局指令。"
+        },
+        "thinking_budget": {
+            "title": "思考预算 (Thinking Budget)",
+            "description": "控制 AI 深度思考时的 Token 预算。某些模型（如 Flash、带 -thinking 后缀的模型）受上游 24576 上限限制。",
+            "mode_label": "处理模式",
+            "mode": {
+                "auto": "自动限制",
+                "passthrough": "透传",
+                "custom": "自定义",
+                "adaptive": "自适应"
+            },
+            "effort_label": "思考强度",
+            "effort": {
+                "low": "低 (Low)",
+                "medium": "中 (Medium)",
+                "high": "高 (High)"
+            },
+            "auto_hint": "自动模式：对 Flash 模型、-thinking 后缀模型、以及启用 Web Search 的请求自动限制在 24576 以避免 API 错误。",
+            "passthrough_warning": "透传：直接使用调用方原始值，不支持高值可能导致失败。",
+            "custom_value_hint": "推荐：24576 (Flash) 或 51200 (扩展)",
+            "adaptive_hint": "自适应模式：由模型根据任务复杂度自动调整思考量。Claude 4.6+ 推荐使用此模式。",
+            "tokens": "tokens"
+        },
+        "image_thinking_mode": {
+            "title": "图像思维模式 (Image Thinking Mode)",
+            "hint": "影响画质与生成流程",
+            "options": {
+                "enabled": "开启",
+                "disabled": "关闭",
+                "enabled_desc": "开启：保留思维链，返回草图 + 成品双图。",
+                "disabled_desc": "关闭：禁用思维链，直接生成单张超清图片（画质优先）。"
+            }
+        },
+        "global_system_prompt": {
+            "title": "全局系统提示词 (Global System Prompt)",
+            "hint": "自动注入所有请求的 systemInstruction",
+            "placeholder": "输入全局系统提示词...\n例如：你是一位资深的全栈开发工程师，擅长 React 和 Rust。请使用简体中文回复。",
+            "char_count": "{{count}} 字符",
+            "long_prompt_warning": "提示词较长（超过 2000 字符），可能会占用较多的上下文窗口空间。"
         }
     },
     "tray": {
@@ -414,6 +628,12 @@
         },
         "config": {
             "title": "服务配置",
+            "request": {
+                "user_agent": "User-Agent 覆盖",
+                "user_agent_tooltip": "自定义发送给上游 API 的 User-Agent 请求头。留空则使用默认值。",
+                "user_agent_hint": "当前默认值: antigravity/<version> <os>/<arch>",
+                "user_agent_placeholder": "输入自定义 User-Agent 字符串..."
+            },
             "port": "监听端口",
             "port_tooltip": "本地 API 代理监听的端口。需要先停止服务再修改，修改后需重启生效。",
             "port_hint": "默认 8045，修改端口需重启服务",
@@ -435,6 +655,13 @@
             "warning_key": "注意：请妥善保管您的 API 密钥，不要泄露给他人。",
             "api_key_invalid": "API 密钥格式无效,必须以 sk- 开头且长度至少 10 个字符",
             "api_key_updated": "API 密钥已更新",
+            "admin_password": "Web UI 管理后台密码",
+            "admin_password_tooltip": "用于登录 Web 管理后台的密码。如果为空，则默认使用 API 密钥（API Key）。",
+            "admin_password_default": "（同 API 密钥）",
+            "admin_password_placeholder": "输入新密码，留空则使用 API 密钥",
+            "admin_password_hint": "提示：在 Docker/Web 部署场景中，您可以设置一个独立的登录密码，提高 API 密钥的安全性。",
+            "admin_password_short": "密码太短（最少 4 个字符）",
+            "admin_password_updated": "Web UI 登录密码已更新",
             "auth": {
                 "title": "访问授权",
                 "title_tooltip": "控制代理是否需要鉴权，以及哪些路由需要提供 API 密钥。",
@@ -516,10 +743,12 @@
             "upstream_proxy": {
                 "title": "全局上游代理 (Global Proxy)",
                 "desc": "开启后，应用内所有外部请求（API 反代、Token 刷新、配额查询、更新检测）都将通过此代理。",
+                "desc_short": "用于无法匹配代理池账号时的通用出口或降级方案。",
                 "enable": "启用上游代理",
                 "url": "代理地址",
                 "url_placeholder": "例如: http://127.0.0.1:7890 或 socks5://127.0.0.1:7890",
                 "tip": "支持 HTTP、HTTPS 和 SOCKS5 协议。",
+                "socks5h_hint": "若需避开上游风控并保留原始域名解析 (Remote DNS)，请手动将协议改为 socks5h://",
                 "validation_error": "启用上游代理时必须填写代理地址",
                 "restart_hint": "代理配置已保存，重启应用后生效"
             },
@@ -542,7 +771,18 @@
                 "max_wait": "最大等待时长 (秒)",
                 "max_wait_tooltip": "仅在“缓存优先”模式下生效：如果账号限流重置时间小于此值，则原地等待而非切换账号。",
                 "clear_bindings": "清除会话绑定",
-                "clear_bindings_tooltip": "立即断开所有会话与账号的绑定关系，强制下一次请求重新分配账号。"
+                "clear_bindings_tooltip": "立即断开所有会话与账号的绑定关系，强制下一次请求重新分配账号。",
+                "clear_rate_limits": "清除限流记录",
+                "clear_rate_limits_tooltip": "立即清除所有账号的本地限流记录，强制下一次请求尝试直接调用上游。"
+            },
+            "circuit_breaker": {
+                "title": "自适应熔断器",
+                "tooltip": "当账号因配额耗尽反复失败时，自动增加锁定时间。这可以防止在死账号上浪费 API 调用，同时允许瞬态错误快速恢复。",
+                "backoff_levels": "退避等级 (秒)",
+                "input_placeholder": "输入退避时长 (秒)，以逗号分隔",
+                "level": "等级 {{level}}",
+                "invalid_format": "格式无效。请使用逗号分隔的数字 (例如 60, 300)",
+                "clear_records": "清除所有限流记录"
             },
             "experimental": {
                 "title": "实验性设置 (Experimental)",
@@ -555,6 +795,58 @@
                 "context_compression_threshold_l2_tooltip": "压缩早期的思维链内容，保留签名。建议值: 0.55 (55%)",
                 "context_compression_threshold_l3": "L3 压缩阈值 (摘要重置)",
                 "context_compression_threshold_l3_tooltip": "强制生成 XML 状态摘要并重置会话。这是最省 token 的手段。建议值: 0.7 (70%)"
+            },
+            "opencode_sync": {
+                "card_title": "OpenCode",
+                "status": {
+                    "detecting": "检测中...",
+                    "installed": "已安装 ({{version}})",
+                    "not_installed": "未安装",
+                    "synced": "已同步",
+                    "not_synced": "未同步",
+                    "current_base_url": "当前接口地址 (BASE URL)"
+                },
+                "sync_accounts": "同步账号到 antigravity-accounts.json",
+                "btn_sync": "立即同步配置",
+                "btn_view": "查看配置",
+                "btn_restore": "还原配置",
+                "btn_restore_backup": "从备份还原",
+                "btn_clear": "清除配置",
+                "clear_confirm_title": "确认清除配置",
+                "clear_confirm_message": "确定要清除 OpenCode 配置吗？这将删除配置文件。",
+                "toast": {
+                    "config_missing": "请先生成 API Key 并启动服务",
+                    "sync_success": "OpenCode 配置同步成功",
+                    "sync_error": "OpenCode 同步失败: {{error}}",
+                    "clear_success": "OpenCode 配置已清除",
+                    "clear_error": "清除 OpenCode 配置失败: {{error}}"
+                },
+                "modal": {
+                    "view_title": "OpenCode 配置文件预览",
+                    "copy_success": "配置已复制"
+                },
+                "sync_confirm_title": "确认同步",
+                "sync_confirm_message": "将根据当前反代设置覆盖 OpenCode 配置。确定继续？",
+                "restore_confirm": "确定要将 OpenCode 还原为默认配置吗？",
+                "restore_backup_confirm": "确定要从备份还原 OpenCode 配置吗？",
+                "modal_title": "选择 OpenCode 模型",
+                "select_models": "选择要同步的模型",
+                "auth_plugin_warning": "检测到 opencode-antigravity-auth 插件。同步仅会创建 antigravity-manager provider，不会覆盖 google provider/plugin。",
+                "btn_confirm_sync": "确认同步",
+                "custom_base_url_label": "自定义 Manager BaseURL",
+                "custom_base_url_desc": "适用于 Docker Compose 网络环境",
+                "custom_base_url_reset": "重置"
+            },
+            "droid_sync": {
+                "modal_title": "添加模型到 Droid",
+                "modal_desc": "选中的模型将作为 customModels 写入 settings.json",
+                "selected": "已选",
+                "btn_confirm_sync": "添加所选模型",
+                "toast": {
+                    "no_models_selected": "请至少选择一个模型",
+                    "sync_success_count": "已添加 {{count}} 个模型到 Droid",
+                    "sync_error": "同步失败: {{error}}"
+                }
             }
         },
         "cloudflared": {
@@ -618,25 +910,30 @@
             "regenerate_key_title": "重新生成 API Key",
             "regenerate_key_msg": "确定要重新生成 API Key 吗？旧的 Key 将立即失效。",
             "clear_bindings_title": "清除会话绑定",
-            "clear_bindings_msg": "确定要清除所有会话与账号的绑定映射吗？"
+            "clear_bindings_msg": "确定要清除所有会话与账号的绑定映射吗？",
+            "clear_rate_limits_title": "清除限流记录",
+            "clear_rate_limits_confirm": "确定要清除所有本地限流记录吗？"
         },
         "model": {
             "flash": "极速响应",
-            "flash_preview": "极速预览",
-            "flash_lite": "轻量极速",
-            "flash_thinking": "思考能力",
-            "pro_legacy": "经典版",
-            "pro_low": "标准性能",
-            "pro_high": "最强推理",
+            "flash_preview": "极速预览 (Flash 3.1)",
+            "flash_lite": "轻量极速 (Lite)",
+            "flash_thinking": "思考能力 (Thinking)",
+            "pro_legacy": "经典版 Pro",
+            "pro_low": "3.1 Pro Low",
+            "pro_high": "3.1 Pro High",
             "pro_image": "图片生成 (1:1)",
             "pro_image_16_9": "图片生成 (16:9)",
             "pro_image_9_16": "图片生成 (9:16)",
             "pro_image_4_3": "图片生成 (4:3)",
             "pro_image_3_4": "图片生成 (3:4)",
             "pro_image_1_1": "图片生成 (1:1)",
-            "claude_sonnet": "代码推理",
-            "claude_sonnet_thinking": "思维链",
-            "claude_opus_thinking": "最强思维"
+            "claude_sonnet": "代码推理 (Claude 4.6)",
+            "claude_sonnet_thinking": "思维链 (4.6 Think)",
+            "claude_opus_thinking": "最强思维 (Opus Think)",
+            "gemini_2_5_flash": "极速模型 (2.5 Flash)",
+            "gemini_2_5_pro": "高性能推理 (2.5 Pro)",
+            "claude_4_6": "最新代理版 (4.6)"
         },
         "mapping": {
             "title": "Claude Code 模型映射",
@@ -661,7 +958,7 @@
         },
         "router": {
             "title": "模型路由中心 (Model Router)",
-            "subtitle": "按“规格家族”统一路由 OpenAI/Claude 模型，或添加最高优先级的“精确映射”。\n注意：Claude 原生直通模型（claude-opus-4-5-thinking 等 3 个）默认透传，需在“专家精确映射”中添加规则才能修改。",
+            "subtitle": "按“规格家族”统一路由 OpenAI/Claude 模型，或添加最高优先级的“精确映射”。\n注意：Claude 原生直通模型（claude-sonnet-4-6-thinking, claude-opus-4-6-thinking 等）默认透传，需在“专家精确映射”中添加规则才能修改。",
             "subtitle_simple": "通过通配符或精确映射自定义模型路由规则",
             "background_task_title": "后台任务模型",
             "background_task_desc": "用于 Claude CLI 的标题生成、摘要提取等后台自动化任务 (默认: gemini-2.5-flash)",
@@ -669,18 +966,43 @@
             "current_model": "当前模型",
             "apply_presets": "应用预设映射",
             "presets_applied": "预设映射已应用",
+            "preset_default": "默认预设",
+            "preset_default_desc": "GPT-4 → Gemini Pro, Claude → Opus",
+            "preset_performance": "性能优先",
+            "preset_performance_desc": "全部使用高性能模型",
+            "preset_cost": "成本优化",
+            "preset_cost_desc": "优先使用经济型模型",
+            "preset_balanced": "均衡模式",
+            "preset_balanced_desc": "平衡性能和成本",
+            "built_in_presets": "内置预设",
+            "custom_presets": "自定义预设",
+            "apply_selected": "应用所选",
+            "add_preset": "保存当前映射",
+            "delete_preset": "删除当前预设",
+            "cannot_delete_builtin": "无法删除内置预设",
+            "no_mapping_to_save": "没有可保存的映射配置",
+            "preset_name_required": "请先输入预设名称",
+            "preset_saved": "预设保存成功",
+            "manage_presets_title": "管理自定义预设",
+            "save_current_as_preset": "保存当前配置",
+            "preset_name_placeholder": "输入预设名称...",
+            "save_hint": "将当前激活的模型映射保存为可重复使用的预设。",
+            "your_presets": "您的预设",
+            "no_custom_presets": "暂无自定义预设",
+            "mappings_count": "个映射",
+            "custom_preset_desc": "用户自定义预设",
             "custom_mappings": "自定义映射 (Custom Mappings)",
             "original_id": "原始模型 ID",
             "route_to": "路由目标",
             "group_title": "模型家族分组 (Series Groups)",
             "gemini3_group_label": "Gemini 3 (推荐)",
-            "gemini3_option_high": "gemini-3-pro-high (高质量)",
-            "gemini3_option_low": "gemini-3-pro-low (均衡)",
+            "gemini3_option_high": "gemini-3.1-pro-high (高质量)",
+            "gemini3_option_low": "gemini-3.1-pro-low (均衡)",
             "gemini3_option_flash": "gemini-3-flash (快速)",
             "groups": {
                 "claude_45": {
-                    "name": "Claude 4.5 系列",
-                    "desc": "Opus 4.5, Sonnet 4.5 (推理)"
+                    "name": "Opus 4.6 TK 系列",
+                    "desc": "Opus 4.5 TK (推理)"
                 },
                 "claude_35": {
                     "name": "Claude 3.5 系列",
@@ -699,8 +1021,10 @@
                     "desc": "GPT-5.1, GPT-5.2 xhigh"
                 }
             },
-            "expert_title": "专家精确映射 (Expert Custom Routing)",
+            "expert_title": "专家精确映射",
             "expert_subtitle": "精确匹配支持从任何协议传来的原始模型 ID。",
+            "custom_mapping_tip": "💡 支持手动输入任意模型 ID,可体验未发布模型(如 claude-opus-4-6)。",
+            "custom_mapping_warning": "注意:并非所有账号都支持未发布模型。",
             "money_saving_tip": "💰 省钱提示:",
             "haiku_optimization_tip": "Claude CLI 默认使用 {{model}} 处理后台任务,建议映射到廉价 Flash 模型可节省约 95% 成本",
             "haiku_optimization_btn": "一键优化",
@@ -754,6 +1078,7 @@
                 "detecting": "检测中...",
                 "current_base_url": "当前接口地址 (Base URL)"
             },
+            "model_select": "选择同步模型",
             "btn_sync": "立即同步配置",
             "btn_view": "查看当前配置",
             "btn_restore": "恢复默认配置",
@@ -831,8 +1156,27 @@
     },
     "update_notification": {
         "title": "发现新版本",
-        "message": "新版本已准备就绪，包含多项优化与改进。当前版本: v{{current}}",
-        "action": "立即更新"
+        "message": "新版本已准备就绪，包含诸多优化与改进。当前版本: v{{current}}",
+        "ready": "更新准备就绪",
+        "downloading": "正在下载更新...",
+        "restarting": "正在重启应用...",
+        "auto_update": "自动更新",
+        "toast": {
+            "not_ready": "自动更新包尚未就绪，为您跳转到下载页面...",
+            "failed": "自动更新失败，为您跳转到下载页面..."
+        }
+    },
+    "login": {
+        "title": "安全访问控制",
+        "desc": "当前运行在 Web 模式下，请输入管理密码或 API Key 以进入后台。",
+        "placeholder": "请输入管理密码或 API Key",
+        "btn_login": "验证并进入",
+        "btn_verifying": "验证中...",
+        "error_invalid_key": "密码或 API Key 错误，请重试",
+        "error_network": "网络连接失败，请检查服务是否正常运行",
+        "note": "注意：如果设置了独立的管理密码，请输入管理密码；否则请输入 API_KEY。",
+        "lookup_hint": "如果您忘记了，请运行 docker logs antigravity-manager 寻找 Current API Key 或 Web UI Password",
+        "config_hint": "或执行 grep -E '\"api_key\"|\"admin_password\"' ~/.antigravity_tools/gui_config.json 查看。"
     },
     "token_stats": {
         "title": "Token 消费统计",
@@ -869,5 +1213,137 @@
             "stream_error": "数据流传输错误,请稍后重试",
             "unknown_error": "发生未知错误,请稍后重试"
         }
+    },
+    "security": {
+        "title": "安全监控",
+        "refresh_data": "刷新数据",
+        "refresh": "刷新",
+        "tab_logs": "访问日志",
+        "tab_stats": "统计分析",
+        "tab_blacklist": "黑名单管理",
+        "tab_whitelist": "白名单管理",
+        "tab_config": "安全配置",
+        "stats": {
+            "total_requests": "总请求数",
+            "total_requests_desc": "所有记录的请求",
+            "unique_ips": "独立 IP 数",
+            "unique_ips_desc": "不同的客户端 IP 地址",
+            "blocked_requests": "拦截请求数",
+            "blocked_requests_desc": "被规则拒绝的请求",
+            "ip_activity_token_usage": "IP 活跃度 & Token 消耗",
+            "hour": "时",
+            "day": "日",
+            "week": "周",
+            "month": "月",
+            "rank": "排名",
+            "ip_address": "IP 地址",
+            "activity_reqs": "活跃度 (请求数)",
+            "total_token": "总 Token",
+            "prompt": "提问",
+            "completion": "回答",
+            "no_data": "暂无数据"
+        },
+        "logs": {
+            "search_placeholder": "搜索 IP, 路径, User Agent...",
+            "username": "用户",
+            "show_blocked_only": "仅显示被拦截",
+            "status": "状态",
+            "ip_address": "IP 地址",
+            "method": "方法",
+            "path": "路径",
+            "duration": "耗时",
+            "time": "时间",
+            "reason": "原因",
+            "blocked": "拦截",
+            "no_logs": "暂无日志",
+            "total_records": "共 {{total}} 条记录",
+            "prev_page": "上一页",
+            "next_page": "下一页",
+            "page_num": "第 {{page}} 页",
+            "per_page_suffix": "/页"
+        },
+        "blacklist": {
+            "add_ip": "添加 IP",
+            "search_placeholder": "搜索...",
+            "added_at": "添加时间",
+            "expires_at": "过期时间",
+            "no_data": "暂无黑名单数据",
+            "add_title": "添加到黑名单",
+            "ip_cidr_label": "IP 地址或 CIDR",
+            "ip_cidr_placeholder": "例如 192.168.1.1 或 10.0.0.0/24",
+            "reason_label": "原因 (可选)",
+            "reason_placeholder": "例如：恶意扫描",
+            "expires_label": "过期时间（小时，可选）",
+            "expires_placeholder": "留空则永久生效",
+            "cancel": "取消",
+            "confirm": "添加",
+            "add_btn": "添加",
+            "error_duplicate": "该 IP 已存在于黑名单中",
+            "error_invalid_ip": "无效的 IP 格式。请使用 IP 地址或 CIDR 表示法（例如 192.168.1.0/24）",
+            "error_add_failed": "添加失败"
+        },
+        "whitelist": {
+            "add_ip": "添加信任 IP",
+            "no_data": "暂无白名单数据",
+            "add_title": "添加到白名单",
+            "description_label": "备注 (可选)",
+            "description_placeholder": "例如：内部服务器",
+            "cancel": "取消",
+            "confirm": "添加",
+            "add_btn": "添加"
+        },
+        "config": {
+            "title": "安全设置",
+            "save": "保存更改",
+            "saving": "保存中...",
+            "blacklist_title": "IP 黑名单",
+            "blacklist_desc": "管理被拦截的 IP 地址和规则。",
+            "enable_blacklist": "启用黑名单保护",
+            "block_msg_label": "自定义拦截消息",
+            "block_msg_desc": "返回给被拦截客户端的响应内容。",
+            "whitelist_title": "IP 白名单",
+            "whitelist_desc": "管理信任的 IP 地址。",
+            "enable_whitelist": "启用白名单模式",
+            "whitelist_warning": "警告: 启用白名单模式将拦截所有不在白名单中的 IP 请求。如果您通过代理访问，请务必小心不要将自己锁在外面。",
+            "whitelist_priority": "白名单优先 (覆盖黑名单)",
+            "whitelist_priority_desc": "启用后，白名单 IP 将被允许访问，即使它们匹配黑名单规则。",
+            "load_error": "加载配置失败",
+            "save_success": "配置已保存",
+            "save_error": "保存配置失败"
+        }
+    },
+    "user_token": {
+        "title": "用户 Token 管理",
+        "total_users": "用户总数",
+        "active_tokens": "活跃 Token",
+        "total_created": "累计创建",
+        "create": "创建 Token",
+        "username": "用户名",
+        "token": "Token",
+        "expires": "过期时间",
+        "usage": "使用量",
+        "ip_limit": "IP 限制",
+        "created": "创建时间",
+        "today_requests": "今日请求数",
+        "never": "永不过期",
+        "renew": "续期",
+        "renew_button": "续费",
+        "unlimited": "不限",
+        "create_title": "创建新 Token",
+        "description": "描述",
+        "curfew": "宵禁时间 (服务不可用时段)",
+        "edit_title": "编辑 Token",
+        "username_required": "用户名不能为空",
+        "renew_success": "续期成功",
+        "expires_day": "1 天",
+        "expires_week": "1 周",
+        "expires_month": "1 个月",
+        "expires_never": "永不过期",
+        "no_data": "暂无数据",
+        "placeholder_username": "例如: user1",
+        "placeholder_desc": "选填备注",
+        "placeholder_max_ips": "0 = 不限制",
+        "hint_max_ips": "0 表示不限制",
+        "hint_curfew": "留空则禁用。基于服务器时间。"
     }
 }

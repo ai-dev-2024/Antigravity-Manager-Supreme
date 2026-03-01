@@ -9,19 +9,59 @@ export interface ProxyConfig {
     auth_mode?: 'off' | 'strict' | 'all_except_health' | 'auto';
     port: number;
     api_key: string;
+    admin_password?: string;
     auto_start: boolean;
-    auto_restart_on_config_change?: boolean;
     custom_mapping?: Record<string, string>;
-    openai_mapping?: Record<string, string>;
-    anthropic_mapping?: Record<string, string>;
-    minimax?: Record<string, any>;
-    base_url_override?: string;
     request_timeout: number;
     enable_logging: boolean;
+    debug_logging?: DebugLoggingConfig;
     upstream_proxy: UpstreamProxyConfig;
     zai?: ZaiConfig;
     scheduling?: StickySessionConfig;
     experimental?: ExperimentalConfig;
+    user_agent_override?: string;
+    saved_user_agent?: string;
+    thinking_budget?: ThinkingBudgetConfig;
+    global_system_prompt?: GlobalSystemPromptConfig;
+    image_thinking_mode?: 'enabled' | 'disabled'; // [NEW] 图像思维模式开关
+    proxy_pool?: ProxyPoolConfig;
+}
+
+// ============================================================================
+// Thinking Budget 配置 (控制 AI 深度思考时的 Token 预算)
+// ============================================================================
+
+/** Thinking Budget 处理模式 */
+export type ThinkingBudgetMode = 'auto' | 'passthrough' | 'custom' | 'adaptive'; // [NEW] 支持自适应模式
+
+/** Thinking Effort 等级 (仅 adaptive 模式) */
+export type ThinkingEffort = 'low' | 'medium' | 'high';
+
+/** Thinking Budget 配置 */
+export interface ThinkingBudgetConfig {
+    /** 模式选择 */
+    mode: ThinkingBudgetMode;
+    /** 自定义固定值（仅在 mode=custom 时生效），范围 1024-65536 */
+    custom_value: number;
+    /** 思考强度 (仅在 mode=adaptive 时生效) */
+    effort?: ThinkingEffort;
+}
+
+// ============================================================================
+// 全局系统提示词配置
+// ============================================================================
+
+/** 全局系统提示词配置 */
+export interface GlobalSystemPromptConfig {
+    /** 是否启用 */
+    enabled: boolean;
+    /** 提示词内容 */
+    content: string;
+}
+
+export interface DebugLoggingConfig {
+    enabled: boolean;
+    output_dir?: string;
 }
 
 export type SchedulingMode = 'CacheFirst' | 'Balance' | 'PerformanceFirst';
@@ -78,10 +118,14 @@ export interface ExperimentalConfig {
     context_compression_threshold_l3?: number;
 }
 
+export interface CircuitBreakerConfig {
+    enabled: boolean;
+    backoff_steps: number[];
+}
+
 export interface AppConfig {
     language: string;
     theme: string;
-    auto_switch?: boolean; // Auto-switch to best account when quota depletes
     auto_refresh: boolean;
     refresh_interval: number;
     auto_sync: boolean;
@@ -93,10 +137,13 @@ export interface AppConfig {
     auto_check_update?: boolean; // 自动检查更新
     update_check_interval?: number; // 更新检查间隔（小时）
     accounts_page_size?: number; // 账号列表每页显示数量,默认 0 表示自动计算
+    hidden_menu_items?: string[]; // 隐藏的菜单项路径列表
     scheduled_warmup: ScheduledWarmupConfig;
     quota_protection: QuotaProtectionConfig; // [NEW] 配额保护配置
     pinned_quota_models: PinnedQuotaModelsConfig; // [NEW] 配额关注列表
+    circuit_breaker: CircuitBreakerConfig; // [NEW] 熔断器配置
     proxy: ProxyConfig;
+    cloudflared: CloudflaredConfig; // [NEW] Cloudflared 配置
 }
 
 // ============================================================================
@@ -121,3 +168,40 @@ export interface CloudflaredStatus {
     error?: string;
 }
 
+// ============================================================================
+// 代理池类型定义
+// ============================================================================
+
+export interface ProxyAuth {
+    username: string;
+    password?: string;
+}
+
+export interface ProxyEntry {
+    id: string;
+    name: string;
+    url: string;
+    auth?: ProxyAuth;
+    enabled: boolean;
+    priority: number;
+    tags: string[];
+    max_accounts?: number;
+    health_check_url?: string;
+    last_check_time?: number;
+    is_healthy: boolean;
+    latency?: number; // [NEW] 延迟 (毫秒)
+}
+
+// export type ProxyPoolMode = 'global' | 'per_account' | 'hybrid'; // [REMOVED]
+
+export type ProxySelectionStrategy = 'round_robin' | 'random' | 'priority' | 'least_connections' | 'weighted_round_robin';
+
+export interface ProxyPoolConfig {
+    enabled: boolean;
+    // mode: ProxyPoolMode; // [REMOVED]
+    proxies: ProxyEntry[];
+    health_check_interval: number;
+    auto_failover: boolean;
+    strategy: ProxySelectionStrategy;
+    account_bindings?: Record<string, string>;
+}

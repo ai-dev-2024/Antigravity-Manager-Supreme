@@ -1,8 +1,16 @@
 use serde::{Deserialize, Serialize};
+use once_cell::sync::Lazy;
 
-// Google OAuth configuration
-const CLIENT_ID: &str = "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com";
-const CLIENT_SECRET: &str = "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";
+// Google OAuth configuration - loaded from environment variables at runtime
+// Set GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET environment variables
+static CLIENT_ID: Lazy<String> = Lazy::new(|| {
+    std::env::var("GOOGLE_OAUTH_CLIENT_ID")
+        .unwrap_or_else(|_| String::from("GOOGLE_OAUTH_CLIENT_ID_NOT_SET"))
+});
+static CLIENT_SECRET: Lazy<String> = Lazy::new(|| {
+    std::env::var("GOOGLE_OAUTH_CLIENT_SECRET")
+        .unwrap_or_else(|_| String::from("GOOGLE_OAUTH_CLIENT_SECRET_NOT_SET"))
+});
 const TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
 const USERINFO_URL: &str = "https://www.googleapis.com/oauth2/v2/userinfo";
 
@@ -49,7 +57,7 @@ impl UserInfo {
 
 
 /// Generate OAuth authorization URL
-pub fn get_auth_url(redirect_uri: &str) -> String {
+pub fn get_auth_url(redirect_uri: &str, state: &str) -> String {
     let scopes = vec![
         "https://www.googleapis.com/auth/cloud-platform",
         "https://www.googleapis.com/auth/userinfo.email",
@@ -59,13 +67,14 @@ pub fn get_auth_url(redirect_uri: &str) -> String {
     ].join(" ");
 
     let params = vec![
-        ("client_id", CLIENT_ID),
+        ("client_id", CLIENT_ID.as_str()),
         ("redirect_uri", redirect_uri),
         ("response_type", "code"),
         ("scope", &scopes),
         ("access_type", "offline"),
         ("prompt", "consent"),
         ("include_granted_scopes", "true"),
+        ("state", state),
     ];
     
     let url = url::Url::parse_with_params(AUTH_URL, &params).expect("Invalid Auth URL");
@@ -74,24 +83,35 @@ pub fn get_auth_url(redirect_uri: &str) -> String {
 
 /// Exchange authorization code for token
 pub async fn exchange_code(code: &str, redirect_uri: &str) -> Result<TokenResponse, String> {
-    let client = crate::utils::http::get_long_client(); // [FIX #948/887] Extend timeout to 60s for OAuth
+    // [PHASE 2] 对于登录行为，尚未有 account_id，使用全局池阶梯逻辑
+    let client = if let Some(pool) = crate::proxy::proxy_pool::get_global_proxy_pool() {
+        pool.get_effective_standard_client(None, 60).await
+    } else {
+        crate::utils::http::get_long_standard_client()
+    };
     
     let params = [
-        ("client_id", CLIENT_ID),
-        ("client_secret", CLIENT_SECRET),
+        ("client_id", CLIENT_ID.as_str()),
+        ("client_secret", CLIENT_SECRET.as_str()),
         ("code", code),
         ("redirect_uri", redirect_uri),
         ("grant_type", "authorization_code"),
     ];
 
+    tracing::debug!(
+        "[OAuth] Sending exchange_code request with User-Agent: {}",
+        crate::constants::NATIVE_OAUTH_USER_AGENT.as_str()
+    );
+
     let response = client
         .post(TOKEN_URL)
+        .header(rquest::header::USER_AGENT, crate::constants::NATIVE_OAUTH_USER_AGENT.as_str())
         .form(&params)
         .send()
         .await
         .map_err(|e| {
             if e.is_connect() || e.is_timeout() {
-                format!("Token exchange request failed: {}. 请Checkyour networkProxySet，make sureCanStableConnect Google Service。", e)
+                format!("Token exchange request failed: {}. 请检查你的网络代理设置，确保可以稳定连接 Google 服务。", e)
             } else {
                 format!("Token exchange request failed: {}", e)
             }
@@ -127,26 +147,42 @@ pub async fn exchange_code(code: &str, redirect_uri: &str) -> Result<TokenRespon
 }
 
 /// Refresh access_token using refresh_token
-pub async fn refresh_access_token(refresh_token: &str) -> Result<TokenResponse, String> {
-    let client = crate::utils::http::get_long_client(); // [FIX #948/887] Extend timeout to 60s
+pub async fn refresh_access_token(refresh_token: &str, account_id: Option<&str>) -> Result<TokenResponse, String> {
+    // [PHASE 2] 根据 account_id 使用对应的代理
+    let client = if let Some(pool) = crate::proxy::proxy_pool::get_global_proxy_pool() {
+        pool.get_effective_standard_client(account_id, 60).await
+    } else {
+        crate::utils::http::get_long_standard_client()
+    };
     
     let params = [
-        ("client_id", CLIENT_ID),
-        ("client_secret", CLIENT_SECRET),
+        ("client_id", CLIENT_ID.as_str()),
+        ("client_secret", CLIENT_SECRET.as_str()),
         ("refresh_token", refresh_token),
         ("grant_type", "refresh_token"),
     ];
 
-    crate::modules::logger::log_info("Refreshing Token...");
+    // [FIX #1583] 提供更详细的日志，帮助诊断 Docker 环境下的代理问题
+    if let Some(id) = account_id {
+        crate::modules::logger::log_info(&format!("Refreshing Token for account: {}...", id));
+    } else {
+        crate::modules::logger::log_info("Refreshing Token for generic request (no account_id)...");
+    }
     
+    tracing::debug!(
+        "[OAuth] Sending refresh_access_token request with User-Agent: {}",
+        crate::constants::NATIVE_OAUTH_USER_AGENT.as_str()
+    );
+
     let response = client
         .post(TOKEN_URL)
+        .header(rquest::header::USER_AGENT, crate::constants::NATIVE_OAUTH_USER_AGENT.as_str())
         .form(&params)
         .send()
         .await
         .map_err(|e| {
             if e.is_connect() || e.is_timeout() {
-                format!("Refresh request failed: {}. Unable to connect Google AuthorizeServer，请CheckProxySet。", e)
+                format!("Refresh request failed: {}. 无法连接 Google 授权服务器，请检查代理设置。", e)
             } else {
                 format!("Refresh request failed: {}", e)
             }
@@ -167,8 +203,12 @@ pub async fn refresh_access_token(refresh_token: &str) -> Result<TokenResponse, 
 }
 
 /// Get user info
-pub async fn get_user_info(access_token: &str) -> Result<UserInfo, String> {
-    let client = crate::utils::http::get_client();
+pub async fn get_user_info(access_token: &str, account_id: Option<&str>) -> Result<UserInfo, String> {
+    let client = if let Some(pool) = crate::proxy::proxy_pool::get_global_proxy_pool() {
+        pool.get_effective_client(account_id, 15).await
+    } else {
+        crate::utils::http::get_client()
+    };
     
     let response = client
         .get(USERINFO_URL)
@@ -191,6 +231,7 @@ pub async fn get_user_info(access_token: &str) -> Result<UserInfo, String> {
 /// Returns the latest access_token
 pub async fn ensure_fresh_token(
     current_token: &crate::models::TokenData,
+    account_id: Option<&str>,
 ) -> Result<crate::models::TokenData, String> {
     let now = chrono::Local::now().timestamp();
     
@@ -200,8 +241,8 @@ pub async fn ensure_fresh_token(
     }
     
     // Need to refresh
-    crate::modules::logger::log_info("Token expiring soon, refreshing...");
-    let response = refresh_access_token(&current_token.refresh_token).await?;
+    crate::modules::logger::log_info(&format!("Token expiring soon for account {:?}, refreshing...", account_id));
+    let response = refresh_access_token(&current_token.refresh_token, account_id).await?;
     
     // Construct new TokenData
     Ok(crate::models::TokenData::new(
@@ -212,4 +253,20 @@ pub async fn ensure_fresh_token(
         current_token.project_id.clone(), // Keep original project_id
         None,  // session_id will be generated in token_manager
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_auth_url_contains_state() {
+        let redirect_uri = "http://localhost:8080/callback";
+        let state = "test-state-123456";
+        let url = get_auth_url(redirect_uri, state);
+        
+        assert!(url.contains("state=test-state-123456"));
+        assert!(url.contains("redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fcallback"));
+        assert!(url.contains("response_type=code"));
+    }
 }

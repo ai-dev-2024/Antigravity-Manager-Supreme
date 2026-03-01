@@ -62,11 +62,15 @@ pub fn init_logger() {
     let filter_layer = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| EnvFilter::new("info"));
 
+    // 6. Log bridge layer
+    let bridge_layer = crate::modules::log_bridge::TauriLogBridgeLayer::new();
+
     // 5. Initialize global subscriber (use try_init to avoid crash on repeated initialization)
     let _ = tracing_subscriber::registry()
         .with(filter_layer)
         .with(console_layer)
         .with(file_layer)
+        .with(bridge_layer)
         .try_init();
 
     // Leak _guard to ensure its lifetime lasts until program exit
@@ -81,7 +85,7 @@ pub fn init_logger() {
     }
 }
 
-/// Cleanup log files older than specified days
+/// Cleanup log files older than specified days OR if total size exceeds limit
 pub fn cleanup_old_logs(days_to_keep: u64) -> Result<(), String> {
     use std::time::{SystemTime, UNIX_EPOCH};
     
@@ -89,6 +93,10 @@ pub fn cleanup_old_logs(days_to_keep: u64) -> Result<(), String> {
     if !log_dir.exists() {
         return Ok(());
     }
+
+    // Constants for size-based cleanup
+    const MAX_TOTAL_SIZE_BYTES: u64 = 1024 * 1024 * 1024; // 1GB
+    const TARGET_SIZE_BYTES: u64 = 512 * 1024 * 1024;    // 512MB
     
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -96,41 +104,73 @@ pub fn cleanup_old_logs(days_to_keep: u64) -> Result<(), String> {
         .as_secs();
     
     let cutoff_time = now.saturating_sub(days_to_keep * 24 * 60 * 60);
-    let mut deleted_count = 0;
-    let mut total_size_freed = 0u64;
     
+    let mut entries_info = Vec::new();
     let entries = fs::read_dir(&log_dir)
         .map_err(|e| format!("Failed to read log directory: {}", e))?;
     
     for entry in entries {
         if let Ok(entry) = entry {
             let path = entry.path();
-            
-            // Only process files, skip directories
             if !path.is_file() {
                 continue;
             }
             
-            // Get file modification time
             if let Ok(metadata) = fs::metadata(&path) {
-                if let Ok(modified) = metadata.modified() {
-                    let modified_secs = modified
-                        .duration_since(UNIX_EPOCH)
-                        .map(|d| d.as_secs())
-                        .unwrap_or(0);
-                    
-                    // Delete file if older than cutoff time
-                    if modified_secs < cutoff_time {
-                        let file_size = metadata.len();
-                        if let Err(e) = fs::remove_file(&path) {
-                            warn!("Failed to delete old log file {:?}: {}", path, e);
-                        } else {
-                            deleted_count += 1;
-                            total_size_freed += file_size;
-                            info!("Deleted old log file: {:?}", path.file_name());
-                        }
-                    }
-                }
+                let modified = metadata.modified().unwrap_or(SystemTime::now());
+                let modified_secs = modified
+                    .duration_since(UNIX_EPOCH)
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0);
+                
+                let size = metadata.len();
+                entries_info.push((path, size, modified_secs));
+            }
+        }
+    }
+
+    let mut deleted_count = 0;
+    let mut total_size_freed = 0u64;
+
+    // 1. First pass: Delete files older than cutoff_time
+    let mut remaining_entries = Vec::new();
+    for (path, size, modified_secs) in entries_info {
+        if modified_secs < cutoff_time {
+            if let Err(e) = fs::remove_file(&path) {
+                warn!("Failed to delete old log file {:?}: {}", path, e);
+                remaining_entries.push((path, size, modified_secs));
+            } else {
+                deleted_count += 1;
+                total_size_freed += size;
+                info!("Deleted old log file (expired): {:?}", path.file_name());
+            }
+        } else {
+            remaining_entries.push((path, size, modified_secs));
+        }
+    }
+
+    // 2. Second pass: If total size still exceeds limit, delete oldest files
+    let mut current_total_size: u64 = remaining_entries.iter().map(|(_, size, _)| *size).sum();
+    
+    if current_total_size > MAX_TOTAL_SIZE_BYTES {
+        info!("Log directory size ({} MB) exceeds limit (1024 MB), starting size-based cleanup...", current_total_size / 1024 / 1024);
+        
+        // Sort remaining entries by modification time (oldest first)
+        remaining_entries.sort_by_key(|(_, _, modified)| *modified);
+        
+        for (path, size, _) in remaining_entries {
+            if current_total_size <= TARGET_SIZE_BYTES {
+                break;
+            }
+            
+            // Try to delete. Skip if it's the most recent file and it fails (might be active)
+            if let Err(e) = fs::remove_file(&path) {
+                warn!("Failed to delete log file during size cleanup {:?}: {}", path, e);
+            } else {
+                deleted_count += 1;
+                total_size_freed += size;
+                current_total_size -= size;
+                info!("Deleted log file (size limit): {:?}", path.file_name());
             }
         }
     }

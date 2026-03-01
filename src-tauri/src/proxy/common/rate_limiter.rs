@@ -1,5 +1,5 @@
 // Rate Limiter
-// make sure API callInterval ≥ 500ms
+// 确保 API 调用间隔 ≥ 500ms
 
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -40,11 +40,11 @@ mod tests {
         let limiter = RateLimiter::new(500);
         let start = Instant::now();
 
-        limiter.wait().await; // first call，immediatelyReturn
+        limiter.wait().await; // 第一次调用，立即返回
         let elapsed1 = start.elapsed().as_millis();
         assert!(elapsed1 < 50);
 
-        limiter.wait().await; // second call，Wait 500ms
+        limiter.wait().await; // 第二次调用，等待 500ms
         let elapsed2 = start.elapsed().as_millis();
         assert!(elapsed2 >= 500 && elapsed2 < 600);
     }

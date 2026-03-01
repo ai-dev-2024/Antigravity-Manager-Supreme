@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use crate::proxy::ProxyConfig;
+use crate::modules::cloudflared::CloudflaredConfig;
 
 /// Application configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -23,6 +24,12 @@ pub struct AppConfig {
     pub quota_protection: QuotaProtectionConfig, // [NEW] Quota protection configuration
     #[serde(default)]
     pub pinned_quota_models: PinnedQuotaModelsConfig, // [NEW] Pinned quota models list
+    #[serde(default)]
+    pub circuit_breaker: CircuitBreakerConfig, // [NEW] Circuit breaker configuration
+    #[serde(default)]
+    pub hidden_menu_items: Vec<String>, // Hidden menu item path list
+    #[serde(default)]
+    pub cloudflared: CloudflaredConfig, // [NEW] Cloudflared configuration
 }
 
 /// Scheduled warmup configuration
@@ -39,7 +46,7 @@ pub struct ScheduledWarmupConfig {
 fn default_warmup_models() -> Vec<String> {
     vec![
         "gemini-3-flash".to_string(),
-        "claude-sonnet-4-5".to_string(),
+        "claude".to_string(),
         "gemini-3-pro-high".to_string(),
         "gemini-3-pro-image".to_string(),
     ]
@@ -69,14 +76,14 @@ pub struct QuotaProtectionConfig {
     /// Reserved quota percentage (1-99)
     pub threshold_percentage: u32,
 
-    /// List of monitored models (e.g. gemini-3-flash, gemini-3-pro-high, claude-sonnet-4-5)
+    /// List of monitored models (e.g. gemini-3-flash, gemini-3-pro-high, gemini-3.1-pro-high, claude-sonnet-4-6)
     #[serde(default = "default_monitored_models")]
     pub monitored_models: Vec<String>,
 }
 
 fn default_monitored_models() -> Vec<String> {
     vec![
-        "claude-sonnet-4-5".to_string(),
+        "claude".to_string(),
         "gemini-3-pro-high".to_string(),
         "gemini-3-flash".to_string(),
         "gemini-3-pro-image".to_string(),
@@ -112,7 +119,7 @@ fn default_pinned_models() -> Vec<String> {
         "gemini-3-pro-high".to_string(),
         "gemini-3-flash".to_string(),
         "gemini-3-pro-image".to_string(),
-        "claude-sonnet-4-5-thinking".to_string(),
+        "claude-sonnet-4-6-thinking".to_string(),
     ]
 }
 
@@ -125,6 +132,37 @@ impl PinnedQuotaModelsConfig {
 }
 
 impl Default for PinnedQuotaModelsConfig {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Circuit breaker configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CircuitBreakerConfig {
+    /// Whether circuit breaker is enabled
+    pub enabled: bool,
+
+    /// Unified backoff steps (seconds)
+    /// Default: [60, 300, 1800, 7200]
+    #[serde(default = "default_backoff_steps")]
+    pub backoff_steps: Vec<u64>,
+}
+
+fn default_backoff_steps() -> Vec<u64> {
+    vec![60, 300, 1800, 7200]
+}
+
+impl CircuitBreakerConfig {
+    pub fn new() -> Self {
+        Self {
+            enabled: true,
+            backoff_steps: default_backoff_steps(),
+        }
+    }
+}
+
+impl Default for CircuitBreakerConfig {
     fn default() -> Self {
         Self::new()
     }
@@ -147,6 +185,9 @@ impl AppConfig {
             scheduled_warmup: ScheduledWarmupConfig::default(),
             quota_protection: QuotaProtectionConfig::default(),
             pinned_quota_models: PinnedQuotaModelsConfig::default(),
+            circuit_breaker: CircuitBreakerConfig::default(),
+            hidden_menu_items: Vec::new(),
+            cloudflared: CloudflaredConfig::default(),
         }
     }
 }

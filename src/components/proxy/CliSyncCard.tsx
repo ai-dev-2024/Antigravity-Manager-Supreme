@@ -12,12 +12,19 @@ import {
     Eye,
     RotateCcw,
     Copy,
-    X
+    X,
+    Bot,
+    Trash2
 } from 'lucide-react';
+import { copyToClipboard } from '../../utils/clipboard';
 import { request as invoke } from '../../utils/request';
 import { showToast } from '../common/ToastContainer';
 import ModalDialog from '../common/ModalDialog';
 import { cn } from '../../utils/cn';
+import { DroidSyncModal } from './DroidSyncModal';
+import { OpenCodeSyncModal } from './OpenCodeSyncModal';
+import { useProxyModels } from '../../hooks/useProxyModels';
+import GroupedSelect from '../common/GroupedSelect';
 
 interface CliSyncCardProps {
     proxyUrl: string;
@@ -25,14 +32,16 @@ interface CliSyncCardProps {
     className?: string;
 }
 
-type CliAppType = 'Claude' | 'Codex' | 'Gemini';
+type CliAppType = 'Claude' | 'Codex' | 'Gemini' | 'OpenCode' | 'Droid';
 
 interface CliStatus {
     installed: boolean;
     version: string | null;
     is_synced: boolean;
+    has_backup: boolean;
     current_base_url: string | null;
     files: string[];
+    synced_count?: number;
 }
 
 export const CliSyncCard = ({ proxyUrl, apiKey, className }: CliSyncCardProps) => {
@@ -40,17 +49,32 @@ export const CliSyncCard = ({ proxyUrl, apiKey, className }: CliSyncCardProps) =
     const [statuses, setStatuses] = useState<Record<CliAppType, CliStatus | null>>({
         Claude: null,
         Codex: null,
-        Gemini: null
+        Gemini: null,
+        OpenCode: null,
+        Droid: null
     });
     const [loading, setLoading] = useState<Record<CliAppType, boolean>>({
         Claude: false,
         Codex: false,
-        Gemini: false
+        Gemini: false,
+        OpenCode: false,
+        Droid: false
     });
     const [syncing, setSyncing] = useState<Record<CliAppType, boolean>>({
         Claude: false,
         Codex: false,
-        Gemini: false
+        Gemini: false,
+        OpenCode: false,
+        Droid: false
+    });
+    const [syncAccounts, setSyncAccounts] = useState(false);
+    const [droidSyncModal, setDroidSyncModal] = useState(false);
+    const [selectedModels, setSelectedModels] = useState<Record<CliAppType, string>>({
+        Claude: 'claude-3-5-sonnet-latest',
+        Codex: 'gpt-4o',
+        Gemini: 'gemini-1.5-pro',
+        OpenCode: '',
+        Droid: ''
     });
     const [viewingConfig, setViewingConfig] = useState<{
         app: CliAppType,
@@ -59,13 +83,24 @@ export const CliSyncCard = ({ proxyUrl, apiKey, className }: CliSyncCardProps) =
         allFiles: string[]
     } | null>(null);
     const [restoreConfirmApp, setRestoreConfirmApp] = useState<CliAppType | null>(null);
+    const [syncConfirmApp, setSyncConfirmApp] = useState<CliAppType | null>(null);
+    const [openCodeSyncModal, setOpenCodeSyncModal] = useState(false);
+    const [clearConfirmApp, setClearConfirmApp] = useState<CliAppType | null>(null);
+
+    const { models: proxyModels } = useProxyModels();
+
+    const modelOptions = proxyModels.map(m => ({
+        value: m.id,
+        label: m.name,
+        group: m.group || 'General'
+    }));
 
     // 根据不同的 CLI 应用格式化 Proxy URL
     const getFormattedProxyUrl = useCallback((app: CliAppType) => {
         if (!proxyUrl) return '';
         const base = proxyUrl.trimEnd().replace(/\/+$/, '');
-        // Codex (OpenAI 协议) 通常需要带 /v1
-        if (app === 'Codex') {
+        // Codex & OpenCode (OpenAI 协议) 通常需要带 /v1
+        if (app === 'Codex' || app === 'OpenCode') {
             return base.endsWith('/v1') ? base : `${base}/v1`;
         }
         // Claude 和 Gemini 的 SDK 通常会自动处理版本路径或不需要 /v1
@@ -76,10 +111,20 @@ export const CliSyncCard = ({ proxyUrl, apiKey, className }: CliSyncCardProps) =
         setLoading(prev => ({ ...prev, [app]: true }));
         try {
             const formattedUrl = getFormattedProxyUrl(app);
-            const status = await invoke<CliStatus>('get_cli_sync_status', {
-                appType: app,
-                proxyUrl: formattedUrl
-            });
+            let command: string;
+            let params: Record<string, unknown>;
+            if (app === 'Droid') {
+                command = 'get_droid_sync_status';
+                params = { proxyUrl: formattedUrl };
+            } else if (app === 'OpenCode') {
+                command = 'get_opencode_sync_status';
+                params = { proxyUrl: formattedUrl };
+            } else {
+                command = 'get_cli_sync_status';
+                params = { appType: app, proxyUrl: formattedUrl };
+            }
+
+            const status = await invoke<CliStatus>(command, params);
             setStatuses(prev => ({ ...prev, [app]: status }));
         } catch (error) {
             console.error(`Failed to check ${app} status:`, error);
@@ -89,23 +134,39 @@ export const CliSyncCard = ({ proxyUrl, apiKey, className }: CliSyncCardProps) =
     }, [getFormattedProxyUrl]);
 
     const handleSync = async (app: CliAppType) => {
+        if (app === 'Droid') {
+            setDroidSyncModal(true);
+            return;
+        }
+        if (app === 'OpenCode') {
+            setOpenCodeSyncModal(true);
+            return;
+        }
+        setSyncConfirmApp(app);
+    };
+
+    const executeSync = async () => {
+        const app = syncConfirmApp;
+        if (!app) return;
+        setSyncConfirmApp(null);
+
         if (!proxyUrl || !apiKey) {
             showToast(t('proxy.cli_sync.toast.config_missing', { defaultValue: '请先生成 API Key 并启动服务' }), 'error');
             return;
         }
 
-        setSyncing(prev => ({ ...prev, [app]: true }));
         try {
             const formattedUrl = getFormattedProxyUrl(app);
-            await invoke('execute_cli_sync', {
-                appType: app,
-                proxyUrl: formattedUrl,
-                apiKey: apiKey
-            });
-            showToast(t('proxy.cli_sync.toast.sync_success', { name: app }), 'success');
+            const command = app === 'OpenCode' ? 'execute_opencode_sync' : 'execute_cli_sync';
+            const params = app === 'OpenCode'
+                ? { proxyUrl: formattedUrl, apiKey: apiKey, syncAccounts: syncAccounts }
+                : { appType: app, proxyUrl: formattedUrl, apiKey: apiKey, model: selectedModels[app] };
+
+            await invoke(command, params);
+            showToast(t(app === 'OpenCode' ? 'proxy.opencode_sync.toast.sync_success' : 'proxy.cli_sync.toast.sync_success', { name: app, defaultValue: `${app} synced successfully` }), 'success');
             await checkStatus(app);
         } catch (error: any) {
-            showToast(t('proxy.cli_sync.toast.sync_error', { name: app, error: error.toString() }), 'error');
+            showToast(t(app === 'OpenCode' ? 'proxy.opencode_sync.toast.sync_error' : 'proxy.cli_sync.toast.sync_error', { name: app, error: error.toString(), defaultValue: `Sync failed: ${error.toString()}` }), 'error');
         } finally {
             setSyncing(prev => ({ ...prev, [app]: false }));
         }
@@ -122,11 +183,35 @@ export const CliSyncCard = ({ proxyUrl, apiKey, className }: CliSyncCardProps) =
 
         setSyncing(prev => ({ ...prev, [app]: true }));
         try {
-            await invoke('execute_cli_restore', { appType: app });
+            const command = app === 'Droid' ? 'execute_droid_restore' : app === 'OpenCode' ? 'execute_opencode_restore' : 'execute_cli_restore';
+            const params = (app === 'Droid' || app === 'OpenCode') ? {} : { appType: app };
+            await invoke(command, params);
             showToast(t('common.success'), 'success');
             await checkStatus(app);
         } catch (error: any) {
             showToast(error.toString(), 'error');
+        } finally {
+            setSyncing(prev => ({ ...prev, [app]: false }));
+        }
+    };
+
+    const handleClear = (app: CliAppType) => {
+        setClearConfirmApp(app);
+    };
+
+    const executeClear = async () => {
+        if (!clearConfirmApp) return;
+        const app = clearConfirmApp;
+        setClearConfirmApp(null);
+
+        setSyncing(prev => ({ ...prev, [app]: true }));
+        try {
+            const formattedUrl = getFormattedProxyUrl(app);
+            await invoke('execute_opencode_clear', { proxyUrl: formattedUrl, clearLegacy: true });
+            showToast(t('proxy.opencode_sync.toast.clear_success', { defaultValue: 'OpenCode cleared successfully' }), 'success');
+            await checkStatus(app);
+        } catch (error: any) {
+            showToast(t('proxy.opencode_sync.toast.clear_error', { defaultValue: `Clear failed: ${error.toString()}` }), 'error');
         } finally {
             setSyncing(prev => ({ ...prev, [app]: false }));
         }
@@ -138,10 +223,20 @@ export const CliSyncCard = ({ proxyUrl, apiKey, className }: CliSyncCardProps) =
             if (!status) return;
 
             const targetFile = fileName || status.files[0];
-            const content = await invoke<string>('get_cli_config_content', {
-                appType: app,
-                fileName: targetFile
-            });
+            let command: string;
+            let params: Record<string, unknown>;
+            if (app === 'Droid') {
+                command = 'get_droid_config_content';
+                params = {};
+            } else if (app === 'OpenCode') {
+                command = 'get_opencode_config_content';
+                params = { request: { fileName: targetFile } };
+            } else {
+                command = 'get_cli_config_content';
+                params = { appType: app, fileName: targetFile };
+            }
+
+            const content = await invoke<string>(command, params);
             setViewingConfig({
                 app,
                 content,
@@ -157,6 +252,8 @@ export const CliSyncCard = ({ proxyUrl, apiKey, className }: CliSyncCardProps) =
         checkStatus('Claude');
         checkStatus('Codex');
         checkStatus('Gemini');
+        checkStatus('OpenCode');
+        checkStatus('Droid');
     }, [checkStatus]);
 
     const renderCliItem = (app: CliAppType, icon: React.ReactNode, name: string) => {
@@ -194,7 +291,8 @@ export const CliSyncCard = ({ proxyUrl, apiKey, className }: CliSyncCardProps) =
                         </div>
                     </div>
 
-                    {!isAppLoading && status?.installed && (
+                    {/* Show Sync Status if installed OR if it's OpenCode (which we now allow configuring even if not installed) */}
+                    {!isAppLoading && (status?.installed || app === 'OpenCode' && status?.current_base_url) && (
                         <div className={cn(
                             "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold tracking-wide transition-all h-6 shrink-0 whitespace-nowrap shadow-sm",
                             status.is_synced
@@ -211,50 +309,97 @@ export const CliSyncCard = ({ proxyUrl, apiKey, className }: CliSyncCardProps) =
                 </div>
 
                 <div className="mt-auto space-y-3">
-                    <div className="p-2.5 bg-gray-50/80 dark:bg-gray-900/40 rounded-lg border border-dashed border-gray-200 dark:border-white/10 relative group/url">
+                    <div className="p-2.5 bg-gray-50/80 dark:bg-gray-900/40 rounded-lg border border-dashed border-gray-200 dark:border-white/10">
                         <div className="flex justify-between items-start mb-1">
                             <div className="text-[9px] text-gray-400 dark:text-gray-500 uppercase font-bold tracking-wider">{t('proxy.cli_sync.status.current_base_url')}</div>
-                            {status?.installed && (
-                                <div className="flex gap-1 opacity-0 group-hover/url:opacity-100 transition-opacity">
-                                    <button
-                                        onClick={() => handleViewConfig(app)}
-                                        className="p-0.5 hover:text-blue-500 transition-colors"
-                                        title={t('proxy.cli_sync.btn_view')}
-                                    >
-                                        <Eye size={12} />
-                                    </button>
-                                    <button
-                                        onClick={() => handleRestore(app)}
-                                        className="p-0.5 hover:text-orange-500 transition-colors"
-                                        title={t('proxy.cli_sync.btn_restore')}
-                                    >
-                                        <RotateCcw size={12} />
-                                    </button>
-                                </div>
-                            )}
                         </div>
                         <div className="text-[10px] font-mono truncate text-gray-500 dark:text-gray-400 italic">
                             {status?.current_base_url || '---'}
                         </div>
                     </div>
 
-                    <button
-                        onClick={() => handleSync(app)}
-                        disabled={!status?.installed || isAppSyncing || isAppLoading}
-                        className={cn(
-                            "btn btn-sm w-full gap-2 rounded-xl transition-all font-bold shadow-sm",
-                            status?.is_synced
-                                ? "btn-ghost border-gray-200 dark:border-base-400 text-gray-500 hover:bg-gray-100"
-                                : "btn-primary hover:shadow-lg shadow-blue-500/20"
+                    {/* Claude, Codex, Gemini 的模型选择 */}
+                    {(status?.installed || app === 'OpenCode') && (app === 'Claude' || app === 'Codex' || app === 'Gemini') && (
+                        <div className="space-y-1">
+                            <div className="text-[9px] text-gray-400 dark:text-gray-500 uppercase font-bold tracking-wider px-1">
+                                {t('proxy.cli_sync.model_select', { defaultValue: 'Select Model' })}
+                            </div>
+                            <GroupedSelect
+                                value={selectedModels[app]}
+                                onChange={(val) => setSelectedModels(prev => ({ ...prev, [app]: val }))}
+                                options={modelOptions}
+                                className="w-full !h-8 !text-[11px] !rounded-lg"
+                                allowCustomInput={true}
+                            />
+                        </div>
+                    )}
+
+                    {/* OpenCode 独有的账号同步选项 - Allow even if not installed */}
+                    {app === 'OpenCode' && (
+                        <div className="flex items-center gap-2 p-2 bg-gray-50/50 dark:bg-gray-900/20 rounded-lg">
+                            <input
+                                type="checkbox"
+                                id="opencode-sync-accounts"
+                                checked={syncAccounts}
+                                onChange={(e) => setSyncAccounts(e.target.checked)}
+                                className="checkbox checkbox-xs checkbox-primary"
+                            />
+                            <label htmlFor="opencode-sync-accounts" className="text-[10px] text-gray-600 dark:text-gray-400 cursor-pointer select-none">
+                                {t('proxy.opencode_sync.sync_accounts', { defaultValue: 'Sync accounts to antigravity-accounts.json' })}
+                            </label>
+                        </div>
+                    )}
+
+                    <div className="flex items-center gap-2">
+                        {(status?.installed || app === 'OpenCode') && (
+                            <>
+                                {/* 对于 OpenCode，如果未同步，则不显示查看按钮（因为文件尚未生成，后端会报错） */}
+                                {(app !== 'OpenCode' || status?.is_synced) && (
+                                    <button
+                                        onClick={() => handleViewConfig(app)}
+                                        className="p-1 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                                        title={t(app === 'OpenCode' ? 'proxy.opencode_sync.btn_view' : 'proxy.cli_sync.btn_view', { defaultValue: 'View Config' })}
+                                    >
+                                        <Eye size={14} />
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => handleRestore(app)}
+                                    className="p-1 text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded transition-colors"
+                                    title={t(app === 'OpenCode' ? 'proxy.opencode_sync.btn_restore' : 'proxy.cli_sync.btn_restore', { defaultValue: 'Restore' })}
+                                >
+                                    <RotateCcw size={14} />
+                                </button>
+                                {/* OpenCode 独有的 Clear 按钮 */}
+                                {app === 'OpenCode' && (
+                                    <button
+                                        onClick={() => handleClear(app)}
+                                        className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                                        title={t('proxy.opencode_sync.btn_clear', { defaultValue: 'Clear' })}
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                )}
+                            </>
                         )}
-                    >
-                        {isAppSyncing ? (
-                            <Loader2 size={14} className="animate-spin" />
-                        ) : (
-                            <RefreshCw size={14} className={cn(isAppLoading && "animate-spin-once")} />
-                        )}
-                        {t('proxy.cli_sync.btn_sync')}
-                    </button>
+                        <button
+                            onClick={() => handleSync(app)}
+                            disabled={(app !== 'OpenCode' && !status?.installed) || isAppSyncing || isAppLoading}
+                            className={cn(
+                                "btn btn-sm flex-1 gap-2 rounded-xl transition-all font-bold shadow-sm",
+                                status?.is_synced
+                                    ? "btn-ghost border-gray-200 dark:border-base-400 text-gray-500 hover:bg-gray-100"
+                                    : "btn-primary hover:shadow-lg shadow-blue-500/20"
+                            )}
+                        >
+                            {isAppSyncing ? (
+                                <Loader2 size={14} className="animate-spin" />
+                            ) : (
+                                <RefreshCw size={14} className={cn(isAppLoading && "animate-spin-once")} />
+                            )}
+                            {t('proxy.cli_sync.btn_sync')}
+                        </button>
+                    </div>
                 </div>
             </div>
         );
@@ -274,10 +419,12 @@ export const CliSyncCard = ({ proxyUrl, apiKey, className }: CliSyncCardProps) =
                 </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {renderCliItem('Claude', <CodeXml size={20} className="text-purple-500" />, 'Claude Code')}
                 {renderCliItem('Codex', <Cpu size={20} className="text-blue-500" />, 'Codex AI')}
                 {renderCliItem('Gemini', <Globe size={20} className="text-green-500" />, 'Gemini CLI')}
+                {renderCliItem('OpenCode', <CodeXml size={20} className="text-blue-500" />, 'OpenCode')}
+                {renderCliItem('Droid', <Bot size={20} className="text-orange-500" />, 'Droid')}
             </div>
 
             {/* Config Viewer Modal */}
@@ -309,9 +456,11 @@ export const CliSyncCard = ({ proxyUrl, apiKey, className }: CliSyncCardProps) =
                             </div>
                             <div className="flex items-center gap-2">
                                 <button
-                                    onClick={() => {
-                                        navigator.clipboard.writeText(viewingConfig.content);
-                                        showToast(t('proxy.cli_sync.modal.copy_success'), 'success');
+                                    onClick={async () => {
+                                        const success = await copyToClipboard(viewingConfig.content);
+                                        if (success) {
+                                            showToast(t('proxy.cli_sync.modal.copy_success'), 'success');
+                                        }
                                     }}
                                     className="btn btn-ghost btn-sm hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20"
                                 >
@@ -335,15 +484,66 @@ export const CliSyncCard = ({ proxyUrl, apiKey, className }: CliSyncCardProps) =
                     </div>
                 </div>
             )}
-            {/* 恢复默认确认弹窗 */}
+            {/* 恢复默认/备份确认弹窗 */}
             <ModalDialog
                 isOpen={!!restoreConfirmApp}
-                title={t('proxy.cli_sync.title')}
-                message={restoreConfirmApp ? t('proxy.cli_sync.restore_confirm', { name: restoreConfirmApp }) : ''}
+                title={statuses[restoreConfirmApp!]?.has_backup
+                    ? t('proxy.cli_sync.btn_restore_backup')
+                    : t('proxy.cli_sync.btn_restore') || t('proxy.cli_sync.title')}
+                message={restoreConfirmApp
+                    ? (statuses[restoreConfirmApp!]?.has_backup
+                        ? t('proxy.cli_sync.restore_backup_confirm')
+                        : t('proxy.cli_sync.restore_confirm', { name: restoreConfirmApp }))
+                    : ''}
                 onConfirm={executeRestore}
                 onCancel={() => setRestoreConfirmApp(null)}
                 isDestructive={true}
             />
+
+            {/* 同步配置确认弹窗 (Issue #756) */}
+            <ModalDialog
+                isOpen={!!syncConfirmApp}
+                title={t('proxy.cli_sync.sync_confirm_title')}
+                message={syncConfirmApp ? t('proxy.cli_sync.sync_confirm_message', { name: syncConfirmApp }) : ''}
+                onConfirm={executeSync}
+                onCancel={() => setSyncConfirmApp(null)}
+                isDestructive={true}
+            />
+
+            {/* Clear 确认弹窗 - 仅 OpenCode */}
+            <ModalDialog
+                isOpen={!!clearConfirmApp}
+                title={t('proxy.opencode_sync.clear_confirm_title', { defaultValue: 'Clear OpenCode Configuration' })}
+                message={t('proxy.opencode_sync.clear_confirm_message', { defaultValue: 'This will clear all OpenCode configurations including legacy settings. Are you sure?' })}
+                onConfirm={executeClear}
+                onCancel={() => setClearConfirmApp(null)}
+                isDestructive={true}
+            />
+
+            {/* Droid 模型添加弹窗 */}
+            {droidSyncModal && (
+                <DroidSyncModal
+                    proxyUrl={proxyUrl}
+                    apiKey={apiKey}
+                    getFormattedProxyUrl={getFormattedProxyUrl}
+                    onClose={() => setDroidSyncModal(false)}
+                    onSyncDone={() => checkStatus('Droid')}
+                />
+            )}
+
+            {/* OpenCode 模型选择弹窗 */}
+            {openCodeSyncModal && (
+                <OpenCodeSyncModal
+                    proxyUrl={proxyUrl}
+                    apiKey={apiKey}
+                    getFormattedProxyUrl={getFormattedProxyUrl}
+                    onClose={() => setOpenCodeSyncModal(false)}
+                    onSyncDone={() => checkStatus('OpenCode')}
+                />
+            )}
         </div>
     );
 };
+
+
+export default CliSyncCard;

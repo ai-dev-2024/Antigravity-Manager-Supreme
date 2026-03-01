@@ -4,6 +4,7 @@ import { Wand2, RotateCcw, FolderOpen, Trash2, X } from 'lucide-react';
 import { Account, DeviceProfile, DeviceProfileVersion } from '../../types/account';
 import * as accountService from '../../services/accountService';
 import { useTranslation } from 'react-i18next';
+import { isTauri } from '../../utils/env';
 
 interface DeviceFingerprintDialogProps {
     account: Account | null;
@@ -180,9 +181,11 @@ export default function DeviceFingerprintDialog({ account, onClose }: DeviceFing
                             <button className="btn btn-xs btn-outline btn-error" disabled={loadingDevice || actionLoading === 'restore'} onClick={handleRestoreOriginalConfirm}>
                                 <RotateCcw size={14} className="mr-1" />{t('accounts.device_fingerprint_dialog.restore_original')}
                             </button>
-                            <button className="btn btn-xs btn-outline" disabled={actionLoading === 'open-folder'} onClick={handleOpenFolder}>
-                                <FolderOpen size={14} className="mr-1" />{t('accounts.device_fingerprint_dialog.open_storage_directory')}
-                            </button>
+                            {isTauri() && (
+                                <button className="btn btn-xs btn-outline" disabled={actionLoading === 'open-folder'} onClick={handleOpenFolder}>
+                                    <FolderOpen size={14} className="mr-1" />{t('accounts.device_fingerprint_dialog.open_storage_directory')}
+                                </button>
+                            )}
                         </div>
                     </div>
                     {actionMessage && <div className="text-xs text-blue-600 dark:text-blue-300">{actionMessage}</div>}

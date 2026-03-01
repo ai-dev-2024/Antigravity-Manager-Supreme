@@ -1,18 +1,21 @@
-import React, { useEffect, useState } from 'react';
-import { X, Download, Sparkles, ArrowRight, Loader2, CheckCircle } from 'lucide-react';
-import { invoke } from '@tauri-apps/api/core';
+import React, { useEffect, useState, useRef } from 'react';
+import { X, Sparkles, Loader2, CheckCircle, RotateCcw } from 'lucide-react';
+import { request as invoke } from '../utils/request';
 import { useTranslation } from 'react-i18next';
-import { check } from '@tauri-apps/plugin-updater';
-import { relaunch } from '@tauri-apps/plugin-process';
+import { check as tauriCheck } from '@tauri-apps/plugin-updater';
+import { relaunch as tauriRelaunch } from '@tauri-apps/plugin-process';
+import { isTauri } from '../utils/env';
+import { showToast } from './common/ToastContainer';
 
 interface UpdateInfo {
   has_update: boolean;
   latest_version: string;
   current_version: string;
   download_url: string;
+  source?: string;
 }
 
-type UpdateState = 'checking' | 'available' | 'downloading' | 'ready' | 'none';
+type UpdateState = 'checking' | 'downloading' | 'ready' | 'error' | 'none';
 
 interface UpdateNotificationProps {
   onClose: () => void;
@@ -25,67 +28,81 @@ export const UpdateNotification: React.FC<UpdateNotificationProps> = ({ onClose 
   const [isClosing, setIsClosing] = useState(false);
   const [updateState, setUpdateState] = useState<UpdateState>('checking');
   const [downloadProgress, setDownloadProgress] = useState(0);
+  const downloadStarted = useRef(false);
 
   useEffect(() => {
-    checkForUpdates();
+    checkAndDownload();
   }, []);
 
-  const checkForUpdates = async () => {
+  const checkAndDownload = async () => {
     try {
+      // 1. Check for updates via backend
       const info = await invoke<UpdateInfo>('check_for_updates');
-      if (info.has_update) {
-        setUpdateInfo(info);
-        setUpdateState('available');
-        setTimeout(() => setIsVisible(true), 100);
-      } else {
+      if (!info.has_update) {
         onClose();
+        return;
       }
+
+      setUpdateInfo(info);
+
+      // 2. If not in Tauri — no auto-update possible
+      if (!isTauri()) {
+        console.warn('Auto update is only available in Tauri environment');
+        onClose();
+        return;
+      }
+
+      // 3. Start background download immediately
+      if (downloadStarted.current) return;
+      downloadStarted.current = true;
+
+      setUpdateState('downloading');
+      setTimeout(() => setIsVisible(true), 100);
+
+      const update = await tauriCheck();
+      if (!update) {
+        // updater.json not ready yet or no update via native channel
+        console.warn('Native updater returned null');
+        showToast(t('update_notification.toast.not_ready'), 'info');
+        handleClose();
+        return;
+      }
+
+      let downloaded = 0;
+      let contentLength = 0;
+
+      await update.downloadAndInstall((event) => {
+        switch (event.event) {
+          case 'Started':
+            contentLength = event.data.contentLength || 0;
+            break;
+          case 'Progress':
+            downloaded += event.data.chunkLength;
+            if (contentLength > 0) {
+              setDownloadProgress(Math.round((downloaded / contentLength) * 100));
+            }
+            break;
+          case 'Finished':
+            break;
+        }
+      });
+
+      // 4. Download complete — show restart prompt
+      setUpdateState('ready');
+      setDownloadProgress(100);
     } catch (error) {
-      console.error('Failed to check for updates:', error);
-      onClose();
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error('Auto update failed:', errorMsg);
+      setUpdateState('error');
+      showToast(`${t('update_notification.toast.failed')}: ${errorMsg}`, 'error');
     }
   };
 
-  const handleAutoUpdate = async () => {
-    setUpdateState('downloading');
+  const handleRestart = async () => {
     try {
-      const update = await check();
-      if (update) {
-        let downloaded = 0;
-        let contentLength = 0;
-        
-        await update.downloadAndInstall((event) => {
-          switch (event.event) {
-            case 'Started':
-              contentLength = event.data.contentLength || 0;
-              break;
-            case 'Progress':
-              downloaded += event.data.chunkLength;
-              if (contentLength > 0) {
-                setDownloadProgress(Math.round((downloaded / contentLength) * 100));
-              }
-              break;
-            case 'Finished':
-              setUpdateState('ready');
-              break;
-          }
-        });
-
-        setUpdateState('ready');
-        setTimeout(async () => {
-          await relaunch();
-        }, 1500);
-      }
+      await tauriRelaunch();
     } catch (error) {
-      console.error('Auto update failed:', error);
-      handleManualDownload();
-    }
-  };
-
-  const handleManualDownload = () => {
-    if (updateInfo?.download_url) {
-      window.open(updateInfo.download_url, '_blank');
-      handleClose();
+      console.error('Relaunch failed:', error);
     }
   };
 
@@ -95,7 +112,7 @@ export const UpdateNotification: React.FC<UpdateNotificationProps> = ({ onClose 
     setTimeout(onClose, 400);
   };
 
-  if (!updateInfo && updateState !== 'checking') {
+  if (updateState === 'none') {
     return null;
   }
 
@@ -117,8 +134,8 @@ export const UpdateNotification: React.FC<UpdateNotificationProps> = ({ onClose 
         bg-white/70 dark:bg-slate-900/60
         group
       ">
-        <div className="absolute -top-10 -right-10 w-32 h-32 bg-blue-500/20 rounded-full blur-3xl pointer-events-none group-hover:bg-blue-500/30 transition-colors duration-500"></div>
-        <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-purple-500/20 rounded-full blur-3xl pointer-events-none group-hover:bg-purple-500/30 transition-colors duration-500"></div>
+        <div className="absolute -top-10 -right-10 w-32 h-32 bg-blue-500/20 rounded-full blur-3xl pointer-events-none group-hover:bg-blue-500/30 transition-colors duration-500" />
+        <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-purple-500/20 rounded-full blur-3xl pointer-events-none group-hover:bg-purple-500/30 transition-colors duration-500" />
 
         <div className="relative z-10">
           <div className="flex items-start justify-between mb-3">
@@ -132,8 +149,8 @@ export const UpdateNotification: React.FC<UpdateNotificationProps> = ({ onClose 
               </div>
               <div>
                 <h3 className="font-bold text-gray-800 dark:text-white leading-tight">
-                  {updateState === 'ready' 
-                    ? t('update_notification.ready', '更新完成')
+                  {updateState === 'ready'
+                    ? t('update_notification.ready')
                     : t('update_notification.title')}
                 </h3>
                 {updateInfo && (
@@ -144,7 +161,7 @@ export const UpdateNotification: React.FC<UpdateNotificationProps> = ({ onClose 
               </div>
             </div>
 
-            {updateState !== 'downloading' && updateState !== 'ready' && (
+            {(updateState === 'error' || updateState === 'ready') && (
               <button
                 onClick={handleClose}
                 className="
@@ -160,55 +177,90 @@ export const UpdateNotification: React.FC<UpdateNotificationProps> = ({ onClose 
             )}
           </div>
 
+          {/* Status message */}
           <div className="mb-4">
             <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-              {updateState === 'downloading' && t('update_notification.downloading', '正在下载更新...')}
-              {updateState === 'ready' && t('update_notification.restarting', '即将重启应用...')}
-              {updateState === 'available' && updateInfo && t('update_notification.message', { current: updateInfo.current_version })}
+              {updateState === 'downloading' && t('update_notification.downloading')}
+              {updateState === 'ready' && t('update_notification.restart_prompt')}
+              {updateState === 'error' && `${t('update_notification.toast.failed')}`}
             </p>
           </div>
 
+          {/* Progress bar during download */}
           {updateState === 'downloading' && (
             <div className="mb-4">
               <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                <div 
+                <div
                   className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
                   style={{ width: `${downloadProgress}%` }}
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-1 text-center">{downloadProgress}%</p>
+              <div className="flex items-center justify-between mt-1">
+                <p className="text-xs text-gray-500">{downloadProgress}%</p>
+                <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
+              </div>
             </div>
           )}
 
-          {updateState === 'available' && (
+          {/* Restart button when ready */}
+          {updateState === 'ready' && (
             <div className="flex gap-2">
               <button
-                onClick={handleAutoUpdate}
+                onClick={handleRestart}
                 className="
                   flex-1 group/btn
                   relative overflow-hidden
-                  bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500
+                  bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500
                   text-white font-medium
                   py-2.5 px-4 rounded-xl
-                  shadow-lg shadow-blue-500/25
+                  shadow-lg shadow-green-500/25
                   transition-all duration-300
                   flex items-center justify-center gap-2
                   active:scale-[0.98]
                 "
               >
-                <Download className="w-4 h-4" />
-                <span>{t('update_notification.auto_update', '自动更新')}</span>
-                <ArrowRight className="w-4 h-4 opacity-0 -translate-x-2 group-hover/btn:opacity-100 group-hover/btn:translate-x-0 transition-all duration-300" />
+                <RotateCcw className="w-4 h-4" />
+                <span>{t('update_notification.btn_restart')}</span>
                 <div className="absolute inset-0 -translate-x-full group-hover/btn:animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent z-20 pointer-events-none" />
+              </button>
+              <button
+                onClick={handleClose}
+                className="
+                  px-3 py-2.5 rounded-xl
+                  text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200
+                  hover:bg-black/5 dark:hover:bg-white/10
+                  transition-all duration-200
+                  text-sm font-medium
+                "
+              >
+                {t('update_notification.btn_later')}
               </button>
             </div>
           )}
 
-          {(updateState === 'downloading' || updateState === 'ready') && (
-            <div className="flex items-center justify-center gap-2 text-blue-600 dark:text-blue-400">
-              {updateState === 'downloading' && <Loader2 className="w-4 h-4 animate-spin" />}
-              {updateState === 'ready' && <CheckCircle className="w-4 h-4" />}
-            </div>
+          {/* Error state — retry button */}
+          {updateState === 'error' && (
+            <button
+              onClick={() => {
+                downloadStarted.current = false;
+                setUpdateState('checking');
+                setDownloadProgress(0);
+                checkAndDownload();
+              }}
+              className="
+                w-full
+                bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500
+                text-white font-medium
+                py-2.5 px-4 rounded-xl
+                shadow-lg shadow-blue-500/25
+                transition-all duration-300
+                flex items-center justify-center gap-2
+                active:scale-[0.98]
+              "
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span>{t('common.retry')}</span>
+            </button>
           )}
         </div>
       </div>

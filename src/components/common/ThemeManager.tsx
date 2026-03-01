@@ -3,8 +3,7 @@ import { useEffect } from 'react';
 import { useConfigStore } from '../../stores/useConfigStore';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
-// Detect if running on Linux platform
-const isLinux = navigator.userAgent.toLowerCase().includes('linux');
+import { isLinux } from '../../utils/env';
 
 export default function ThemeManager() {
     const { config, loadConfig } = useConfigStore();
@@ -15,7 +14,9 @@ export default function ThemeManager() {
             await loadConfig();
             // Show window after a short delay to ensure React has painted
             setTimeout(async () => {
-                await getCurrentWindow().show();
+                if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
+                    await getCurrentWindow().show();
+                }
             }, 100);
         };
         init();
@@ -32,12 +33,21 @@ export default function ThemeManager() {
             // Set Tauri window background color
             // Skip on Linux due to crash with transparent windows + softbuffer
             try {
-                if (!isLinux) {
+                if (!isLinux() && (window as any).__TAURI_INTERNALS__) {
                     const bgColor = isDark ? '#1d232a' : '#FAFBFC';
-                    await getCurrentWindow().setBackgroundColor(bgColor);
+                    // Don't await this, let it happen in background to avoid blocking React render
+                    getCurrentWindow().setBackgroundColor(bgColor).catch(e =>
+                        console.error('Failed to set window background color:', e)
+                    );
+
+                    // Sync Windows title bar theme (for minimize/maximize/close button colors)
+                    const { invoke } = await import('@tauri-apps/api/core');
+                    invoke('set_window_theme', { theme }).catch(() => {
+                        // Ignore errors on non-Windows platforms
+                    });
                 }
             } catch (e) {
-                console.error('Failed to set window background color:', e);
+                console.error('Window background sync failed:', e);
             }
 
             // Set DaisyUI theme

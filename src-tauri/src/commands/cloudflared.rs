@@ -3,7 +3,8 @@ use crate::modules::cloudflared::{CloudflaredConfig, CloudflaredManager, Cloudfl
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-/// CloudflaredServiceStatusmanage
+/// Cloudflared服务状态管理
+#[derive(Clone)]
 pub struct CloudflaredState {
     pub manager: Arc<RwLock<Option<CloudflaredManager>>>,
 }
@@ -15,7 +16,7 @@ impl CloudflaredState {
         }
     }
 
-    /// Make sure the manager hasInitialize
+    /// 确保管理器已初始化
     pub async fn ensure_manager(&self) -> Result<(), String> {
         let mut lock = self.manager.write().await;
         if lock.is_none() {
@@ -26,7 +27,7 @@ impl CloudflaredState {
     }
 }
 
-/// CheckcloudflaredYesNoInstalled
+/// 检查cloudflared是否已安装
 #[tauri::command]
 pub async fn cloudflared_check(
     state: State<'_, CloudflaredState>,
@@ -48,7 +49,7 @@ pub async fn cloudflared_check(
     }
 }
 
-/// Installcloudflared
+/// 安装cloudflared
 #[tauri::command]
 pub async fn cloudflared_install(
     state: State<'_, CloudflaredState>,
@@ -63,7 +64,7 @@ pub async fn cloudflared_install(
     }
 }
 
-/// Startcloudflaredtunnel
+/// 启动cloudflared隧道
 #[tauri::command]
 pub async fn cloudflared_start(
     state: State<'_, CloudflaredState>,
@@ -79,7 +80,7 @@ pub async fn cloudflared_start(
     }
 }
 
-/// Stopcloudflaredtunnel
+/// 停止cloudflared隧道
 #[tauri::command]
 pub async fn cloudflared_stop(
     state: State<'_, CloudflaredState>,
@@ -94,7 +95,7 @@ pub async fn cloudflared_stop(
     }
 }
 
-/// GetcloudflaredStatus
+/// 获取cloudflared状态
 #[tauri::command]
 pub async fn cloudflared_get_status(
     state: State<'_, CloudflaredState>,

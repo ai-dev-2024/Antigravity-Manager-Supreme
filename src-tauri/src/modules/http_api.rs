@@ -1,13 +1,5 @@
 //! HTTP API Module
 //! Provides local HTTP interfaces for external programs (e.g., VS Code extension) to call.
-//! 
-//! Endpoints:
-//! - GET  /health                    Health check
-//! - GET  /accounts                  Get all accounts and quotas
-//! - GET  /accounts/current          Get current account
-//! - POST /accounts/switch           Switch account (async execution)
-//! - POST /accounts/refresh          Refresh all quotas
-//! - POST /accounts/:id/bind-device  Bind device fingerprint
 
 use axum::{
     extract::{Path, Query, State},
@@ -17,6 +9,8 @@ use axum::{
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
+// 预留 HTTP API 模块，当前未在主流程中启用
+
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tower_http::cors::{Any, CorsLayer};
@@ -92,13 +86,15 @@ pub fn save_settings(settings: &HttpApiSettings) -> Result<(), String> {
 #[derive(Clone)]
 pub struct ApiState {
     /// Whether there is a switch operation currently in progress
-    switching: Arc<RwLock<bool>>,
+    pub switching: Arc<RwLock<bool>>,
+    pub integration: crate::modules::integration::SystemManager,
 }
 
 impl ApiState {
-    pub fn new() -> Self {
+    pub fn new(integration: crate::modules::integration::SystemManager) -> Self {
         Self {
             switching: Arc::new(RwLock::new(false)),
+            integration,
         }
     }
 }
@@ -344,7 +340,7 @@ async fn switch_account(
     tokio::spawn(async move {
         logger::log_info(&format!("[HTTP API] Starting account switch: {}", account_id));
         
-        match account::switch_account(&account_id).await {
+        match account::switch_account(&account_id, &state_clone.integration).await {
             Ok(()) => {
                 logger::log_info(&format!("[HTTP API] Account switch successful: {}", account_id));
             }
@@ -449,8 +445,8 @@ async fn get_logs(
 // ============================================================================
 
 /// Start HTTP API server
-pub async fn start_server(port: u16) -> Result<(), String> {
-    let state = ApiState::new();
+pub async fn start_server(port: u16, integration: crate::modules::integration::SystemManager) -> Result<(), String> {
+    let state = ApiState::new(integration);
 
     // CORS config - allow local calls
     let cors = CorsLayer::new()
@@ -484,10 +480,10 @@ pub async fn start_server(port: u16) -> Result<(), String> {
 }
 
 /// Start HTTP API server in background (non-blocking)
-pub fn spawn_server(port: u16) {
+pub fn spawn_server(port: u16, integration: crate::modules::integration::SystemManager) {
     // Use tauri::async_runtime::spawn to ensure running within Tauri's runtime
     tauri::async_runtime::spawn(async move {
-        if let Err(e) = start_server(port).await {
+        if let Err(e) = start_server(port, integration).await {
             logger::log_error(&format!("[HTTP API] Failed to start server: {}", e));
         }
     });

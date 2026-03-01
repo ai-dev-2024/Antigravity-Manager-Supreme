@@ -7,7 +7,8 @@ export type ModalType = 'confirm' | 'success' | 'error' | 'info';
 interface ModalDialogProps {
     isOpen: boolean;
     title: string;
-    message: string;
+    message?: string;
+    children?: React.ReactNode;
     type?: ModalType;
     onConfirm: () => void;
     onCancel?: () => void;
@@ -20,6 +21,7 @@ export default function ModalDialog({
     isOpen,
     title,
     message,
+    children,
     type = 'confirm',
     onConfirm,
     onCancel,
@@ -70,7 +72,14 @@ export default function ModalDialog({
                     </div>
 
                     <h3 className="text-xl font-bold text-gray-900 dark:text-base-content mb-2">{title}</h3>
-                    <p className="text-gray-500 dark:text-gray-400 text-sm mb-8 leading-relaxed px-4">{message}</p>
+
+                    {children ? (
+                        <div className="w-full text-left mb-8 px-1">
+                            {children}
+                        </div>
+                    ) : (
+                        <p className="text-gray-500 dark:text-gray-400 text-sm mb-8 leading-relaxed px-4">{message}</p>
+                    )}
 
                     <div className="flex gap-3 w-full">
                         {showCancel && (

@@ -9,7 +9,7 @@
             ]
         })]);
         
-        let config = resolve_request_config("gemini-1.5-pro", "gemini-1.5-pro", &tools);
+        let config = resolve_request_config("gemini-1.5-pro", "gemini-1.5-pro", &tools, None, None, None, None);
         
         // Current logic expects:
         // 1. detects_networking_tool -> true (because name is "web_search", line 210)

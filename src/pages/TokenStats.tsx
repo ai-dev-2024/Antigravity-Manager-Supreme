@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { request as invoke } from '../utils/request';
 import { useTranslation } from 'react-i18next';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { Clock, Calendar, CalendarDays, Users, Zap, TrendingUp, RefreshCw, Cpu } from 'lucide-react';
@@ -180,6 +180,56 @@ const TokenStats: React.FC = () => {
     allModels.forEach((model, index) => {
         modelColorMap.set(model, MODEL_COLORS[index % MODEL_COLORS.length]);
     });
+
+    const trendChartContainerRef = useRef<HTMLDivElement>(null);
+    const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | undefined>(undefined);
+
+    // Ref and state for pie chart tooltip position
+    const pieChartContainerRef = useRef<HTMLDivElement>(null);
+    const [pieTooltipPosition, setPieTooltipPosition] = useState<{ x: number; y: number } | undefined>(undefined);
+
+    // Handle mouse move to calculate tooltip position
+    const handleTrendChartMouseMove = useCallback((e: any) => {
+        if (!trendChartContainerRef.current || !e?.activeCoordinate) return;
+
+        const containerRect = trendChartContainerRef.current.getBoundingClientRect();
+        const tooltipWidth = 200; // Approximate tooltip width
+        const rightEdgeThreshold = containerRect.width - tooltipWidth - 20; // 20px buffer
+
+        const mouseXInContainer = e.activeCoordinate.x;
+
+        if (mouseXInContainer > rightEdgeThreshold) {
+            setTooltipPosition({
+                x: e.activeCoordinate.x - tooltipWidth - 15,
+                y: e.activeCoordinate.y
+            });
+        } else {
+            setTooltipPosition(undefined); // Use default positioning
+        }
+    }, []);
+
+    // Handle mouse move for pie chart to calculate tooltip position
+    const handlePieChartMouseMove = useCallback((e: any) => {
+        if (!pieChartContainerRef.current) return;
+
+        const containerRect = pieChartContainerRef.current.getBoundingClientRect();
+        const tooltipWidth = 180; // Approximate tooltip width for pie chart
+
+        // Get mouse position relative to container
+        if (e?.activeCoordinate) {
+            const mouseXInContainer = e.activeCoordinate.x;
+            const rightEdgeThreshold = containerRect.width - tooltipWidth - 20;
+
+            if (mouseXInContainer > rightEdgeThreshold) {
+                setPieTooltipPosition({
+                    x: e.activeCoordinate.x - tooltipWidth - 15,
+                    y: e.activeCoordinate.y
+                });
+            } else {
+                setPieTooltipPosition(undefined);
+            }
+        }
+    }, []);
 
     // Custom Tooltip for Trend Chart
     const CustomTrendTooltip = ({ active, payload, label }: any) => {
@@ -403,10 +453,14 @@ const TokenStats: React.FC = () => {
                             </button>
                         </div>
                     </div>
-                    <div className="h-72">
+                    <div className="h-72" ref={trendChartContainerRef}>
                         {modelTrendData.length > 0 && allModels.length > 0 ? (
                             <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={viewMode === 'model' ? modelTrendData : accountTrendData}>
+                                <AreaChart
+                                    data={viewMode === 'model' ? modelTrendData : accountTrendData}
+                                    onMouseMove={handleTrendChartMouseMove}
+                                    onMouseLeave={() => setTooltipPosition(undefined)}
+                                >
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" strokeOpacity={0.15} />
                                     <XAxis
                                         dataKey="period"
@@ -430,6 +484,7 @@ const TokenStats: React.FC = () => {
                                         content={<CustomTrendTooltip />}
                                         cursor={{ stroke: '#6b7280', strokeWidth: 1, strokeDasharray: '4 4', fill: 'transparent' }}
                                         allowEscapeViewBox={{ x: true, y: true }}
+                                        position={tooltipPosition}
                                         wrapperStyle={{ zIndex: 100 }}
                                     />
                                     <Legend
@@ -513,10 +568,13 @@ const TokenStats: React.FC = () => {
                         <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
                             {t('token_stats.by_account', '分账号统计')}
                         </h2>
-                        <div className="h-48">
+                        <div className="h-48" ref={pieChartContainerRef}>
                             {pieData.length > 0 ? (
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
+                                    <PieChart
+                                        onMouseMove={handlePieChartMouseMove}
+                                        onMouseLeave={() => setPieTooltipPosition(undefined)}
+                                    >
                                         <Pie
                                             data={pieData}
                                             cx="50%"
@@ -533,6 +591,7 @@ const TokenStats: React.FC = () => {
                                         <Tooltip
                                             content={<CustomPieTooltip />}
                                             allowEscapeViewBox={{ x: true, y: true }}
+                                            position={pieTooltipPosition}
                                             wrapperStyle={{ zIndex: 100 }}
                                         />
                                     </PieChart>

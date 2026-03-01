@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, Check } from 'lucide-react';
+import { ChevronDown, Check, Edit3 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
 export interface SelectOption {
@@ -16,6 +16,7 @@ interface GroupedSelectProps {
     placeholder?: string;
     className?: string;
     disabled?: boolean;
+    allowCustomInput?: boolean; // 新增: 是否允许自定义输入
 }
 
 export default function GroupedSelect({
@@ -24,13 +25,16 @@ export default function GroupedSelect({
     options,
     placeholder = 'Select...',
     className = '',
-    disabled = false
+    disabled = false,
+    allowCustomInput = false // 新增: 默认不允许自定义输入
 }: GroupedSelectProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+    const [customInput, setCustomInput] = useState(''); // 新增: 自定义输入值
     const containerRef = useRef<HTMLDivElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null); // 新增: 下拉菜单引用
+    const customInputRef = useRef<HTMLInputElement>(null); // 新增: 自定义输入框引用
 
     // 按组分组选项
     const groupedOptions = options.reduce((acc, option) => {
@@ -44,7 +48,7 @@ export default function GroupedSelect({
 
     // 获取当前选中项的标签
     const selectedOption = options.find(opt => opt.value === value);
-    const selectedLabel = selectedOption?.label || placeholder;
+    const selectedLabel = selectedOption?.label || value || placeholder;
 
     // 更新下拉菜单位置
     const updateDropdownPosition = () => {
@@ -89,6 +93,15 @@ export default function GroupedSelect({
         console.log('[GroupedSelect] handleSelect called:', optionValue);
         onChange(optionValue);
         setIsOpen(false);
+    };
+
+    const handleCustomInputSubmit = () => {
+        if (customInput.trim()) {
+            console.log('[GroupedSelect] Custom input submitted:', customInput.trim());
+            onChange(customInput.trim());
+            setCustomInput('');
+            setIsOpen(false);
+        }
     };
 
     const handleToggle = () => {
@@ -184,6 +197,50 @@ export default function GroupedSelect({
                             ))}
                         </div>
                     ))}
+
+                    {/* 自定义输入区域 */}
+                    {allowCustomInput && (
+                        <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 p-2">
+                            <div className="flex items-center gap-1.5">
+                                <Edit3 size={12} className="text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                                <input
+                                    ref={customInputRef}
+                                    type="text"
+                                    value={customInput}
+                                    onChange={(e) => setCustomInput(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleCustomInputSubmit();
+                                        }
+                                    }}
+                                    placeholder="输入自定义模型 ID..."
+                                    className={cn(
+                                        'flex-1 px-2 py-1 text-[10px] font-mono',
+                                        'bg-white dark:bg-gray-800',
+                                        'border border-gray-300 dark:border-gray-600',
+                                        'rounded focus:outline-none focus:ring-1 focus:ring-blue-500',
+                                        'text-gray-900 dark:text-gray-100',
+                                        'placeholder:text-gray-400 dark:placeholder:text-gray-500'
+                                    )}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleCustomInputSubmit}
+                                    disabled={!customInput.trim()}
+                                    className={cn(
+                                        'px-2 py-1 text-[10px] font-medium rounded',
+                                        'transition-colors duration-150',
+                                        customInput.trim()
+                                            ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                                            : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                                    )}
+                                >
+                                    确定
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>,
                 document.body
             )}

@@ -11,61 +11,17 @@ on:
         default: 'false'
         type: boolean
 
-# Protected files - ALL our customizations that should NEVER be overwritten by upstream
-# These are backed up before merge and restored after
-# NOTE: We translate ALL Rust files, so we don't protect most src-tauri files
+# Minimal protected files - ONLY branding and workflow files
+# Everything else is synced from upstream to avoid build incompatibilities
 env:
   PROTECTED_FILES: |
-    # Workflows
     .github/workflows/release.yml
     .github/workflows/sync-upstream.yml
-    # Documentation
     README.md
     CUSTOMIZATIONS.md
     SYNC_WORKFLOW.md
-    # UI Pages (all customized with shadcn dark theme)
-    src/pages/Dashboard.tsx
-    src/pages/Settings.tsx
-    src/pages/Accounts.tsx
-    src/pages/ApiProxy.tsx
-    src/pages/Monitor.tsx
-    # Dashboard Components (Best Claude/Gemini, Auto-Switch)
-    src/components/dashboard/
-    # Proxy Components (One-Click CLI Sync)
-    src/components/proxy/CliSyncCard.tsx
-    # Layout Components (Navbar styling)
-    src/components/layout/Navbar.tsx
-    # Common Components (Theme Manager)
-    src/components/common/ThemeManager.tsx
-    # Accounts Components (Add Dialog styling)
-    src/components/accounts/AddAccountDialog.tsx
-    # Styling (shadcn dark theme colors)
-    src/App.css
-    components.json
-    # Backend Commands
-    src-tauri/src/commands/environment.rs
-    src-tauri/src/commands/mod.rs
-    src-tauri/src/commands/autostart.rs
-    src-tauri/src/commands/proxy.rs
-    # Tauri Modules
-    src-tauri/src/modules/updater.rs
-    src-tauri/src/modules/tray.rs
-    # Icons (Supreme branding)
     src-tauri/icons/
-    # Config
-    src-tauri/tauri.conf.json
-    src-tauri/Cargo.toml
-    src-tauri/src/main.rs
-    src-tauri/src/lib.rs
-    # Translations (customized branding in locale files)
-    src/locales/en.json
-    src/locales/
     scripts/translate-chinese.py
-    # HTML and public assets
-    index.html
-    public/
-    package.json
-    tailwind.config.js
     .last-synced-upstream
 
 jobs:
@@ -77,7 +33,7 @@ jobs:
       our_new_version: ${{ steps.check.outputs.our_new_version }}
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Check for new upstream release
         id: check
         run: |
@@ -85,25 +41,25 @@ jobs:
           UPSTREAM_VERSION=$(curl -s https://api.github.com/repos/lbjlaq/Antigravity-Manager/releases/latest | jq -r .tag_name)
           echo "Upstream latest: $UPSTREAM_VERSION"
           echo "upstream_version=$UPSTREAM_VERSION" >> $GITHUB_OUTPUT
-          
-          # Get our latest release tag
-          OUR_LATEST=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .tag_name)
-          echo "Our latest: $OUR_LATEST"
-          
+
           # Read last synced upstream version from file (if exists)
           LAST_SYNCED=""
           if [ -f ".last-synced-upstream" ]; then
             LAST_SYNCED=$(cat .last-synced-upstream)
           fi
           echo "Last synced upstream: $LAST_SYNCED"
-          
+
+          # Get our latest release tag (handle missing releases gracefully)
+          OUR_LATEST=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r '.tag_name // "v1.1.10"')
+          echo "Our latest: $OUR_LATEST"
+
           # Calculate next version (increment patch)
-          CURRENT_PATCH=$(echo "$OUR_LATEST" | sed 's/v1\.1\.//')
+          CURRENT_PATCH=$(echo "$OUR_LATEST" | sed 's/v1\.1\.//' | grep -oE '^[0-9]+' || echo "10")
           NEXT_PATCH=$((CURRENT_PATCH + 1))
           OUR_NEW_VERSION="v1.1.${NEXT_PATCH}"
           echo "our_new_version=$OUR_NEW_VERSION" >> $GITHUB_OUTPUT
           echo "Next version will be: $OUR_NEW_VERSION"
-          
+
           # Check if we need to sync
           if [[ "$UPSTREAM_VERSION" != "$LAST_SYNCED" ]] || [[ "${{ inputs.force_sync }}" == "true" ]]; then
             echo "New upstream version detected or force sync requested"
@@ -135,93 +91,171 @@ jobs:
 
       - name: Fetch upstream
         run: |
-          echo "Ensuring full clone (not shallow)..."
           git fetch --unshallow origin 2>/dev/null || true
-          
-          echo "Fetching upstream main branch..."
-          # Try normal fetch first, then force fetch if diverged
-          git fetch upstream main --force --no-tags || {
-            echo "Normal fetch failed, trying with depth..."
-            git fetch upstream main --depth=100 --force --no-tags || {
-              echo "Depth fetch failed, trying full refetch..."
-              git remote remove upstream 2>/dev/null || true
-              git remote add upstream https://github.com/lbjlaq/Antigravity-Manager.git
-              git fetch upstream main --force --no-tags
-            }
-          }
-          
-          
-          # Note: Do NOT fetch upstream tags - we use our own versioning (v1.1.x)
-          # Fetching upstream tags (v3.3.x) causes 'would clobber existing tag' errors on push
-          
+          git fetch upstream main --force --no-tags
           echo "Fetch completed successfully"
 
       - name: Backup protected files
         run: |
           mkdir -p /tmp/protected_backup
           echo "Backing up protected files..."
-          
+
           echo "$PROTECTED_FILES" | while IFS= read -r file; do
-            file=$(echo "$file" | xargs)  # trim whitespace
-            if [ -n "$file" ]; then
-              if [ -d "$file" ]; then
-                echo "  Backing up directory: $file"
-                mkdir -p "/tmp/protected_backup/$(dirname "$file")"
-                cp -r "$file" "/tmp/protected_backup/$file"
-              elif [ -f "$file" ]; then
-                echo "  Backing up file: $file"
-                mkdir -p "/tmp/protected_backup/$(dirname "$file")"
-                cp "$file" "/tmp/protected_backup/$file"
-              fi
+            file=$(echo "$file" | xargs)
+            # Skip empty lines and comments
+            [[ -z "$file" || "$file" == \#* ]] && continue
+            if [ -d "$file" ]; then
+              echo "  Backing up directory: $file"
+              mkdir -p "/tmp/protected_backup/$(dirname "$file")"
+              cp -r "$file" "/tmp/protected_backup/$file"
+            elif [ -f "$file" ]; then
+              echo "  Backing up file: $file"
+              mkdir -p "/tmp/protected_backup/$(dirname "$file")"
+              cp "$file" "/tmp/protected_backup/$file"
             fi
           done
-          
-          echo "Backup complete. Contents:"
-          find /tmp/protected_backup -type f | head -20
 
-      - name: Merge upstream
+          echo "Backup complete."
+
+      - name: Sync from upstream (checkout strategy)
         run: |
-          echo "Merging upstream/main..."
-          
-          # Try standard merge first
-          git merge upstream/main --no-edit -X theirs --allow-unrelated-histories && {
-            echo "Merge completed successfully"
-          } || {
-            echo "Standard merge failed, attempting conflict resolution..."
-            
-            # Abort any failed merge
-            git merge --abort 2>/dev/null || true
-            
-            # Reset to upstream/main completely and reapply our commits
-            echo "Resetting to upstream/main..."
-            git reset --hard upstream/main || {
-              echo "Hard reset failed, trying checkout..."
-              git checkout upstream/main -- . 2>/dev/null || true
-              git add -A
-              git commit -m "Sync: Force update from upstream" || true
-            }
-            
-            echo "Merge resolved via reset"
+          echo "=== Full sync from upstream/main ==="
+          # Instead of merge/rebase (which fails with divergent histories),
+          # we checkout ALL files from upstream, then restore our branding overlay.
+          # This ensures the Rust backend and TS frontend are always consistent.
+
+          git checkout upstream/main -- . 2>/dev/null || {
+            echo "Full checkout failed, trying file-by-file..."
+            # Checkout key directories
+            git checkout upstream/main -- src-tauri/ src/ index.html vite.config.ts \
+              tsconfig.json tsconfig.node.json postcss.config.cjs tailwind.config.js \
+              package.json 2>/dev/null || true
           }
+
+          echo "Upstream files synced"
 
       - name: Restore protected files
         run: |
           echo "Restoring protected files..."
-          
+
           echo "$PROTECTED_FILES" | while IFS= read -r file; do
             file=$(echo "$file" | xargs)
-            if [ -n "$file" ]; then
-              if [ -d "/tmp/protected_backup/$file" ]; then
-                echo "  Restoring directory: $file"
-                rm -rf "$file"
-                cp -r "/tmp/protected_backup/$file" "$file"
-              elif [ -f "/tmp/protected_backup/$file" ]; then
-                echo "  Restoring file: $file"
-                mkdir -p "$(dirname "$file")"
-                cp "/tmp/protected_backup/$file" "$file"
-              fi
+            [[ -z "$file" || "$file" == \#* ]] && continue
+            if [ -d "/tmp/protected_backup/$file" ]; then
+              echo "  Restoring directory: $file"
+              rm -rf "$file"
+              cp -r "/tmp/protected_backup/$file" "$file"
+            elif [ -f "/tmp/protected_backup/$file" ]; then
+              echo "  Restoring file: $file"
+              mkdir -p "$(dirname "$file")"
+              cp "/tmp/protected_backup/$file" "$file"
             fi
           done
+
+      - name: Apply Supreme branding overlay
+        env:
+          NEW_VERSION: ${{ needs.check-upstream.outputs.our_new_version }}
+        run: |
+          VERSION_NUM="${NEW_VERSION#v}"
+          echo "Applying Supreme branding for $NEW_VERSION..."
+
+          # Update tauri.conf.json with Supreme branding
+          python3 -c "
+          import json
+          with open('src-tauri/tauri.conf.json', 'r') as f:
+              conf = json.load(f)
+          conf['productName'] = 'Antigravity Manager Supreme'
+          conf['version'] = '${VERSION_NUM}'
+          conf['identifier'] = 'com.aidev2024.antigravity-manager-supreme'
+          conf['app']['windows'][0]['title'] = 'Antigravity Manager Supreme'
+          # Update updater endpoint to our repo
+          if 'plugins' in conf and 'updater' in conf['plugins']:
+              if conf['plugins']['updater'] and 'endpoints' in conf['plugins']['updater']:
+                  conf['plugins']['updater']['endpoints'] = [
+                      'https://github.com/ai-dev-2024/Antigravity-Manager-Supreme/releases/latest/download/updater.json'
+                  ]
+          with open('src-tauri/tauri.conf.json', 'w') as f:
+              json.dump(conf, f, indent=2)
+          print('tauri.conf.json updated')
+          "
+
+          # Update package.json with Supreme branding
+          python3 -c "
+          import json
+          with open('package.json', 'r') as f:
+              pkg = json.load(f)
+          pkg['name'] = 'antigravity-manager-supreme'
+          pkg['version'] = '${VERSION_NUM}'
+          with open('package.json', 'w') as f:
+              json.dump(pkg, f, indent=2)
+          print('package.json updated')
+          "
+
+          # Update Cargo.toml version to match
+          sed -i "s/^version = \"[0-9.]*\"/version = \"${VERSION_NUM}\"/" src-tauri/Cargo.toml
+
+          # Update README version links
+          if [ -f README.md ]; then
+            UPSTREAM="${{ needs.check-upstream.outputs.upstream_version }}"
+            sed -i "s|## 📥 \[Download v[0-9.]*|## 📥 [Download $NEW_VERSION|g" README.md
+            sed -i "s|Upstream-v[0-9.]*-purple|Upstream-${UPSTREAM}-purple|g" README.md 2>/dev/null || true
+          fi
+
+          echo "Branding overlay applied"
+
+      - name: Remove hardcoded secrets (GitHub Push Protection)
+        run: |
+          echo "Replacing hardcoded OAuth credentials with env var lookups..."
+          # Upstream embeds Google OAuth credentials directly in oauth.rs
+          # GitHub Push Protection blocks pushes containing these secrets
+          # Replace with runtime environment variable lookups
+          if [ -f src-tauri/src/modules/oauth.rs ]; then
+            python3 -c "
+          import re
+
+          with open('src-tauri/src/modules/oauth.rs', 'r') as f:
+              content = f.read()
+
+          # Check if already using Lazy pattern (already patched)
+          if 'Lazy<String>' in content:
+              print('oauth.rs already patched, skipping')
+          else:
+              # Add once_cell import
+              content = content.replace(
+                  'use serde::{Deserialize, Serialize};',
+                  'use serde::{Deserialize, Serialize};\nuse once_cell::sync::Lazy;'
+              )
+
+              # Replace hardcoded CLIENT_ID
+              content = re.sub(
+                  r'const CLIENT_ID: &str = \"[^\"]*\";',
+                  '''static CLIENT_ID: Lazy<String> = Lazy::new(|| {
+      std::env::var(\"GOOGLE_OAUTH_CLIENT_ID\")
+          .unwrap_or_else(|_| String::from(\"GOOGLE_OAUTH_CLIENT_ID_NOT_SET\"))
+  });''',
+                  content
+              )
+
+              # Replace hardcoded CLIENT_SECRET
+              content = re.sub(
+                  r'const CLIENT_SECRET: &str = \"[^\"]*\";',
+                  '''static CLIENT_SECRET: Lazy<String> = Lazy::new(|| {
+      std::env::var(\"GOOGLE_OAUTH_CLIENT_SECRET\")
+          .unwrap_or_else(|_| String::from(\"GOOGLE_OAUTH_CLIENT_SECRET_NOT_SET\"))
+  });''',
+                  content
+              )
+
+              # Update all usages from &str to Lazy<String>
+              content = content.replace('(\"client_id\", CLIENT_ID)', '(\"client_id\", CLIENT_ID.as_str())')
+              content = content.replace('(\"client_secret\", CLIENT_SECRET)', '(\"client_secret\", CLIENT_SECRET.as_str())')
+
+              with open('src-tauri/src/modules/oauth.rs', 'w') as f:
+                  f.write(content)
+
+              print('oauth.rs patched: removed hardcoded secrets')
+          "
+          fi
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -235,207 +269,63 @@ jobs:
         run: |
           echo "Running translation script..."
           python scripts/translate-chinese.py 2>&1 || {
-            echo "Translation script failed, using comprehensive fallback..."
-            
-            # Comprehensive fallback translations (covers all patterns found in codebase)
-            find src-tauri -name "*.rs" -type f | while read file; do
-              # Common verbs
-              sed -i 's|// 获取|// Get|g' "$file"
-              sed -i 's|// 设置|// Set|g' "$file"
-              sed -i 's|// 检查|// Check|g' "$file"
-              sed -i 's|// 处理|// Handle|g' "$file"
-              sed -i 's|// 创建|// Create|g' "$file"
-              sed -i 's|// 删除|// Delete|g' "$file"
-              sed -i 's|// 更新|// Update|g' "$file"
-              sed -i 's|// 返回|// Return|g' "$file"
-              sed -i 's|// 错误|// Error|g' "$file"
-              sed -i 's|// 配置|// Config|g' "$file"
-              sed -i 's|// 初始化|// Initialize|g' "$file"
-              sed -i 's|// 加载|// Load|g' "$file"
-              sed -i 's|// 保存|// Save|g' "$file"
-              sed -i 's|// 发送|// Send|g' "$file"
-              sed -i 's|// 接收|// Receive|g' "$file"
-              sed -i 's|// 解析|// Parse|g' "$file"
-              sed -i 's|// 转换|// Convert|g' "$file"
-              sed -i 's|// 验证|// Validate|g' "$file"
-              sed -i 's|// 执行|// Execute|g' "$file"
-              sed -i 's|// 使用|// Using|g' "$file"
-              
-              # Audio/Handlers specific
-              sed -i 's|/// 处理音频转录请求|/// Handle audio transcription request|g' "$file"
-              sed -i 's|"无法获取文件名"|"Unable to get filename"|g' "$file"
-              sed -i 's|"无法获取文件扩展名"|"Unable to get file extension"|g' "$file"
-              sed -i 's|使用 Inline Data 方式处理|Using Inline Data processing method|g' "$file"
-              
-              # Claude handler specific
-              sed -i 's|// Claude 协议处理器|// Claude protocol handler|g' "$file"
-              sed -i 's|// ===== Thinking 块处理辅助函数 =====|// ===== Thinking block processing helper functions =====|g' "$file"
-              sed -i 's|/// 检查 thinking 块是否有有效签名|/// Check if thinking block has valid signature|g' "$file"
-              sed -i 's|// 只处理 assistant 消息|// Only process assistant messages|g' "$file"
-              sed -i 's|/// 处理 Claude messages 请求|/// Handle Claude messages request|g' "$file"
-              sed -i 's|/// 处理 Chat 消息请求流程|/// Handle Chat message request flow|g' "$file"
-              sed -i 's|// 获取最新一条"有意义"的消息内容|// Get the latest "meaningful" message content|g' "$file"
-              sed -i 's|用于日志记录和后台任务检测|for logging and background task detection|g' "$file"
-              sed -i 's|// 1. 获取 会话 ID|// 1. Get session ID|g' "$file"
-              sed -i 's|已废弃基于内容的哈希|deprecated content-based hash|g' "$file"
-              sed -i 's|改用 TokenManager 内部的时间窗口锁定|using TokenManager internal time window locking|g' "$file"
-              sed -i 's|// 2. 获取 UpstreamClient|// 2. Get UpstreamClient|g' "$file"
-              sed -i 's|// 先不应用家族映射|// First without applying family mapping|g' "$file"
-              sed -i 's|获取初步的 mapped_model|get preliminary mapped_model|g' "$file"
-              sed -i 's|// 处理流式响应|// Handle streaming response|g' "$file"
-              sed -i 's|// 处理非流式响应|// Handle non-streaming response|g' "$file"
-              sed -i 's|// 2. 获取错误文本并转移 Response 所有权|// 2. Get error text and transfer Response ownership|g' "$file"
-              sed -i 's|// 4. 处理 400 错误|// 4. Handle 400 error|g' "$file"
-              sed -i 's|Thinking 签名失效|Thinking signature invalid|g' "$file"
-              sed -i 's|// 5. 统一处理所有可重试错误|// 5. Unified handling of all retryable errors|g' "$file"
-              sed -i 's|// \[REMOVED\] 不再特殊处理 QUOTA_EXHAUSTED|// [REMOVED] No longer special handling QUOTA_EXHAUSTED|g' "$file"
-              sed -i 's|允许账号轮换|allow account rotation|g' "$file"
-              
-              # JSON Schema specific
-              sed -i 's|// 检查并替换 \$ref|// Check and replace $ref|g' "$file"
-              sed -i 's|// 递归处理刚刚合并进来的内容|// Recursively process just merged content|g' "$file"
-              sed -i 's|中可能包含的 \$ref|that may contain $ref|g' "$file"
-              sed -i 's|// 1. \[CRITICAL\] 深度递归处理|// 1. [CRITICAL] Deep recursive processing|g' "$file"
-              sed -i 's|必须遍历当前对象的所有字段名对应的 Value|must traverse all field names and corresponding Values|g' "$file"
-              sed -i 's|// 2. 收集并处理校验字段|// 2. Collect and process validation fields|g' "$file"
-              sed -i 's|Migration logic: 将约束降级为描述中的 Hint|Migration logic: downgrade constraints to hints in description|g' "$file"
-              sed -i 's|// 4. \[NEW FIX\] 处理 anyOf/oneOf 联合类型|// 4. [NEW FIX] Handle anyOf/oneOf union types|g' "$file"
-              sed -i 's|在移除前提取 type|extract type before removal|g' "$file"
-              sed -i 's|// 6. 处理 type 字段|// 6. Handle type field|g' "$file"
-              sed -i 's|Gemini 要求单字符串且小写|Gemini requires single string and lowercase|g' "$file"
-              sed -i 's|// 调用者可以决定是否设置默认类型|// Caller can decide whether to set default type|g' "$file"
-              
-              # Gemini handler specific
-              sed -i 's|/// 处理 generateContent 和 streamGenerateContent|/// Handle generateContent and streamGenerateContent|g' "$file"
-              sed -i 's|// 2. 获取 UpstreamClient 和 TokenManager|// 2. Get UpstreamClient and TokenManager|g' "$file"
-              sed -i 's|// 4. 获取 Token|// 4. Get Token|g' "$file"
-              sed -i 's|使用准确的 request_type|using accurate request_type|g' "$file"
-              sed -i 's|// 6. 响应处理|// 6. Response handling|g' "$file"
-              sed -i 's|// 处理错误并重试|// Handle error and retry|g' "$file"
-              sed -i 's|// 获取所有动态模型列表|// Get all dynamic model lists|g' "$file"
-              sed -i 's|与 /v1/models 一致|consistent with /v1/models|g' "$file"
-              
-              # Model mapping specific
-              sed -i 's|/// 获取所有内置支持的模型列表关键字|/// Get all built-in supported model list keywords|g' "$file"
-              sed -i 's|/// 动态获取所有可用模型列表|/// Dynamically get all available model lists|g' "$file"
-              sed -i 's|包含内置与用户自定义|including built-in and user-defined|g' "$file"
-              sed -i 's|// 1. 获取所有内置映射模型|// 1. Get all built-in mapped models|g' "$file"
-              sed -i 's|// 2. 获取所有自定义映射模型 (OpenAI)|// 2. Get all custom mapped models (OpenAI)|g' "$file"
-              sed -i 's|// 3. 获取所有自定义映射模型 (Custom)|// 3. Get all custom mapped models (Custom)|g' "$file"
-              sed -i 's|// 4. 获取所有 Anthropic 映射模型|// 4. Get all Anthropic mapped models|g' "$file"
-              sed -i 's|// 1. 检查自定义精确映射|// 1. Check custom exact mapping|g' "$file"
-              sed -i 's|优先级最高|highest priority|g' "$file"
-              sed -i 's|// 2. 检查家族分组映射|// 2. Check family group mapping|g' "$file"
-              sed -i 's|OpenAI 系|OpenAI series|g' "$file"
-              sed -i 's|// 3. 检查家族分组映射|// 3. Check family group mapping|g' "$file"
-              sed -i 's|Anthropic 系|Anthropic series|g' "$file"
-              sed -i 's|// \[CRITICAL\] 检查是否应用 Claude 家族映射|// [CRITICAL] Check whether to apply Claude family mapping|g' "$file"
-              sed -i 's|如果是非 CLI 请求|If it is a non-CLI request|g' "$file"
-              sed -i 's|如 Cherry Studio|such as Cherry Studio|g' "$file"
-              sed -i 's|先检查是否为原生支持的直通模型|first check if it is a natively supported passthrough model|g' "$file"
-              
-              # Module comments
-              sed -i 's|// Handlers 模块 - API 端点处理器|// Handlers module - API endpoint handlers|g' "$file"
-              sed -i 's|// 核心端点处理器模块|// Core endpoint handler module|g' "$file"
-              sed -i 's|// 音频转录处理器|// Audio transcription handler|g' "$file"
-              sed -i 's|// 错误处理|// Error handling|g' "$file"
-            done
-            
-            echo "Fallback translation complete"
+            echo "Translation script had issues, continuing with partial translation..."
           }
-          
-          # Report remaining Chinese
-          REMAINING=$(grep -r "[\u4e00-\u9fff]" src-tauri/src --include="*.rs" 2>/dev/null | wc -l || echo "0")
-          echo "Remaining lines with Chinese: $REMAINING"
 
-      - name: Update README with new version links
-        run: |
-          NEW_VERSION="${{ needs.check-upstream.outputs.our_new_version }}"
-          VERSION_NUM="${NEW_VERSION#v}"  # Remove 'v' prefix for URLs
-          UPSTREAM="${{ needs.check-upstream.outputs.upstream_version }}"
-          
-          echo "Updating README with version $NEW_VERSION..."
-          
-          # Update download header link
-          sed -i "s|## 📥 \[Download v[0-9.]*|## 📥 [Download $NEW_VERSION|g" README.md
-          
-          # Update MSI download link
-          sed -i "s|/download/v[0-9.]*/Antigravity.Manager.Supreme_[0-9.]*_x64_en-US.msi|/download/$NEW_VERSION/Antigravity.Manager.Supreme_${VERSION_NUM}_x64_en-US.msi|g" README.md
-          sed -i "s|/download/v[0-9.]*/Antigravity-Manager-Supreme_[0-9.]*_x64_en-US.msi|/download/$NEW_VERSION/Antigravity.Manager.Supreme_${VERSION_NUM}_x64_en-US.msi|g" README.md
-          
-          # Update "New in vX.X.X" section
-          sed -i "s|> \*\*New in v[0-9.]*:\*\*|> **New in $NEW_VERSION:**|g" README.md
-          
-          # Update upstream badge
-          sed -i "s|Upstream-v[0-9.]*-purple|Upstream-${UPSTREAM}-purple|g" README.md
-          
-          echo "README updated successfully"
+          # Report remaining Chinese (informational only, not a failure)
+          REMAINING=$(grep -rP '[\x{4e00}-\x{9fff}]' src-tauri/src --include="*.rs" 2>/dev/null | wc -l || echo "0")
+          echo "Remaining lines with Chinese: $REMAINING"
 
       - name: Record synced version
         run: |
           echo "${{ needs.check-upstream.outputs.upstream_version }}" > .last-synced-upstream
-          git add .last-synced-upstream
 
       - name: Commit and tag
         run: |
           git add -A
           git commit -m "feat: Sync upstream ${{ needs.check-upstream.outputs.upstream_version }} + English translation
 
-          - Merged from lbjlaq/Antigravity-Manager ${{ needs.check-upstream.outputs.upstream_version }}
+          - Synced from lbjlaq/Antigravity-Manager ${{ needs.check-upstream.outputs.upstream_version }}
           - Translated Chinese comments to English
-          - Preserved all custom features (YOLO mode, auto-switch, etc.)" || echo "No changes"
-          
+          - Applied Supreme branding overlay" || {
+            echo "No changes to commit"
+            exit 0
+          }
+
           # Get the proposed version
           NEW_VERSION="${{ needs.check-upstream.outputs.our_new_version }}"
-          
-          # Check if tag already exists locally or remotely
-          # Note: Don't use 'git fetch --tags' as it conflicts with upstream v3.3.x tags
-          # Instead, use git ls-remote to check remote tags without fetching
+
+          # Check if tag already exists
           REMOTE_TAGS=$(git ls-remote --tags origin 2>/dev/null | grep -oE 'refs/tags/v[0-9.]+$' | sed 's|refs/tags/||' || echo "")
-          while git rev-parse "$NEW_VERSION" >/dev/null 2>&1 || echo "$REMOTE_TAGS" | grep -q "^$NEW_VERSION$"; do
+          while git rev-parse "$NEW_VERSION" >/dev/null 2>&1 || echo "$REMOTE_TAGS" | grep -q "^${NEW_VERSION}$"; do
             echo "Tag $NEW_VERSION already exists, incrementing..."
-            # Extract and increment patch version
             CURRENT_PATCH=$(echo "$NEW_VERSION" | sed 's/v[0-9]*\.[0-9]*\.//')
             NEXT_PATCH=$((CURRENT_PATCH + 1))
             NEW_VERSION="v1.1.${NEXT_PATCH}"
-            echo "Trying $NEW_VERSION..."
           done
-          
+
           echo "Creating tag: $NEW_VERSION"
           git tag "$NEW_VERSION" -m "Sync upstream ${{ needs.check-upstream.outputs.upstream_version }}"
-          
-          # Export for use in push step
           echo "FINAL_VERSION=$NEW_VERSION" >> $GITHUB_ENV
 
       - name: Push changes
         run: |
-          # Use the dynamically determined version
           TAG_VERSION="${FINAL_VERSION:-${{ needs.check-upstream.outputs.our_new_version }}}"
-          echo "Will push tag: $TAG_VERSION"
-          
-          # Pull latest changes to avoid non-fast-forward rejections
-          echo "Pulling latest changes from remote..."
-          git fetch origin main
-          git rebase origin/main || {
-            echo "Rebase failed, trying merge..."
-            git rebase --abort 2>/dev/null || true
-            git pull origin main --no-edit --allow-unrelated-histories || true
-          }
-          
-          # Push with retry logic
-          echo "Pushing to main..."
-          git push origin main || {
-            echo "Push failed, force pushing..."
-            git push origin main --force-with-lease
-          }
-          
-          # Push the new tag
+          echo "Pushing with tag: $TAG_VERSION"
+
+          # Ensure clean git state before push
+          git merge --abort 2>/dev/null || true
+          git rebase --abort 2>/dev/null || true
+
+          # Force push main (we are the source of truth after sync)
+          echo "Force pushing main branch..."
+          git push origin main --force
+
+          # Push the tag
           echo "Pushing tag $TAG_VERSION..."
-          git push origin "$TAG_VERSION" || {
-            echo "Tag push failed, deleting remote tag and retrying..."
-            git push origin ":refs/tags/$TAG_VERSION" 2>/dev/null || true
-            git push origin "$TAG_VERSION"
-          }
+          git push origin "$TAG_VERSION" --force
+
+          echo "Push completed successfully"
 
   cleanup-duplicates:
     runs-on: ubuntu-latest
@@ -452,14 +342,14 @@ jobs:
               repo: context.repo.repo,
               per_page: 100
             });
-            
+
             const tagGroups = {};
             for (const release of releases.data) {
               const tag = release.tag_name;
               if (!tagGroups[tag]) tagGroups[tag] = [];
               tagGroups[tag].push(release);
             }
-            
+
             for (const [tag, group] of Object.entries(tagGroups)) {
               if (group.length > 1) {
                 console.log(`Found ${group.length} duplicates for ${tag}`);

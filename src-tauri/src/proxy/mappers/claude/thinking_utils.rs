@@ -206,7 +206,21 @@ pub fn filter_invalid_thinking_blocks_with_family(
                                 stripped_count += 1;
                                 return false;
                             }
+                        } else {
+                            // [CRITICAL] Signature family not found in cache. 
+                            // This happens after a server restart when memory is cleared.
+                            // If we pass this unverified signature to the upstream, it will likely return 400 "Invalid signature".
+                            // It is safer to strip the signature and let the upstream regenerate it.
+                            info!("[Thinking-Sanitizer] Dropping unverified signature (cache miss after restart)");
+                            stripped_count += 1;
+                            return false;
                         }
+                    } else if get_signature_family(sig).is_none() && !sig.is_empty() {
+                        // Even if no target family is specified, we still want to filter out signatures
+                        // that we can't verify (unless they are empty, which indicates a fresh start).
+                        info!("[Thinking-Sanitizer] Dropping unverified signature (no target family)");
+                        stripped_count += 1;
+                        return false;
                     }
                 }
                 true

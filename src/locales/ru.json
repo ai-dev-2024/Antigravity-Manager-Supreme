@@ -23,7 +23,9 @@
         "warning": "Предупреждение",
         "info": "Информация",
         "details": "Детали",
+        "example": "Example",
         "clear": "Очистить",
+        "clearing": "Очистка...",
         "prev_page": "Предыдущая",
         "next_page": "Следующая",
         "pagination_info": "Показано {{start}}-{{end}} из {{total}} записей",
@@ -33,13 +35,21 @@
         "enabled": "Включено",
         "disabled": "Отключено",
         "tauri_api_not_loaded": "API Tauri не загружен, пожалуйста перезапустите приложение",
-        "environment_error": "Ошибка окружения: {{error}}"
+        "environment_error": "Ошибка окружения: {{error}}",
+        "submit": "Отправить",
+        "update": "Обновить",
+        "load_failed": "Ошибка загрузки",
+        "create_success": "Успешно создано",
+        "update_success": "Успешно обновлено",
+        "delete_success": "Успешно удалено",
+        "copied": "Скопировано в буфер обмена"
     },
     "nav": {
         "dashboard": "Дашборд",
         "accounts": "Аккаунты",
         "proxy": "API Прокси",
         "call_records": "Логи трафика",
+        "security": "Управление IP",
         "token_stats": "Статистика",
         "settings": "Настройки",
         "theme_to_dark": "Переключить на темную тему",
@@ -59,7 +69,14 @@
         "switch_to_russian": "Переключить на русский",
         "switch_to_russian_short": "RU",
         "switch_to_portuguese": "Переключить на португальский",
-        "switch_to_portuguese_short": "PT"
+        "switch_to_portuguese_short": "PT",
+        "switch_to_korean": "Переключить на корейский",
+        "switch_to_korean_short": "KO",
+        "switch_to_spanish": "Переключить на испанский",
+        "switch_to_spanish_short": "ES",
+        "switch_to_malay": "Переключить на малайский",
+        "switch_to_malay_short": "MY",
+        "user_token": "Токены пользователей"
     },
     "dashboard": {
         "hello": "Привет, Пользователь 👋",
@@ -95,13 +112,17 @@
         }
     },
     "accounts": {
-        "search_placeholder": "Поиск по email...",
+        "account": "Аккаунт",
+        "search_placeholder": "Поиск почты...",
         "all": "Все",
         "available": "Доступны",
         "low_quota": "Низкая квота",
         "ultra": "ULTRA",
         "pro": "PRO",
         "free": "FREE",
+        "edit_label": "Редактировать метку",
+        "custom_label_placeholder": "Введите пользовательскую метку",
+        "label_updated": "Метка обновлена",
         "add_account": "Добавить аккаунт",
         "refresh_all": "Обновить все",
         "refresh_selected": "Обновить ({{count}})",
@@ -122,13 +143,24 @@
         "forbidden": "403",
         "forbidden_badge": "403",
         "forbidden_tooltip": "API вернул 403 Forbidden, у аккаунта нет прав для Gemini Code Assist",
-        "forbidden_msg": "Запрещено, пропуск автоматического обновления",
+        "forbidden_msg": "Запрещено, пропуск автообновления",
+        "status": {
+            "forbidden": "403 Запрещено",
+            "disabled": "Аккаунт отключен",
+            "proxy_disabled": "Прокси отключен"
+        },
+        "error_details": "Детали ошибки",
+        "error_status": "Статус ошибки",
+        "error_time": "Время обнаружения",
+        "view_error": "Посмотреть причину",
+        "click_to_verify": "Нажмите для проверки",
         "no_data": "Нет данных",
         "last_used": "Последнее использование",
         "reset_time": "Время сброса",
         "switch_to": "Переключить на этот аккаунт",
         "actions": "Действия",
         "device_fingerprint": "Отпечаток Устройства",
+        "show_all_quotas": "Показать все квоты",
         "device_fingerprint_dialog": {
             "title": "Отпечаток Устройства",
             "operations": "Операции с Отпечатком Устройства",
@@ -174,7 +206,9 @@
         "warmup_batch_triggered": "Задачи разогрева запущены для {{count}} аккаунтов",
         "quota_protected": "Защищено",
         "details": {
-            "title": "Детали квоты"
+            "title": "Детали квоты",
+            "model_quota": "Квота модели",
+            "protected_models": "Защищенные модели"
         },
         "toast": {
             "proxy_enabled": "Включен прокси для {{count}} аккаунтов",
@@ -196,7 +230,15 @@
                 "copy_link": "Копировать ссылку авторизации",
                 "copied": "Скопировано",
                 "link_label": "URL авторизации",
-                "link_click_to_copy": "Нажмите для копирования"
+                "link_click_to_copy": "Нажмите для копирования",
+                "manual_hint": "Браузер не перенаправил автоматически? Вставьте ссылку обратного вызова или код авторизации здесь:",
+                "manual_placeholder": "Вставьте ссылку или код здесь...",
+                "error_no_flow": "Активный поток аутентификации не найден. Пожалуйста, перезапустите OAuth.",
+                "web_hint": "Страница входа Google откроется в новом окне",
+                "error_no_url": "Не удалось получить URL OAuth",
+                "popup_blocked": "Всплывающее окно заблокировано",
+                "manual_submitting": "Отправка кода авторизации...",
+                "manual_submitted": "Код авторизации отправлен, обработка в фоновом режиме..."
             },
             "token": {
                 "label": "Refresh Token",
@@ -267,7 +309,8 @@
             "account": "Аккаунт",
             "proxy": "Настройки прокси",
             "advanced": "Дополнительно",
-            "about": "О программе"
+            "about": "О программе",
+            "debug": "Отладка"
         },
         "general": {
             "title": "Общие настройки",
@@ -320,6 +363,59 @@
         "proxy": {
             "title": "Настройки прокси"
         },
+        "proxy_pool": {
+            "title": "Proxy Pool",
+            "strategy_priority": "Priority",
+            "strategy_round_robin": "Round Robin",
+            "strategy_random": "Random",
+            "strategy_least_connections": "Least Connections",
+            "test_all": "Test All",
+            "batch_import": "Import",
+            "binding_manager": "Bindings",
+            "add_proxy": "Add Proxy",
+            "edit_proxy": "Edit Proxy",
+            "name": "Name",
+            "url": "Proxy URL",
+            "username": "Username",
+            "password": "Password",
+            "max_accounts": "Max Accounts",
+            "max_accounts_hint": "0 = Unlimited",
+            "priority": "Priority",
+            "priority_hint": "Lower is better",
+            "health_check_url": "Health Check URL",
+            "tags": "Tags",
+            "add_tag_placeholder": "Add tag...",
+            "seconds": "Sec",
+            "test_completed": "Health check completed",
+            "test_failed": "Health check failed",
+            "confirm_delete": "Are you sure you want to delete this proxy?",
+            "empty": "No proxies available",
+            "column_priority": "Priority",
+            "column_status": "Status",
+            "column_details": "Proxy Details",
+            "column_bindings": "Bindings",
+            "import_title": "Batch Import Proxies",
+            "import_label": "Paste Proxy List (One per line)",
+            "import_hint": "Supported formats: protocol://user:pass@host:port, host:port:user:pass",
+            "import_preview": "Preview",
+            "import_confirm": "Import {{count}} Proxies",
+            "no_valid_proxies": "No valid proxies found",
+            "binding": {
+                "title": "Account Proxy Bindings",
+                "load_failed": "Failed to load bindings",
+                "unbind_success": "Unbound successfully",
+                "bind_success": "Bound successfully",
+                "update_failed": "Failed to update binding",
+                "assigned_proxy": "Assigned Proxy",
+                "default_strategy": "Default (Follow Strategy)"
+            },
+            "status": {
+                "inactive": "Inactive",
+                "checking": "Checking",
+                "healthy": "Healthy",
+                "timeout": "Timeout"
+            }
+        },
         "advanced": {
             "title": "Дополнительные настройки",
             "export_path": "Путь экспорта по умолчанию",
@@ -349,7 +445,27 @@
             "clear_logs": "Очистить кэш логов",
             "clear_logs_title": "Подтверждение очистки логов",
             "clear_logs_msg": "Вы уверены, что хотите очистить все файлы кэша логов?",
-            "logs_cleared": "Кэш логов очищен"
+            "logs_cleared": "Кэш логов очищен",
+            "antigravity_cache_title": "Очистка кэша Antigravity",
+            "antigravity_cache_desc": "Очистка кэша Antigravity может решить проблемы с входом, ошибки проверки версии и сбои авторизации OAuth.",
+            "antigravity_cache_warning": "Перед очисткой кэша убедитесь, что Antigravity полностью закрыт.",
+            "clear_antigravity_cache": "Очистить кэш Antigravity",
+            "clear_cache_confirm_title": "Подтверждение очистки кэша Antigravity",
+            "clear_cache_confirm_msg": "Следующие каталоги кэша будут очищены:",
+            "cache_cleared_success": "Кэш очищен, освобождено {{size}} МБ",
+            "cache_not_found": "Каталоги кэша Antigravity не найдены",
+            "debug_logs_title": "Журнал отладки",
+            "debug_logs_enable_desc": "При включении записывается полная цепочка запросов и ответов. Рекомендуется включать только при устранении неполадок.",
+            "debug_logs_desc": "Записывает полную цепочку: исходный ввод, преобразованный запрос v1internal и ответ вышестоящего сервера. Только для устранения неполадок, может содержать конфиденциальные данные.",
+            "debug_log_dir": "Каталог вывода журнала отладки",
+            "debug_log_dir_hint": "Оставьте пустым для использования каталога по умолчанию: {{path}}/debug_logs",
+            "debug_log_dir_select": "Выбрать каталог вывода журнала отладки"
+        },
+        "menu": {
+            "title": "Настройки отображения меню",
+            "desc": "Выберите элементы для отображения в панели меню. Скрытие редко используемых меню поможет сэкономить место.",
+            "selected_items_note": "Выбранные элементы будут отображаться в верхней панели меню.",
+            "required": "Обязательно"
         },
         "about": {
             "title": "О программе",
@@ -372,6 +488,41 @@
             "support_alipay": "Alipay",
             "support_wechat": "WeChat Pay",
             "support_buymeacoffee": "Buy Me a Coffee"
+        },
+        "advanced_thinking": {
+            "title": "Расширенное мышление и глобальная конфигурация",
+            "description": "Централизованное управление способностями мышления, режимами изображений и глобальными инструкциями."
+        },
+        "thinking_budget": {
+            "title": "Бюджет размышлений (Thinking Budget)",
+            "description": "Управляет бюджетом токенов для глубокого мышления ИИ. Некоторые модели (например, Flash, модели с суффиксом -thinking) ограничены 24576 токенами со стороны API.",
+            "mode_label": "Режим обработки",
+            "mode": {
+                "auto": "Автоограничение",
+                "passthrough": "Сквозной",
+                "custom": "Пользовательский"
+            },
+            "auto_hint": "Автоматический режим: автоматически ограничивает бюджет до 24576 для моделей Flash, моделей с суффиксом -thinking и поисковых веб-запросов во избежание ошибок API.",
+            "passthrough_warning": "Сквозной режим: использует исходное значение вызывающей стороны напрямую. Отсутствие поддержки высоких значений может привести к сбоям.",
+            "custom_value_hint": "Рекомендуется: 24576 (Flash) или 51200 (Расширенное)",
+            "tokens": "tokens"
+        },
+        "image_thinking_mode": {
+            "title": "Режим мышления при генерации изображений (Image Thinking Mode)",
+            "hint": "Влияет на качество изображения и процесс генерации",
+            "options": {
+                "enabled": "Включено",
+                "disabled": "Выключено",
+                "enabled_desc": "Вкл: сохраняет цепочку рассуждений и возвращает два изображения (эскиз + финал).",
+                "disabled_desc": "Выкл: отключает цепочку рассуждений и создает одно высококачественное изображение (приоритет качества)."
+            }
+        },
+        "global_system_prompt": {
+            "title": "Глобальные системные инструкции (Global System Prompt)",
+            "hint": "Автоматически добавляется в systemInstruction для всех запросов",
+            "placeholder": "Введите глобальные системные инструкции...\nПример: Вы — старший full-stack разработчик, эксперт по React и Rust. Отвечайте на русском языке.",
+            "char_count": "{{count}} символов",
+            "long_prompt_warning": "Инструкции слишком длинные (более 2000 символов), они могут занимать много места в контексте."
         }
     },
     "tray": {
@@ -399,6 +550,12 @@
         },
         "config": {
             "title": "Конфигурация сервиса",
+            "request": {
+                "user_agent": "User-Agent Override",
+                "user_agent_tooltip": "Override the User-Agent header sent to upstream APIs. Leave empty to use default.",
+                "user_agent_hint": "Current Default: antigravity/<version> <os>/<arch>",
+                "user_agent_placeholder": "Enter custom User-Agent string..."
+            },
             "port": "Порт прослушивания",
             "port_tooltip": "TCP порт, на котором локальный API Прокси слушает. Остановите сервис для изменения, затем перезапустите для применения.",
             "port_hint": "По умолчанию 8045, требуется перезапуск для применения изменений",
@@ -420,6 +577,13 @@
             "warning_key": "Примечание: Храните свой API ключ в безопасности. Не передавайте его.",
             "api_key_invalid": "Неверный формат API ключа, должен начинаться с sk- и содержать минимум 10 символов",
             "api_key_updated": "API ключ обновлен",
+            "admin_password": "Пароль администратора Web UI",
+            "admin_password_tooltip": "Пароль для входа в веб-консоль управления. Если оставить пустым, по умолчанию используется API-ключ.",
+            "admin_password_default": "(совпадает с API-ключом)",
+            "admin_password_placeholder": "Введите новый пароль, оставьте пустым для использования API-ключа",
+            "admin_password_hint": "Совет: В сценариях развертывания Docker/Web вы можете установить отдельный пароль для входа, чтобы повысить безопасность вашего API-ключа.",
+            "admin_password_short": "Пароль слишком короткий (минимум 4 символа)",
+            "admin_password_updated": "Пароль для входа в Web UI обновлен",
             "auth": {
                 "title": "Авторизация",
                 "title_tooltip": "Управляет тем, должны ли входящие запросы быть авторизованы, и какие маршруты защищены.",
@@ -501,10 +665,12 @@
             "upstream_proxy": {
                 "title": "Глобальный апстрим прокси (Глобальный прокси)",
                 "desc": "Когда включено, все внешние запросы (API Прокси, Обновление токена, Проверка квоты, Проверка обновлений) будут направлены через этот прокси.",
+                "desc_short": "Глобальный прокси-сервер, используемый в качестве резервного варианта, когда в пуле нет подходящих аккаунтов.",
                 "enable": "Включить апстрим прокси",
                 "url": "URL прокси",
                 "url_placeholder": "например, http://127.0.0.1:7890 или socks5://127.0.0.1:7890",
                 "tip": "Поддерживает HTTP, HTTPS и SOCKS5.",
+                "socks5h_hint": "Чтобы избежать блокировок и сохранить удаленное разрешение DNS (Remote DNS), вручную измените протокол на socks5h://",
                 "validation_error": "URL прокси обязателен при включенном апстрим прокси",
                 "restart_hint": "Настройки прокси сохранены. Перезапустите приложение для применения изменений."
             },
@@ -527,12 +693,22 @@
                 "max_wait": "Макс. ожидание (сек)",
                 "max_wait_tooltip": "Используется только в режиме 'Кэш в приоритете': ждать вместо переключения, если время сброса ограничения скорости ниже этого значения.",
                 "clear_bindings": "Очистить привязки сессий",
+                "clear_bindings_tooltip": "Жесткий сброс всех привязок сессия-аккаунт, принудительное переназначение аккаунтов при следующем запросе.",
+                "clear_rate_limits": "Очистить записи лимитов",
+                "clear_rate_limits_tooltip": "Немедленно очистить локальные записи ограничений скорости для всех аккаунтов, заставляя следующие запросы пробовать апстрим напрямую.",
                 "fixed_account": "Режим фиксированной учетной записи",
                 "fixed_account_tooltip": "При включении все запросы API будут использовать только выбранную учетную запись вместо чередования между учетными записями.",
                 "round_robin_set": "Режим циклического перебора включен",
                 "fixed_account_set": "Режим фиксированной учетной записи включен",
-                "account_changed": "Учетная запись изменена на: {{email}}",
-                "clear_bindings_tooltip": "Жесткий сброс всех привязок сессия-аккаунт, принудительное переназначение аккаунтов при следующем запросе."
+                "circuit_breaker": {
+                    "title": "Адаптивный выключатель",
+                    "tooltip": "Автоматически увеличивает длительность блокировки для аккаунтов, которые повторно завершаются с ошибкой из-за исчерпания квоты. Это предотвращает бесполезные вызовы API для неактивных аккаунтов, позволяя быстро восстановиться после временных ошибок.",
+                    "backoff_levels": "Уровни задержки (в секундах)",
+                    "level": "Ур. {{level}}",
+                    "input_placeholder": "60, 300, 1800, 7200",
+                    "invalid_format": "Неверный формат. Используйте числа, разделенные запятыми (например, 60, 300)",
+                    "clear_records": "Очистить все записи ограничений скорости"
+                }
             },
             "experimental": {
                 "title": "Экспериментальные настройки",
@@ -612,7 +788,9 @@
             "regenerate_key_title": "Перегенерировать API ключ",
             "regenerate_key_msg": "Вы уверены, что хотите перегенерировать API ключ? Старый ключ будет немедленно недействителен.",
             "clear_bindings_title": "Очистить привязки сессий",
-            "clear_bindings_msg": "Вы уверены, что хотите очистить все привязки сессия-аккаунт?"
+            "clear_bindings_msg": "Вы уверены, что хотите очистить все привязки сессия-аккаунт?",
+            "clear_rate_limits_title": "Очистить записи лимитов",
+            "clear_rate_limits_confirm": "Вы уверены, что хотите очистить все локальные записи ограничений скорости?"
         },
         "model": {
             "flash": "Быстрый ответ",
@@ -644,35 +822,22 @@
             "restore_defaults": "Восстановить конфигурацию по умолчанию",
             "reset_all": "Сбросить все"
         },
-        "models": {
-            "flash": "Сверхбыстрая",
-            "flash_thinking": "Способность размышления",
-            "pro_high": "Лучшее мышление",
-            "pro_low": "Низкая квота",
-            "sonnet": "Кодовое мышление",
-            "sonnet_thinking": "Цепочка рассуждений",
-            "opus_thinking": "Сильнейшее мышление"
-        },
         "router": {
             "title": "Маршрутизатор моделей",
-            "subtitle": "Маршрутизировать модели по сериям или добавить пользовательские точные отображения.\nПримечание: Нативные модели проходного Claude (например, claude-opus-4-5-thinking) по умолчанию обходят группы серий. Используйте \"Экспертную пользовательскую маршрутизацию\" для переопределения.",
+            "subtitle": "Маршрутизировать модели по сериям или добавить пользовательские точные отображения.\nПримечание: Нативные модели проходного Claude (например, claude-opus-4-6-thinking) по умолчанию обходят группы серий. Используйте \"Экспертную пользовательскую маршрутизацию\" для переопределения.",
             "subtitle_simple": "Настроить маршрутизацию моделей с подстановочными символами или точными отображениями",
-            "background_task_title": "Background Task Model",
-            "background_task_desc": "Model used for Claude CLI background tasks like title generation, summary, etc. (Default: gemini-2.5-flash)",
-            "use_default": "Use System Default",
-            "current_model": "Current Model",
+            "background_task_title": "Модель фоновых задач",
+            "background_task_desc": "Модель, используемая для фоновых задач Claude CLI, таких как генерация заголовков, резюме и т. д. (По умолчанию: gemini-2.5-flash)",
+            "use_default": "Использовать системное значение по умолчанию",
+            "current_model": "Текущая модель",
             "apply_presets": "Применить пресеты",
             "presets_applied": "Пресеты успешно применены",
             "custom_mappings": "Пользовательские отображения",
             "group_title": "Группы серий",
-            "gemini3_group_label": "Gemini 3 (Рекомендуется)",
-            "gemini3_option_high": "gemini-3-pro-high (Высокое качество)",
-            "gemini3_option_low": "gemini-3-pro-low (Сбалансированный)",
-            "gemini3_option_flash": "gemini-3-flash (Быстрый)",
             "groups": {
                 "claude_45": {
-                    "name": "Серия Claude 4.5",
-                    "desc": "Opus 4.5, Sonnet 4.5"
+                    "name": "Серия Claude 4.6 TK",
+                    "desc": "Opus 4.5 TK"
                 },
                 "claude_35": {
                     "name": "Серия Claude 3.5",
@@ -693,6 +858,8 @@
             },
             "expert_title": "Экспертная пользовательская маршрутизация",
             "expert_subtitle": "Точное соответствие для любого исходного идентификатора модели.",
+            "custom_mapping_tip": "💡 Поддерживает ручной ввод любого ID модели для тестирования нереализованных моделей (например, claude-opus-4-6).",
+            "custom_mapping_warning": "Внимание: не все аккаунты поддерживают нереализованные модели.",
             "money_saving_tip": "💰 Совет по экономии:",
             "haiku_optimization_tip": "Claude CLI использует {{model}} для фоновых задач по умолчанию. Отобразите его на более дешевую модель Flash для экономии ~95% стоимости",
             "haiku_optimization_btn": "Быстрая оптимизация",
@@ -822,9 +989,28 @@
         }
     },
     "update_notification": {
-        "title": "Доступна новая версия",
-        "message": "Новая версия готова с оптимизациями и улучшениями. Текущая: v{{current}}",
-        "action": "Обновить сейчас"
+        "title": "Обновление...",
+        "message": "Подготовлена новая версия с оптимизациями и улучшениями. Текущая: v{{current}}",
+        "ready": "Обновление готово!",
+        "downloading": "Загрузка обновления в фоне...",
+        "restarting": "Перезапуск приложения...",
+        "auto_update": "Авто-обновление",
+        "restart_prompt": "Обновление загружено и готово к установке. Перезапустить?",
+        "btn_restart": "Перезапустить",
+        "btn_later": "Позже",
+        "toast": {
+            "not_ready": "Артефакты обновления ещё не готовы. Повторим позже.",
+            "failed": "Автообновление не удалось"
+        }
+    },
+    "login": {
+        "title": "Управление безопасным доступом",
+        "desc": "В данный момент работает в режиме Web. Пожалуйста, введите пароль администратора или ключ API для доступа.",
+        "placeholder": "Введите пароль администратора или ключ API",
+        "btn_login": "Проверить и войти",
+        "note": "Примечание: если установлен отдельный пароль управления, введите его; в противном случае введите API_KEY.",
+        "lookup_hint": "Если вы забыли, запустите docker logs antigravity-manager, чтобы найти текущий ключ API или пароль Web UI.",
+        "config_hint": "Или выполните grep -E '\"api_key\"|\"admin_password\"' ~/.antigravity_tools/gui_config.json для просмотра."
     },
     "token_stats": {
         "title": "Статистика токенов",
@@ -852,5 +1038,133 @@
         "total": "Всего",
         "percentage": "Доля",
         "no_data": "Нет данных"
+    },
+    "security": {
+        "title": "Мониторинг безопасности",
+        "refresh_data": "Обновить данные",
+        "refresh": "Обновить",
+        "tab_logs": "Журналы доступа",
+        "tab_stats": "Статистика",
+        "tab_blacklist": "Черный список",
+        "tab_whitelist": "Белый список",
+        "tab_config": "Настройки",
+        "stats": {
+            "total_requests": "Всего запросов",
+            "total_requests_desc": "Все зарегистрированные запросы",
+            "unique_ips": "Уникальные IP",
+            "unique_ips_desc": "Различные IP адреса клиентов",
+            "blocked_requests": "Заблокировано",
+            "blocked_requests_desc": "Запросы, отклоненные правилами",
+            "ip_activity_token_usage": "Активность IP и использование токенов",
+            "hour": "Час",
+            "day": "День",
+            "week": "Нед",
+            "month": "Мес",
+            "rank": "Ранг",
+            "ip_address": "IP Адрес",
+            "activity_reqs": "Активность (Запр)",
+            "total_token": "Всего токенов",
+            "prompt": "Промпт",
+            "completion": "Ответ",
+            "no_data": "Нет данных"
+        },
+        "logs": {
+            "search_placeholder": "Поиск IP, пути, User Agent...",
+            "show_blocked_only": "Только заблокированные",
+            "status": "Статус",
+            "ip_address": "IP Адрес",
+            "method": "Метод",
+            "path": "Путь",
+            "duration": "Длительн.",
+            "time": "Время",
+            "reason": "Причина",
+            "blocked": "Блок",
+            "no_logs": "Нет журналов",
+            "total_records": "Всего {{total}} записей",
+            "prev_page": "Назад",
+            "next_page": "Вперед",
+            "page_num": "Стр {{page}}",
+            "per_page_suffix": "/стр"
+        },
+        "blacklist": {
+            "add_ip": "Добавить IP",
+            "search_placeholder": "Поиск...",
+            "added_at": "Добавлено",
+            "expires_at": "Истекает",
+            "no_data": "Черный список пуст",
+            "add_title": "Добавить в черный список",
+            "ip_cidr_label": "IP адрес или CIDR",
+            "ip_cidr_placeholder": "напр. 192.168.1.1 или 10.0.0.0/24",
+            "reason_label": "Причина (опционально)",
+            "reason_placeholder": "напр. Вредоносное сканирование",
+            "expires_label": "Истекает через (часов, опционально)",
+            "expires_placeholder": "Оставьте пустым для бессрочного",
+            "cancel": "Отмена",
+            "confirm": "Добавить",
+            "add_btn": "Добавить"
+        },
+        "whitelist": {
+            "add_ip": "Добавить доверенный IP",
+            "no_data": "Белый список пуст",
+            "add_title": "Добавить в белый список",
+            "description_label": "Описание (опционально)",
+            "description_placeholder": "напр. Внутренний сервер",
+            "cancel": "Отмена",
+            "confirm": "Добавить",
+            "add_btn": "Добавить"
+        },
+        "config": {
+            "title": "Настройки безопасности",
+            "save": "Сохранить",
+            "saving": "Сохранение...",
+            "blacklist_title": "Черный список IP",
+            "blacklist_desc": "Управление заблокированными IP адресами и правилами.",
+            "enable_blacklist": "Включить защиту черным списком",
+            "block_msg_label": "Сообщение блокировки",
+            "block_msg_desc": "Контент ответа, возвращаемый заблокированным клиентам.",
+            "whitelist_title": "Белый список IP",
+            "whitelist_desc": "Управление доверенными IP адресами.",
+            "enable_whitelist": "Включить режим белого списка",
+            "whitelist_warning": "Внимание: Включение режима белого списка заблокирует ВСЕ запросы с IP, которых нет в белом списке. Если вы используете прокси, будьте осторожны, чтобы не заблокировать себя.",
+            "whitelist_priority": "Приоритет белого списка (переопределяет черный)",
+            "whitelist_priority_desc": "Если включено, IP из белого списка будут разрешены, даже если они совпадают с правилами черного списка.",
+            "load_error": "Ошибка загрузки настроек",
+            "save_success": "Настройки сохранены",
+            "save_error": "Ошибка сохранения настроек"
+        }
+    },
+    "user_token": {
+        "title": "Управление токенами пользователей",
+        "total_users": "Всего пользователей",
+        "active_tokens": "Активные токены",
+        "total_created": "Всего создано",
+        "create": "Создать токен",
+        "username": "Имя пользователя",
+        "token": "Токен",
+        "expires": "Истекает",
+        "usage": "Использование",
+        "ip_limit": "Лимит IP",
+        "created": "Создан",
+        "today_requests": "Запросы за сегодня",
+        "never": "Никогда",
+        "renew": "Продлить",
+        "renew_button": "Продлить",
+        "unlimited": "Безлимитно",
+        "create_title": "Создание нового токена",
+        "description": "Описание",
+        "curfew": "Комендантский час (время недоступности)",
+        "edit_title": "Редактирование токена",
+        "username_required": "Имя пользователя обязательно",
+        "renew_success": "Успешно продлен",
+        "expires_day": "1 день",
+        "expires_week": "1 неделя",
+        "expires_month": "1 месяц",
+        "expires_never": "Никогда",
+        "no_data": "Токены не найдены",
+        "placeholder_username": "напр. user1",
+        "placeholder_desc": "Необязательные заметки",
+        "placeholder_max_ips": "0 = Безлимитно",
+        "hint_max_ips": "0 означает безлимитно",
+        "hint_curfew": "Оставьте пустым, чтобы отключить. По времени сервера."
     }
 }

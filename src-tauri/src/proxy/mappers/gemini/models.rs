@@ -1,4 +1,4 @@
-// Gemini v1internal DataModel
+// Gemini v1internal 数据模型
 use serde::{Deserialize, Serialize};
 
 #[allow(dead_code)]

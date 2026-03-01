@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Sparkles, Check } from 'lucide-react';
 import { ScheduledWarmupConfig } from '../../types/config';
+import { MODEL_CONFIG } from '../../config/modelConfig';
 
 interface SmartWarmupProps {
     config: ScheduledWarmupConfig;
@@ -11,12 +12,19 @@ interface SmartWarmupProps {
 const SmartWarmup: React.FC<SmartWarmupProps> = ({ config, onChange }) => {
     const { t } = useTranslation();
 
-    const warmupModelsOptions = [
-        { id: 'gemini-3-flash', label: 'Gemini 3 Flash' },
-        { id: 'gemini-3-pro-high', label: 'Gemini 3 Pro High' },
-        { id: 'claude-sonnet-4-5', label: 'Claude 4.5 Sonnet' },
-        { id: 'gemini-3-pro-image', label: 'Gemini 3 Pro Image' }
-    ];
+    const uniqueLabels = new Set<string>();
+    const warmupModelsOptions = Object.entries(MODEL_CONFIG)
+        .filter(([id, config]) => {
+            if (id.includes('thinking')) return false;
+            const label = config.shortLabel || config.label;
+            if (uniqueLabels.has(label)) return false;
+            uniqueLabels.add(label);
+            return true;
+        })
+        .map(([id, config]) => ({
+            id,
+            label: config.shortLabel || config.label
+        }));
 
     const handleEnabledChange = (enabled: boolean) => {
         let newConfig = { ...config, enabled };
@@ -48,7 +56,7 @@ const SmartWarmup: React.FC<SmartWarmupProps> = ({ config, onChange }) => {
                 <div className="flex items-center gap-4">
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 ${config.enabled
                         ? 'bg-orange-500 text-white'
-                        : 'bg-orange-50 dark:bg-orange-900/20 text-orange-500'
+                        : 'bg-orange-50 dark:bg-orange-900/20 text-orange-500 group-hover:bg-orange-500 group-hover:text-white'
                         }`}>
                         <Sparkles size={20} />
                     </div>

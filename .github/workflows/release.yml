@@ -9,37 +9,10 @@ on:
       tag_name:
         description: 'Tag name to release'
         required: true
-        default: 'v1.1.5'
+        default: 'v1.1.11'
 
 jobs:
-  create-release:
-    permissions:
-      contents: write
-    runs-on: ubuntu-latest
-    outputs:
-      release_id: ${{ steps.create-release.outputs.result }}
-
-    steps:
-      - uses: actions/checkout@v4
-      - name: Create Release
-        id: create-release
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const tag = context.payload.inputs ? context.payload.inputs.tag_name : context.ref.replace('refs/tags/', '');
-            const { data } = await github.rest.repos.createRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag_name: tag,
-              name: `Antigravity Manager Supreme ${tag}`,
-              body: 'See the assets for download links.',
-              draft: true,
-              prerelease: false
-            })
-            return data.id
-
   build-tauri:
-    needs: create-release
     permissions:
       contents: write
     strategy:
@@ -48,56 +21,186 @@ jobs:
         include:
           - platform: 'macos-latest'
             args: '--target aarch64-apple-darwin'
+            arch: 'aarch64'
           - platform: 'macos-latest'
             args: '--target x86_64-apple-darwin'
+            arch: 'x64'
           - platform: 'ubuntu-22.04'
             args: ''
+            arch: 'amd64'
           - platform: 'windows-latest'
             args: ''
+            arch: 'x64'
 
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: setup node
-        uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
+      - name: Install dependencies (Linux)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget \
+            file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev \
+            patchelf pkg-config libsoup-3.0-dev javascriptcoregtk-4.1 \
+            libjavascriptcoregtk-4.1-dev libnm-dev xdg-utils
 
-      - name: install Rust stable
+      - name: Rust setup
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
-      - name: install dependencies (ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libsoup-3.0-dev libappindicator3-dev librsvg2-dev patchelf libjavascriptcoregtk-4.1-dev
-
-      - name: install frontend dependencies
-        run: npm install
-
-      - uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Node.js setup
+        uses: actions/setup-node@v4
         with:
-          releaseId: ${{ needs.create-release.outputs.release_id }}
-          args: ${{ matrix.args }}
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install frontend dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Build the app
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npm run tauri build -- ${{ matrix.args }}
+
+      - name: Rename macOS assets for architecture
+        if: matrix.platform == 'macos-latest'
+        run: |
+          ARCH="${{ matrix.arch }}"
+          echo "Detected architecture: $ARCH"
+          cd src-tauri/target/*/release/bundle/macos/
+          for f in *.app.tar.gz; do
+            if [ -f "$f" ]; then
+              base="${f%.app.tar.gz}"
+              mv "$f" "${base}_${ARCH}.app.tar.gz"
+              [ -f "${f}.sig" ] && mv "${f}.sig" "${base}_${ARCH}.app.tar.gz.sig"
+              echo "Renamed to ${base}_${ARCH}.app.tar.gz"
+            fi
+          done
+
+      - name: Upload Release Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets-${{ matrix.platform }}-${{ matrix.arch }}
+          path: |
+            src-tauri/target/**/release/bundle/dmg/*.dmg
+            src-tauri/target/**/release/bundle/deb/*.deb
+            src-tauri/target/**/release/bundle/appimage/*.AppImage
+            src-tauri/target/**/release/bundle/msi/*.msi
+            src-tauri/target/**/release/bundle/nsis/*.exe
+            src-tauri/target/**/release/bundle/rpm/*.rpm
+            src-tauri/target/**/release/bundle/macos/*.app.tar.gz
+            src-tauri/target/**/release/bundle/macos/*.app.tar.gz.sig
+            src-tauri/target/**/release/bundle/dmg/*.sig
+            src-tauri/target/**/release/bundle/deb/*.sig
+            src-tauri/target/**/release/bundle/appimage/*.sig
+            src-tauri/target/**/release/bundle/msi/*.sig
+            src-tauri/target/**/release/bundle/nsis/*.sig
+            src-tauri/target/**/release/bundle/rpm/*.sig
+          if-no-files-found: warn
 
   publish-release:
+    needs: build-tauri
+    runs-on: ubuntu-latest
     permissions:
       contents: write
-    runs-on: ubuntu-latest
-    needs: [create-release, build-tauri]
     steps:
-      - name: publish release
-        uses: actions/github-script@v7
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
         with:
-          script: |
-            github.rest.repos.updateRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              release_id: ${{ needs.create-release.outputs.release_id }},
-              draft: false
-            })
+          path: all-artifacts
+          pattern: 'release-assets-*'
+          merge-multiple: true
+
+      - name: Determine tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.tag_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build updater.json
+        env:
+          VERSION: ${{ steps.tag.outputs.tag }}
+          REPO: ${{ github.repository }}
+        run: |
+          DOWNLOAD_BASE="https://github.com/${REPO}/releases/download/${VERSION}"
+          VER="${VERSION#v}"
+
+          # Helper: read signature content from .sig file
+          read_sig() {
+            local pattern="$1"
+            local sig_file
+            sig_file=$(find all-artifacts -name "$pattern" -type f 2>/dev/null | head -1)
+            if [ -n "$sig_file" ] && [ -f "$sig_file" ]; then
+              cat "$sig_file"
+            else
+              echo ""
+            fi
+          }
+
+          MACOS_AARCH64_SIG=$(read_sig "*_aarch64.app.tar.gz.sig")
+          MACOS_X64_SIG=$(read_sig "*_x64.app.tar.gz.sig")
+          WINDOWS_NSIS_SIG=$(read_sig "*_x64-setup.exe.sig")
+          LINUX_AMD64_SIG=$(read_sig "*_amd64.AppImage.sig")
+
+          PRODUCT="Antigravity.Manager.Supreme"
+
+          jq -n \
+            --arg version "$VER" \
+            --arg notes "See release page for details" \
+            --arg pub_date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg dl "$DOWNLOAD_BASE" \
+            --arg mac_a64_sig "$MACOS_AARCH64_SIG" \
+            --arg mac_x64_sig "$MACOS_X64_SIG" \
+            --arg win_nsis_sig "$WINDOWS_NSIS_SIG" \
+            --arg linux_amd64_sig "$LINUX_AMD64_SIG" \
+            --arg product "$PRODUCT" \
+            --arg ver "$VER" \
+            '{
+              version: $version,
+              notes: $notes,
+              pub_date: $pub_date,
+              platforms: {
+                "darwin-aarch64": {
+                  url: "\($dl)/\($product)_aarch64.app.tar.gz",
+                  signature: $mac_a64_sig
+                },
+                "darwin-x86_64": {
+                  url: "\($dl)/\($product)_x64.app.tar.gz",
+                  signature: $mac_x64_sig
+                },
+                "windows-x86_64": {
+                  url: "\($dl)/\($product)_\($ver)_x64-setup.exe",
+                  signature: $win_nsis_sig
+                },
+                "linux-x86_64": {
+                  url: "\($dl)/\($product)_\($ver)_amd64.AppImage",
+                  signature: $linux_amd64_sig
+                }
+              }
+            }' > updater.json
+
+          echo "Generated updater.json:"
+          cat updater.json
+
+      - name: Create or Update GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ steps.tag.outputs.tag }}
+          allowUpdates: true
+          name: 'Antigravity Manager Supreme ${{ steps.tag.outputs.tag }}'
+          body: 'See the assets for download links and installation instructions.'
+          token: ${{ secrets.GITHUB_TOKEN }}
+          artifacts: 'all-artifacts/**/*,updater.json'
+          artifactErrorsFailBuild: false
+          replacesArtifacts: true
+          makeLatest: legacy

@@ -9,5 +9,5 @@ fn main() {
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
     }
 
-    antigravity_manager_supreme_lib::run()
+    antigravity_tools_lib::run()
 }
