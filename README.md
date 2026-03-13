@@ -14,6 +14,7 @@
     <img src="https://img.shields.io/badge/Tauri-v2-orange?style=for-the-badge" alt="Tauri v2">
     <img src="https://img.shields.io/badge/Auto--Sync-Every_6h-blue?style=for-the-badge" alt="Auto-Sync">
     <a href="https://startup.z.ai/"><img src="https://img.shields.io/badge/Part%20of-ZAI%20Start--up%20Community-8b5cf6?style=for-the-badge" alt="ZAI Community"></a>
+    <a href="https://ko-fi.com/ai_dev_2024"><img src="https://img.shields.io/badge/☕_Support_on_Ko--fi-FF5E5B?style=for-the-badge&logo=ko-fi" alt="Ko-fi"></a>
   </p>
 
   <p>
