@@ -13,6 +13,7 @@
     <a href="https://github.com/lbjlaq/Antigravity-Manager/releases/latest"><img src="https://img.shields.io/github/v/release/lbjlaq/Antigravity-Manager?style=for-the-badge&color=purple&label=Upstream" alt="Upstream"></a>
     <img src="https://img.shields.io/badge/Tauri-v2-orange?style=for-the-badge" alt="Tauri v2">
     <img src="https://img.shields.io/badge/Auto--Sync-Every_6h-blue?style=for-the-badge" alt="Auto-Sync">
+    <a href="https://startup.z.ai/"><img src="https://img.shields.io/badge/Part%20of-ZAI%20Start--up%20Community-8b5cf6?style=for-the-badge" alt="ZAI Community"></a>
   </p>
 
   <p>
