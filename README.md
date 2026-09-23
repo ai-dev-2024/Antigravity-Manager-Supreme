@@ -159,7 +159,9 @@ git clone https://github.com/ai-dev-2024/Antigravity-Manager-Supreme.git
 cd Antigravity-Manager-Supreme
 
 # Install dependencies
-npm install
+# --legacy-peer-deps is required: some UI packages still declare React 18 peer deps.
+# The release workflow installs the same way.
+npm install --legacy-peer-deps
 
 # Run in development
 npm run tauri dev
